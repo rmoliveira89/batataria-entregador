@@ -12,7 +12,9 @@ header{position:sticky;top:0;z-index:10;background:#161a22;border-bottom:1px sol
 .btn{padding:10px 14px;border-radius:10px;border:1px solid #2c3340;background:#1c212e;color:#fff;font-weight:700;cursor:pointer}
 .btn.primary{background:linear-gradient(180deg,#f0c14a,#e8a93c);color:#1a1200;border:none}
 .btn.green{background:#1a3a2a;color:#3dcc8a;border-color:#2a5a3a}
+.btn.blue{background:#1a2a3a;color:#6ab7ff;border-color:#2a4a5a}
 .btn.red{background:#3a1a1a;color:#ff6b6b;border-color:#5a2a2a}
+.btn.small{padding:6px 10px;font-size:11px}
 .badge{padding:4px 8px;border-radius:999px;font-size:11px;font-weight:800}
 .badge.pendente{background:#0e1118;color:#8b93a7;border:1px solid #2c3340}
 .badge.codigo{background:#1a3a2a;color:#3dcc8a;border:1px solid #2a5a3a}
@@ -32,6 +34,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 .tab{padding:8px 14px;border-radius:8px;border:1px solid #2c3340;background:#1c212e;color:#8b93a7;cursor:pointer;font-weight:700;font-size:12px}
 .tab.active{background:#f0c14a;color:#1a1200;border-color:#f0c14a}
 .list-item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:#0e1118;border:1px solid #2c3340;border-radius:8px;margin-bottom:6px}
+.rota-ctrl{display:flex;gap:4px}
 </style>
 </head>
 <body>
@@ -81,6 +84,19 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <label>Anon Key</label><input id="cfgKey" style="margin:6px 0 14px"/>
 <button class="btn primary" onclick="salvarCfgSupabase()" style="width:100%;">Salvar SupaBase</button>
 <div id="cfgStatus" style="font-size:11px;color:#8b93a7;margin-top:8px;text-align:center"></div>
+<div style="margin-top:14px;padding:10px;background:#0e1118;border:1px solid #2c3340;border-radius:8px;font-size:11px;color:#8b93a7">
+<b style="color:#f0c14a">IMPORTANTE: Criar tabela de reservas no Supabase</b><br/>
+Para o bloqueio entre entregadores funcionar, crie no SQL Editor:<br/>
+<code style="color:#fff;display:block;margin-top:6px;white-space:pre-wrap">create table if not exists reservas_entregadores (
+  pedido_id text primary key,
+  entregador_nome text,
+  data text,
+  created_at timestamp default now()
+);
+-- liberar acesso anon
+alter table reservas_entregadores enable row level security;
+create policy "libera tudo anon" on reservas_entregadores for all using (true) with check (true);</code>
+</div>
 </div>
 <div id="abaEntregadores" style="display:none">
 <div style="display:flex;gap:8px;margin-bottom:12px">
@@ -104,12 +120,16 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 </div>
 </div>
 <div class="card" id="cardAddPedido">
-<div style="font-size:12px;color:#f0c14a;font-weight:800;margin-bottom:8px">📦 ADICIONAR PEDIDO DO DIA</div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+<div style="font-size:12px;color:#f0c14a;font-weight:800">📦 ADICIONAR PEDIDO DO DIA</div>
+<span id="infoHora" style="font-size:10px;color:#8b93a7"></span>
+</div>
 <div style="display:flex;gap:8px">
 <input id="inputPedido" placeholder="Número do pedido" style="flex:1" inputmode="numeric" onkeydown="if(event.key==='Enter') adicionarPedido()"/>
 <button class="btn primary" onclick="adicionarPedido()">Adicionar</button>
 </div>
 <div id="addStatus" style="font-size:11px;color:#8b93a7;margin-top:6px"></div>
+<div id="infoRegra" style="font-size:10px;color:#5a657a;margin-top:6px">Pedidos ficam até 23:30. Próximo dia liberado após 07:00. Noite não adiciona almoço.</div>
 </div>
 <div class="card" id="cardFiltrosMaster" style="display:none">
 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -124,9 +144,12 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 </div>
 </div>
 <div class="card" id="cardBuscaEntregador">
-<div style="position:relative;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+<div style="position:relative;flex:1">
 <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%)">🔍</span>
 <input id="buscaEntregador" placeholder="Buscar nos seus pedidos..." oninput="render()" style="padding-left:36px"/>
+</div>
+<button class="btn small" onclick="resetarOrdem()" style="margin-left:8px" title="Voltar ao tempo">⏱️ Tempo</button>
 </div>
 </div>
 <div class="grid">
@@ -166,11 +189,14 @@ const DEFAULT_ENTREGADORES = [
   {nome:"Reserva2", senha:"reserva2"},
   {nome:"Master", senha:"master961"}
 ];
-let sb=null, todosPedidos=[], pedidosVisiveisIds=[], filtro='hoje', dataSel=null;
+let sb=null, todosPedidos=[], filtro='hoje', dataSel=null;
 let turnosVisiveis={jantar:false, almoco:false};
 let subsVisiveis={jantarPendente:true, almocoPendente:true, jantarConfirmado:false, almocoConfirmado:false};
 let usuarioLogado=null;
 let dupSelecionadoId=null, dupCandidatos=[];
+let pedidosVisiveisIds=[];
+let ordemRota=[];
+
 function getSb(){ if(sb) return sb; const url=localStorage.getItem('supabase_url')||DEFAULT_URL; const key=localStorage.getItem('supabase_key')||DEFAULT_KEY; sb=supabase.createClient(url,key); return sb; }
 function getEntregadores(){ const raw=localStorage.getItem('entregadores_lista'); if(!raw){ localStorage.setItem('entregadores_lista', JSON.stringify(DEFAULT_ENTREGADORES)); return DEFAULT_ENTREGADORES; } try{ return JSON.parse(raw); }catch(e){ return DEFAULT_ENTREGADORES; } }
 function salvarEntregadores(lista){ localStorage.setItem('entregadores_lista', JSON.stringify(lista)); renderEntregadores(); }
@@ -181,6 +207,36 @@ function abrirCfgProtegida(){ document.getElementById('cfgPass').style.display='
 function verificarSenhaCfg(){ const v=document.getElementById('cfgPassInput').value; if(v===SENHA_CFG){ document.getElementById('cfgPass').style.display='none'; document.getElementById('cfg').style.display='flex'; renderEntregadores(); } else { document.getElementById('cfgPassErro').textContent='Senha incorreta'; } }
 function trocarAba(aba){ document.getElementById('abaSupabase').style.display = aba==='supabase'?'block':'none'; document.getElementById('abaEntregadores').style.display = aba==='entregadores'?'block':'none'; document.getElementById('tabBtnSupabase').className='tab'+(aba==='supabase'?' active':''); document.getElementById('tabBtnEntregadores').className='tab'+(aba==='entregadores'?' active':''); }
 function salvarCfgSupabase(){ const url=document.getElementById('cfgUrl').value.trim()||DEFAULT_URL; const key=document.getElementById('cfgKey').value.trim()||DEFAULT_KEY; localStorage.setItem('supabase_url',url); localStorage.setItem('supabase_key',key); document.getElementById('cfgStatus').textContent='Salvo!'; sb=null; setTimeout(()=>{ document.getElementById('cfg').style.display='none'; carregar(); },600); }
+
+function getHojeSP(){ return new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'}); }
+function getAmanhaSP(){ const hoje=new Date(); const sp=new Date(hoje.toLocaleString('en-US',{timeZone:'America/Sao_Paulo'})); sp.setDate(sp.getDate()+1); return sp.toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'}); }
+function getOntemSP(){ const hoje=new Date(); const sp=new Date(hoje.toLocaleString('en-US',{timeZone:'America/Sao_Paulo'})); sp.setDate(sp.getDate()-1); return sp.toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'}); }
+function getHoraSP(){ return parseInt(new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',hour12:false})); }
+function getMinSP(){ return parseInt(new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',minute:'2-digit',hour12:false})); }
+function getTurnoAtualSP(){ const h=getHoraSP(); return (h>=6 && h<16)?'almoco':'jantar'; }
+
+function limparExpirados(){
+  if(!usuarioLogado || usuarioLogado.isMaster) return;
+  const hora=getHoraSP(); const min=getMinSP(); const totalMin=hora*60+min; const hoje=getHojeSP();
+  if(totalMin>=1410){
+    const key = 'meus_pedidos_'+usuarioLogado.lower+'_'+hoje;
+    const keyOrdem = 'ordem_rota_'+usuarioLogado.lower+'_'+hoje;
+    localStorage.removeItem(key); localStorage.removeItem(keyOrdem);
+    pedidosVisiveisIds=[]; ordemRota=[];
+    document.getElementById('infoHora').textContent='Após 23:30 - pedidos do dia expiraram';
+    return;
+  }
+  document.getElementById('infoHora').textContent=`Agora ${String(hora).padStart(2,'0')}:${String(min).padStart(2,'0')} - ${getTurnoAtualSP()==='jantar'?'NOITE 🌙':'DIA ☀️'}`;
+  const amanha=getAmanhaSP();
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(k && k.startsWith('meus_pedidos_'+usuarioLogado.lower+'_')){
+      const dataPart=k.split('_').pop();
+      if(dataPart!==hoje && dataPart!==amanha){ localStorage.removeItem(k); localStorage.removeItem('ordem_rota_'+usuarioLogado.lower+'_'+dataPart); }
+    }
+  }
+}
+
 function fazerLogin(){
   const nomeInput=document.getElementById('loginUser').value.trim();
   const senhaInput=document.getElementById('loginPass').value.trim();
@@ -215,18 +271,67 @@ function checkLoginPersistido(){
   }
   return false;
 }
-function carregarPedidosVisiveis(){ if(!usuarioLogado) return; if(usuarioLogado.isMaster) return; const key='meus_pedidos_'+usuarioLogado.lower; try{ pedidosVisiveisIds=JSON.parse(localStorage.getItem(key)||'[]'); }catch(e){ pedidosVisiveisIds=[]; } }
-function salvarPedidoVisivel(id){ if(!usuarioLogado || usuarioLogado.isMaster) return; const key='meus_pedidos_'+usuarioLogado.lower; if(!pedidosVisiveisIds.includes(id)) pedidosVisiveisIds.push(id); localStorage.setItem(key, JSON.stringify(pedidosVisiveisIds)); }
-function getHojeSP(){ return new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'}); }
-function getOntemSP(){ const hoje=new Date(); const sp=new Date(hoje.toLocaleString('en-US',{timeZone:'America/Sao_Paulo'})); sp.setDate(sp.getDate()-1); return sp.toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'}); }
+function getKeyPedidos(data){ return 'meus_pedidos_'+usuarioLogado.lower+'_'+data; }
+function getKeyOrdem(data){ return 'ordem_rota_'+usuarioLogado.lower+'_'+data; }
+function carregarPedidosVisiveis(){
+  if(!usuarioLogado) return;
+  if(usuarioLogado.isMaster) return;
+  limparExpirados();
+  const hoje=getHojeSP(); const amanha=getAmanhaSP(); const hora=getHoraSP();
+  let ids=[]; let ordem=[];
+  try{ ids = ids.concat(JSON.parse(localStorage.getItem(getKeyPedidos(hoje))||'[]')); }catch(e){}
+  try{ ordem = JSON.parse(localStorage.getItem(getKeyOrdem(hoje))||'[]'); }catch(e){}
+  if(hora>=7){
+    try{ ids = ids.concat(JSON.parse(localStorage.getItem(getKeyPedidos(amanha))||'[]')); }catch(e){}
+    try{ const ordemAmanha = JSON.parse(localStorage.getItem(getKeyOrdem(amanha))||'[]'); ordem = ordem.concat(ordemAmanha); }catch(e){}
+  }
+  pedidosVisiveisIds=[...new Set(ids)]; ordemRota=ordem;
+}
+function salvarPedidoVisivel(pedido){
+  if(!usuarioLogado || usuarioLogado.isMaster) return;
+  const data=pedido.data; const key=getKeyPedidos(data); const keyOrdem=getKeyOrdem(data);
+  let lista=[]; try{ lista=JSON.parse(localStorage.getItem(key)||'[]'); }catch(e){ lista=[]; }
+  if(!lista.includes(pedido.id)) lista.push(pedido.id);
+  localStorage.setItem(key, JSON.stringify(lista));
+  let ordem=[]; try{ ordem=JSON.parse(localStorage.getItem(keyOrdem)||'[]'); }catch(e){ ordem=[]; }
+  if(!ordem.includes(pedido.id)) ordem.push(pedido.id);
+  localStorage.setItem(keyOrdem, JSON.stringify(ordem));
+  carregarPedidosVisiveis();
+}
+function salvarOrdem(data, ordem){ localStorage.setItem(getKeyOrdem(data), JSON.stringify(ordem)); }
+function moverCima(id){
+  if(usuarioLogado.isMaster) return;
+  const p=todosPedidos.find(x=>x.id===id); if(!p) return;
+  const data=p.data; const keyOrdem=getKeyOrdem(data);
+  let ordem=[]; try{ ordem=JSON.parse(localStorage.getItem(keyOrdem)||'[]'); }catch(e){ ordem=[]; }
+  if(!ordem.length){ ordem=todosPedidos.filter(x=>x.data===data).sort((a,b)=> new Date(a.created_at)-new Date(b.created_at)).map(x=>x.id); }
+  const idx=ordem.indexOf(id); if(idx>0){ [ordem[idx-1], ordem[idx]]=[ordem[idx], ordem[idx-1]]; salvarOrdem(data, ordem); carregarPedidosVisiveis(); render(); }
+}
+function moverBaixo(id){
+  if(usuarioLogado.isMaster) return;
+  const p=todosPedidos.find(x=>x.id===id); if(!p) return;
+  const data=p.data; const keyOrdem=getKeyOrdem(data);
+  let ordem=[]; try{ ordem=JSON.parse(localStorage.getItem(keyOrdem)||'[]'); }catch(e){ ordem=[]; }
+  if(!ordem.length){ ordem=todosPedidos.filter(x=>x.data===data).sort((a,b)=> new Date(a.created_at)-new Date(b.created_at)).map(x=>x.id); }
+  const idx=ordem.indexOf(id); if(idx>=0 && idx<ordem.length-1){ [ordem[idx+1], ordem[idx]]=[ordem[idx], ordem[idx+1]]; salvarOrdem(data, ordem); carregarPedidosVisiveis(); render(); }
+}
+function resetarOrdem(){
+  if(usuarioLogado.isMaster) return;
+  if(!confirm('Voltar a ordenar por tempo (antigos primeiro)?')) return;
+  localStorage.removeItem(getKeyOrdem(getHojeSP())); localStorage.removeItem(getKeyOrdem(getAmanhaSP()));
+  carregarPedidosVisiveis(); render();
+}
 function setFiltro(t){ if(!usuarioLogado?.isMaster) return; filtro=t; document.getElementById('btnHoje').className='btn'+(t==='hoje'?' primary':''); document.getElementById('btnOntem').className='btn'+(t==='ontem'?' primary':''); if(t==='data') dataSel=document.getElementById('inputData').value; else dataSel=null; carregar(); }
 function getHoraMinSP(s){ if(!s) return {h:null,str:'--:--'}; try{ const d=new Date(s); const str=d.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit',hour12:false}); const h=parseInt(str.split(':')[0],10); return {h:isNaN(h)?null:h,str}; }catch(e){ return {h:null,str:'--:--'}; } }
 function getTurno(p){ const ct=(p.turno||p.periodo||'').toLowerCase(); if(ct.includes('almo')) return 'almoco'; if(ct.includes('jant')) return 'jantar'; const campos=['hora_pedido','hora','horario','horario_pedido','created_at','criado_em']; for(const c of campos){ if(p[c]){ if(typeof p[c]==='string' && /^\d{1,2}:\d{2}/.test(p[c])){ const h=parseInt(p[c].split(':')[0],10); if(!isNaN(h)) return h<16?'almoco':'jantar'; } const info=getHoraMinSP(p[c]); if(info.h!==null) return info.h<16?'almoco':'jantar'; } } return 'jantar'; }
 function toggleTurno(t){ turnosVisiveis[t]=!turnosVisiveis[t]; document.getElementById(t==='jantar'?'wrapJantar':'wrapAlmoco').style.display=turnosVisiveis[t]?'block':'none'; document.getElementById(t==='jantar'?'iconJantar':'iconAlmoco').textContent=turnosVisiveis[t]?'👁️ Ocultar':'🙈 Mostrar'; }
 function toggleSub(k){ subsVisiveis[k]=!subsVisiveis[k]; document.getElementById('lista'+k.charAt(0).toUpperCase()+k.slice(1)).style.display=subsVisiveis[k]?'block':'none'; document.getElementById('icon'+k.charAt(0).toUpperCase()+k.slice(1)).textContent=subsVisiveis[k]?'👁️ Ocultar':'🙈 Mostrar'; }
+function abrirMapa(endereco){ if(!endereco || endereco==='Sem endereço'){ alert('Endereço não disponível'); return; } const q=encodeURIComponent(endereco); window.open(`https://www.google.com/maps/search/?api=1&query=${q}`, '_blank'); }
+function abrirMapaPorId(id){ const p=todosPedidos.find(x=>x.id===id); if(!p){ alert('Pedido não encontrado'); return; } abrirMapa(p.cliente_endereco); }
+
 async function carregar(){
  const client=getSb();
- let alvo=null;
+ let alvo=null; let datasParaBuscar=[];
  if(usuarioLogado?.isMaster){
    if(filtro==='hoje') alvo=getHojeSP();
    else if(filtro==='ontem') alvo=getOntemSP();
@@ -234,22 +339,111 @@ async function carregar(){
    if(!alvo) alvo=getHojeSP();
    document.getElementById('infoTotal').textContent=alvo+' (Brasília)';
    document.getElementById('inputData').value=alvo;
- } else { alvo=getHojeSP(); }
- const {data, error} = await client.from('pedidos_entrega_dia').select('*').eq('data',alvo).order('created_at',{ascending:true});
- if(error){ document.getElementById('listaJantarPendente').innerHTML='<div class="card">Erro: '+error.message+'</div>'; return; }
- todosPedidos=data||[];
+   datasParaBuscar=[alvo];
+ } else {
+   const hoje=getHojeSP(); const amanha=getAmanhaSP(); const hora=getHoraSP();
+   datasParaBuscar = hora>=7 ? [hoje, amanha] : [hoje];
+   limparExpirados();
+ }
+ let dataResult=[];
+ if(datasParaBuscar.length===1){
+   const {data, error} = await client.from('pedidos_entrega_dia').select('*').eq('data',datasParaBuscar[0]).order('created_at',{ascending:true});
+   if(error){ document.getElementById('listaJantarPendente').innerHTML='<div class="card">Erro: '+error.message+'</div>'; return; }
+   dataResult=data||[];
+ } else {
+   const {data, error} = await client.from('pedidos_entrega_dia').select('*').in('data',datasParaBuscar).order('created_at',{ascending:true});
+   if(error){ document.getElementById('listaJantarPendente').innerHTML='<div class="card">Erro: '+error.message+'</div>'; return; }
+   dataResult=data||[];
+ }
+ todosPedidos=dataResult;
  render();
 }
-function adicionarPedido(){
+function podeAdicionarData(dataPedido){
+  if(usuarioLogado?.isMaster) return true;
+  const hoje=getHojeSP(); const amanha=getAmanhaSP(); const hora=getHoraSP();
+  if(dataPedido===hoje) return true;
+  if(hora>=7 && dataPedido===amanha) return true;
+  return false;
+}
+
+// --- RESERVA ENTRE ENTREGADORES ---
+async function verificarReserva(pedidoId){
+  const client=getSb();
+  try{
+    const {data, error} = await client.from('reservas_entregadores').select('*').eq('pedido_id', pedidoId).maybeSingle();
+    if(error) throw error;
+    return data; // null ou objeto {pedido_id, entregador_nome, data}
+  }catch(e){
+    // tabela não existe ou erro, retorna null e deixa passar (modo local)
+    console.warn('verificarReserva falhou, tabela talvez não exista', e.message);
+    return null;
+  }
+}
+async function criarReserva(pedido){
+  const client=getSb();
+  try{
+    const {error} = await client.from('reservas_entregadores').insert({pedido_id: pedido.id, entregador_nome: usuarioLogado.nome, data: pedido.data});
+    if(error) throw error;
+    return true;
+  }catch(e){
+    console.warn('criarReserva falhou', e.message);
+    // se tabela não existe, considera sucesso local
+    if(e.message && e.message.toLowerCase().includes('does not exist')) return true;
+    // se já existe (duplicado), retorna false
+    if(e.code==='23505') return false;
+    return true;
+  }
+}
+async function removerReserva(pedidoId){
+  const client=getSb();
+  try{
+    await client.from('reservas_entregadores').delete().eq('pedido_id', pedidoId);
+  }catch(e){ console.warn('removerReserva falhou', e.message); }
+}
+
+async function adicionarPedido(){
   const num=document.getElementById('inputPedido').value.trim();
   if(!num){ document.getElementById('addStatus').textContent='Digite o número'; return; }
-  const encontrados=todosPedidos.filter(p=> String(p.numero_pedido).toLowerCase()===num.toLowerCase());
+
+  // regra turno: se está de noite (jantar) não pode adicionar almoço
+  const turnoAtual = getTurnoAtualSP();
+
+  const candidatos = todosPedidos.filter(p=> podeAdicionarData(p.data));
+  let encontrados=candidatos.filter(p=> String(p.numero_pedido).toLowerCase()===num.toLowerCase());
+
+  // filtra turno
+  if(!usuarioLogado?.isMaster && turnoAtual==='jantar'){
+    const bloqueados = encontrados.filter(p=> getTurno(p)==='almoco');
+    if(bloqueados.length && encontrados.length===bloqueados.length){
+      document.getElementById('addStatus').textContent='❌ Você está no turno da NOITE 🌙 e não pode adicionar pedido do turno do DIA ☀️ (almoço).';
+      document.getElementById('addStatus').style.color='#ff6b6b';
+      return;
+    }
+    encontrados = encontrados.filter(p=> getTurno(p)!=='almoco');
+  }
+
   if(!encontrados.length){
-    document.getElementById('addStatus').textContent='❌ Pedido #'+num+' não encontrado no dia '+getHojeSP();
-    document.getElementById('addStatus').style.color='#ff6b6b';
+    const existeEmOutraData = todosPedidos.filter(p=> String(p.numero_pedido).toLowerCase()===num.toLowerCase());
+    if(existeEmOutraData.length){
+      document.getElementById('addStatus').textContent='❌ Pedido #'+num+' é do dia '+existeEmOutraData[0].data+' ('+getTurno(existeEmOutraData[0])+') e não pode ser adicionado agora.';
+      document.getElementById('addStatus').style.color='#ff6b6b';
+    } else {
+      document.getElementById('addStatus').textContent='❌ Pedido #'+num+' não encontrado. Hoje: '+getHojeSP()+' e amanhã: '+getAmanhaSP();
+      document.getElementById('addStatus').style.color='#ff6b6b';
+    }
     return;
   }
-  if(encontrados.length===1){ confirmarAdicionar(encontrados[0]); }
+  if(encontrados.length===1){
+    // verifica reserva antes
+    document.getElementById('addStatus').textContent='Verificando reserva...';
+    const reserva = await verificarReserva(encontrados[0].id);
+    if(reserva && reserva.entregador_nome && reserva.entregador_nome.toLowerCase()!==usuarioLogado.lower && !usuarioLogado.isMaster){
+      document.getElementById('addStatus').textContent='❌ Pedido #'+num+' já está com '+reserva.entregador_nome+'. Só pode adicionar após ele excluir.';
+      document.getElementById('addStatus').style.color='#ff6b6b';
+      return;
+    }
+    confirmarAdicionar(encontrados[0]);
+  }
   else {
     dupCandidatos=encontrados;
     dupSelecionadoId=encontrados[0].id;
@@ -260,7 +454,7 @@ function adicionarPedido(){
       return `<label style="display:flex;gap:10px;padding:10px;border:1px solid #2c3340;border-radius:10px;margin-bottom:8px;cursor:pointer;background:#0e1118">
         <input type="radio" name="dupSel" value="${p.id}" ${p.id===dupSelecionadoId?'checked':''} onchange="dupSelecionadoId='${p.id}'" style="width:auto"/>
         <div style="flex:1">
-          <div style="font-weight:800;color:#f0c14a">#${p.numero_pedido} • ${p.cliente_nome||''} • ${hora} • ${getTurno(p)}</div>
+          <div style="font-weight:800;color:#f0c14a">#${p.numero_pedido} • ${p.cliente_nome||''} • ${hora} • ${getTurno(p)} • ${p.data}</div>
           <div style="font-size:11px;color:#8b93a7">📍 ${p.cliente_endereco||'Sem endereço'}<br>🔑 ${p.localizador||''} • 🏪 ${p.loja||''}<br>ID: ${p.id.slice(0,8)}...</div>
         </div>
       </label>`;
@@ -268,20 +462,102 @@ function adicionarPedido(){
     document.getElementById('modalDup').style.display='flex';
   }
 }
-function confirmarDuplicado(){ const sel=dupCandidatos.find(p=>p.id===dupSelecionadoId); if(!sel) return; document.getElementById('modalDup').style.display='none'; confirmarAdicionar(sel); }
-function confirmarAdicionar(pedido){
-  if(!usuarioLogado.isMaster && pedidosVisiveisIds.includes(pedido.id)){
+async function confirmarDuplicado(){
+  const sel=dupCandidatos.find(p=>p.id===dupSelecionadoId); if(!sel) return;
+  const reserva = await verificarReserva(sel.id);
+  if(reserva && reserva.entregador_nome && reserva.entregador_nome.toLowerCase()!==usuarioLogado.lower && !usuarioLogado.isMaster){
+    alert('Pedido já está com '+reserva.entregador_nome);
+    return;
+  }
+  document.getElementById('modalDup').style.display='none';
+  confirmarAdicionar(sel);
+}
+async function confirmarAdicionar(pedido){
+  // turno check final
+  const turnoAtual = getTurnoAtualSP();
+  if(!usuarioLogado.isMaster && turnoAtual==='jantar' && getTurno(pedido)==='almoco'){
+    document.getElementById('addStatus').textContent='❌ Turno da noite não pode adicionar almoço.';
+    document.getElementById('addStatus').style.color='#ff6b6b';
+    return;
+  }
+  // já está na minha lista?
+  const key = getKeyPedidos(pedido.data);
+  let lista=[]; try{ lista=JSON.parse(localStorage.getItem(key)||'[]'); }catch(e){ lista=[]; }
+  if(!usuarioLogado.isMaster && lista.includes(pedido.id)){
     document.getElementById('addStatus').textContent='⚠️ Pedido #'+pedido.numero_pedido+' já está na sua lista';
     document.getElementById('addStatus').style.color='#f0c14a';
     return;
   }
-  if(!confirm('Adicionar pedido #'+pedido.numero_pedido+' - '+ (pedido.cliente_nome||'') +' - '+ (pedido.cliente_endereco||'') +' ?')) return;
-  salvarPedidoVisivel(pedido.id);
+  // verifica reserva global novamente
+  const reserva = await verificarReserva(pedido.id);
+  if(reserva && reserva.entregador_nome && reserva.entregador_nome.toLowerCase()!==usuarioLogado.lower && !usuarioLogado.isMaster){
+    document.getElementById('addStatus').textContent='❌ Pedido já reservado por '+reserva.entregador_nome;
+    document.getElementById('addStatus').style.color='#ff6b6b';
+    return;
+  }
+  if(!confirm('Adicionar pedido #'+pedido.numero_pedido+' - '+ (pedido.cliente_nome||'') +' - '+ (pedido.cliente_endereco||'') +' - Data: '+pedido.data+' - Turno: '+getTurno(pedido)+' ?')) return;
+
+  // tenta criar reserva no servidor
+  if(!usuarioLogado.isMaster){
+    const ok = await criarReserva(pedido);
+    if(!ok){
+      document.getElementById('addStatus').textContent='❌ Pedido já foi pego por outro entregador agora mesmo.';
+      document.getElementById('addStatus').style.color='#ff6b6b';
+      return;
+    }
+  }
+
+  salvarPedidoVisivel(pedido);
   document.getElementById('inputPedido').value='';
-  document.getElementById('addStatus').textContent='✅ Pedido #'+pedido.numero_pedido+' adicionado em '+getTurno(pedido).toUpperCase();
+  document.getElementById('addStatus').textContent='✅ Pedido #'+pedido.numero_pedido+' ('+pedido.data+') adicionado em '+getTurno(pedido).toUpperCase();
   document.getElementById('addStatus').style.color='#3dcc8a';
   render();
 }
+
+async function excluirPedido(id){
+  const p = todosPedidos.find(x=>x.id===id);
+  const nome = p ? `#${p.numero_pedido} - ${p.cliente_nome||''}` : id;
+  if(!confirm('Excluir '+nome+' da sua lista? Vai liberar para outro entregador adicionar.')) return;
+
+  // remove reserva no servidor
+  await removerReserva(id);
+
+  // remove local
+  const data = p ? p.data : getHojeSP();
+  const datas = [getHojeSP(), getAmanhaSP()];
+  datas.forEach(d=>{
+    const k = 'meus_pedidos_'+usuarioLogado.lower+'_'+d;
+    const ko = 'ordem_rota_'+usuarioLogado.lower+'_'+d;
+    try{
+      let lista=JSON.parse(localStorage.getItem(k)||'[]');
+      lista=lista.filter(x=>x!==id);
+      localStorage.setItem(k, JSON.stringify(lista));
+    }catch(e){}
+    try{
+      let ordem=JSON.parse(localStorage.getItem(ko)||'[]');
+      ordem=ordem.filter(x=>x!==id);
+      localStorage.setItem(ko, JSON.stringify(ordem));
+    }catch(e){}
+  });
+
+  carregarPedidosVisiveis();
+  document.getElementById('addStatus').textContent='🗑️ Pedido removido e liberado para outros.';
+  document.getElementById('addStatus').style.color='#8b93a7';
+  render();
+}
+
+function ordenarPorRota(lista, data){
+  if(usuarioLogado?.isMaster){ return lista.sort((a,b)=> new Date(a.created_at)-new Date(b.created_at)); }
+  const keyOrdem = getKeyOrdem(data);
+  let ordem=[]; try{ ordem=JSON.parse(localStorage.getItem(keyOrdem)||'[]'); }catch(e){ ordem=[]; }
+  if(!ordem.length){ return lista.sort((a,b)=> new Date(a.created_at)-new Date(b.created_at)); }
+  return lista.sort((a,b)=>{
+    const ia=ordem.indexOf(a.id); const ib=ordem.indexOf(b.id);
+    if(ia===-1 && ib===-1) return new Date(a.created_at)-new Date(b.created_at);
+    if(ia===-1) return 1; if(ib===-1) return -1; return ia-ib;
+  });
+}
+
 function render(){
  const buscaMaster=(document.getElementById('busca')?.value||'').toLowerCase().trim();
  const buscaEnt=(document.getElementById('buscaEntregador')?.value||'').toLowerCase().trim();
@@ -296,7 +572,7 @@ function render(){
      document.getElementById('listaVazia').style.display='block';
    } else {
      document.getElementById('listaVazia').innerHTML='<div style="text-align:center;color:#8b93a7;padding:10px">Nenhum pedido encontrado</div>';
-     document.getElementById('listaVazia').style.display= filtrados.length===0 ? 'block' : 'none';
+     document.getElementById('listaVazia').style.display='block';
    }
    document.getElementById('countJantar').textContent='0'; document.getElementById('countAlmoco').textContent='0';
    document.getElementById('countJantarPendente').textContent='0'; document.getElementById('countJantarConfirmado').textContent='0';
@@ -308,8 +584,17 @@ function render(){
    return;
  }
  document.getElementById('listaVazia').style.display='none';
- const jantar = filtrados.filter(p=>getTurno(p)==='jantar').sort((a,b)=> new Date(a.created_at) - new Date(b.created_at));
- const almoco = filtrados.filter(p=>getTurno(p)==='almoco').sort((a,b)=> new Date(a.created_at) - new Date(b.created_at));
+ let jantarAll = filtrados.filter(p=>getTurno(p)==='jantar');
+ let almocoAll = filtrados.filter(p=>getTurno(p)==='almoco');
+ function agruparEOrdenar(lista){
+   const porData={};
+   lista.forEach(p=>{ if(!porData[p.data]) porData[p.data]=[]; porData[p.data].push(p); });
+   let resultado=[];
+   Object.keys(porData).sort().forEach(data=>{ resultado = resultado.concat(ordenarPorRota(porData[data], data)); });
+   return resultado;
+ }
+ const jantar = agruparEOrdenar(jantarAll);
+ const almoco = agruparEOrdenar(almocoAll);
  const jantarPend = jantar.filter(p=>p.status!=='codigo_informado');
  const jantarConf = jantar.filter(p=>p.status==='codigo_informado');
  const almocoPend = almoco.filter(p=>p.status!=='codigo_informado');
@@ -322,16 +607,49 @@ function render(){
  document.getElementById('countAlmoco').textContent=almoco.length;
  document.getElementById('countAlmocoPendente').textContent=almocoPend.length;
  document.getElementById('countAlmocoConfirmado').textContent=almocoConf.length;
- document.getElementById('listaJantarPendente').innerHTML = jantarPend.length ? jantarPend.map(cardPedido).join('') : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
- document.getElementById('listaJantarConfirmado').innerHTML = jantarConf.length ? jantarConf.map(cardPedido).join('') : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
- document.getElementById('listaAlmocoPendente').innerHTML = almocoPend.length ? almocoPend.map(cardPedido).join('') : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
- document.getElementById('listaAlmocoConfirmado').innerHTML = almocoConf.length ? almocoConf.map(cardPedido).join('') : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
+ document.getElementById('listaJantarPendente').innerHTML = jantarPend.length ? jantarPend.map((p,i)=>cardPedido(p,i,jantarPend)).join('') : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
+ document.getElementById('listaJantarConfirmado').innerHTML = jantarConf.length ? jantarConf.map((p,i)=>cardPedido(p,i,jantarConf)).join('') : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
+ document.getElementById('listaAlmocoPendente').innerHTML = almocoPend.length ? almocoPend.map((p,i)=>cardPedido(p,i,almocoPend)).join('') : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
+ document.getElementById('listaAlmocoConfirmado').innerHTML = almocoConf.length ? almocoConf.map((p,i)=>cardPedido(p,i,almocoConf)).join('') : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
 }
-function cardPedido(p){ const isCodigo=p.status==='codigo_informado'; const badge = isCodigo ? '<span class="badge codigo">✓ '+ (p.codigo_cliente||'') +'</span>' : '<span class="badge pendente">A entregar</span>'; const hora=getHoraMinSP(p.created_at).str; return `<div class="card" style="${isCodigo?'opacity:.6;border-color:#2a5a3a':''}"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><b style="color:#f0c14a;">#${p.numero_pedido} <span style="font-size:10px;color:#8b93a7;">${hora}</span></b> ${badge}</div><div style="font-weight:700;margin-bottom:4px;">${p.cliente_nome||''}</div><div style="font-size:12px;color:#8b93a7;margin-bottom:6px;">📍 ${p.cliente_endereco||'Sem endereço'}<br>🏪 ${p.loja||''} • 🔑 ${p.localizador||''}</div><div style="display:flex;gap:8px;margin-top:10px;">${!isCodigo?`<button class="btn green" style="flex:1;" onclick="informarCodigo('${p.id}')">🔢 Informar Código</button>`:`<button class="btn" style="flex:1;font-size:12px" onclick="editarCodigo('${p.id}','${p.codigo_cliente||''}')">✏️ Editar ${p.codigo_cliente||''}</button>`}</div></div>`; }
+function cardPedido(p, idx, lista){
+  const isCodigo=p.status==='codigo_informado';
+  const badge = isCodigo ? '<span class="badge codigo">✓ '+ (p.codigo_cliente||'') +'</span>' : '<span class="badge pendente">A entregar</span>';
+  const hora=getHoraMinSP(p.created_at).str;
+  const showRota = !usuarioLogado?.isMaster;
+  const pos = idx+1;
+  return `<div class="card" style="${isCodigo?'opacity:.6;border-color:#2a5a3a':''}">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <b style="color:#f0c14a;">#${p.numero_pedido} <span style="font-size:10px;color:#8b93a7;">${hora} • ${p.data||''} • #${pos} • ${getTurno(p)}</span></b> ${badge}
+    </div>
+    <div style="font-weight:700;margin-bottom:4px;">${p.cliente_nome||''}</div>
+    <div style="font-size:12px;color:#8b93a7;margin-bottom:8px;">📍 ${p.cliente_endereco||'Sem endereço'}<br>🏪 ${p.loja||''} • 🔑 ${p.localizador||''}</div>
+    ${showRota?`<div class="rota-ctrl" style="margin-bottom:8px"><button class="btn small" onclick="moverCima('${p.id}')">↑ Subir</button><button class="btn small" onclick="moverBaixo('${p.id}')">↓ Descer</button><button class="btn small red" onclick="excluirPedido('${p.id}')">🗑️ Excluir</button></div>`:''}
+    <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
+      <button class="btn blue" style="flex:1;" onclick="abrirMapaPorId('${p.id}')">📍 Mapa</button>
+      ${!isCodigo?`<button class="btn green" style="flex:1;" onclick="informarCodigo('${p.id}')">🔢 Código</button>`:`<button class="btn" style="flex:1;font-size:12px" onclick="editarCodigo('${p.id}','${p.codigo_cliente||''}')">✏️ ${p.codigo_cliente||''}</button>`}
+      ${usuarioLogado?.isMaster?`<button class="btn small red" onclick="excluirPedido('${p.id}')">🗑️</button>`:''}
+    </div>
+  </div>`;
+}
 async function informarCodigo(id){ const cod=prompt('Código 4 dígitos:'); if(!cod) return; const c=cod.replace(/\D/g,'').slice(0,4); if(c.length!==4){alert('4 dígitos');return;} const client=getSb(); const nome=localStorage.getItem('entregador_nome')||'Entregador'; const {error}=await client.from('pedidos_entrega_dia').update({codigo_cliente:c,status:'codigo_informado',entregador_nome:nome,codigo_informado_em:new Date().toISOString()}).eq('id',id); if(error) alert(error.message); else carregar(); }
 async function editarCodigo(id,atual){ const cod=prompt('Editar código:',atual); if(cod===null) return; const c=cod.replace(/\D/g,'').slice(0,4); if(c.length!==4){alert('4 dígitos');return;} const client=getSb(); const {error}=await client.from('pedidos_entrega_dia').update({codigo_cliente:c,codigo_informado_em:new Date().toISOString()}).eq('id',id); if(error) alert(error.message); else carregar(); }
-function ouvir(){ const client=getSb(); client.channel('entregador-v5').on('postgres_changes',{event:'*',schema:'public',table:'pedidos_entrega_dia'},()=>carregar()).subscribe(); }
-(function(){ document.getElementById('cfgUrl').value=localStorage.getItem('supabase_url')||DEFAULT_URL; document.getElementById('cfgKey').value=localStorage.getItem('supabase_key')||DEFAULT_KEY; if(!localStorage.getItem('supabase_url')) localStorage.setItem('supabase_url',DEFAULT_URL); if(!localStorage.getItem('supabase_key')) localStorage.setItem('supabase_key',DEFAULT_KEY); if(!localStorage.getItem('entregadores_lista')) localStorage.setItem('entregadores_lista', JSON.stringify(DEFAULT_ENTREGADORES)); if(checkLoginPersistido()){ carregar(); ouvir(); } })();
+function ouvir(){
+  const client=getSb();
+  client.channel('entregador-v6')
+    .on('postgres_changes',{event:'*',schema:'public',table:'pedidos_entrega_dia'},()=>carregar())
+    .on('postgres_changes',{event:'*',schema:'public',table:'reservas_entregadores'},()=>{ /* atualiza bloqueio */ })
+    .subscribe();
+}
+(function(){
+  document.getElementById('cfgUrl').value=localStorage.getItem('supabase_url')||DEFAULT_URL;
+  document.getElementById('cfgKey').value=localStorage.getItem('supabase_key')||DEFAULT_KEY;
+  if(!localStorage.getItem('supabase_url')) localStorage.setItem('supabase_url',DEFAULT_URL);
+  if(!localStorage.getItem('supabase_key')) localStorage.setItem('supabase_key',DEFAULT_KEY);
+  if(!localStorage.getItem('entregadores_lista')) localStorage.setItem('entregadores_lista', JSON.stringify(DEFAULT_ENTREGADORES));
+  if(checkLoginPersistido()){ carregar(); ouvir(); }
+  setInterval(()=>{ limparExpirados(); }, 60000);
+})();
 </script>
 </body>
 </html>
