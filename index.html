@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>Entregador - A Batataria</title>
+<style>
+*{box-sizing:border-box} body{margin:0;background:#0c0e12;color:#e6e8ef;font-family:Inter,system-ui,sans-serif}
+header{position:sticky;top:0;z-index:10;background:#161a22;border-bottom:1px solid #2c3340;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+.logo{font-weight:800;color:#f0c14a;font-size:16px}
+.card{background:#161a22;border:1px solid #2c3340;border-radius:14px;padding:14px;margin:10px 12px}
+.btn{padding:10px 14px;border-radius:10px;border:1px solid #2c3340;background:#1c212e;color:#fff;font-weight:700;cursor:pointer}
+.btn.primary{background:linear-gradient(180deg,#f0c14a,#e8a93c);color:#1a1200;border:none}
+.btn.green{background:#1a3a2a;color:#3dcc8a;border-color:#2a5a3a}
+.btn.red{background:#3a1a1a;color:#ff6b6b;border-color:#5a2a2a}
+.badge{padding:4px 8px;border-radius:999px;font-size:11px;font-weight:800}
+.badge.pendente{background:#0e1118;color:#8b93a7;border:1px solid #2c3340}
+.badge.codigo{background:#1a3a2a;color:#3dcc8a;border:1px solid #2a5a3a}
+input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;background:#0e1118;color:#fff;outline:none}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:12px}
+.stat{background:#161a22;border:1px solid #2c3340;border-radius:12px;padding:10px;text-align:center}
+.stat b{display:block;font-size:20px;color:#f0c14a}
+.stat span{font-size:11px;color:#8b93a7}
+.turno-header{display:flex;justify-content:space-between;align-items:center;margin:20px 12px 8px;padding:12px 14px;border-radius:12px;cursor:pointer}
+.turno-header.jantar{background:#1e1a2e;border:1px solid #3a2e5a}
+.turno-header.almoco{background:#1f1c12;border:1px solid #5a4a2a}
+.turno-header .count{font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:3px 8px;border-radius:999px;color:#8b93a7}
+.sub-header{display:flex;justify-content:space-between;align-items:center;margin:10px 12px 6px 22px;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:700}
+.sub-header.pendente{background:#1c1c1c;border:1px solid #2c3340;color:#c0c0c0}
+.sub-header.confirmado{background:#0f1f15;border:1px solid #2a5a3a;color:#3dcc8a}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
+.tab{padding:8px 14px;border-radius:8px;border:1px solid #2c3340;background:#1c212e;color:#8b93a7;cursor:pointer;font-weight:700;font-size:12px}
+.tab.active{background:#f0c14a;color:#1a1200;border-color:#f0c14a}
+.list-item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:#0e1118;border:1px solid #2c3340;border-radius:8px;margin-bottom:6px}
+</style>
+</head>
+<body>
+<div id="loginScreen" class="overlay" style="z-index:300">
+<div class="card" style="width:100%;max-width:380px;">
+<h2 style="margin:0 0 6px;color:#f0c14a;text-align:center">🛵 A BATATARIA</h2>
+<p style="text-align:center;color:#8b93a7;font-size:12px;margin:0 0 16px">Login do entregador</p>
+<label style="font-size:12px;color:#8b93a7">Usuário</label>
+<input id="loginUser" style="margin:6px 0 10px" autocomplete="off"/>
+<label style="font-size:12px;color:#8b93a7">Senha</label>
+<input id="loginPass" type="password" style="margin:6px 0 16px" onkeydown="if(event.key==='Enter') fazerLogin()"/>
+<button class="btn primary" style="width:100%" onclick="fazerLogin()">Entrar</button>
+<div id="loginErro" style="color:#ff6b6b;font-size:11px;margin-top:10px;text-align:center"></div>
+</div>
+</div>
+<header>
+<div style="display:flex;align-items:center;gap:10px">
+<div class="logo">🛵 A BATATARIA</div>
+<span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
+</div>
+<div style="display:flex;gap:6px">
+<button class="btn" onclick="logout()" style="font-size:11px">Sair</button>
+<button class="btn" onclick="abrirCfgProtegida()">⚙️</button>
+</div>
+</header>
+<div id="cfgPass" class="overlay" style="display:none;z-index:210">
+<div class="card" style="width:100%;max-width:360px;">
+<h3 style="color:#f0c14a;margin:0 0 10px">Senha do menu</h3>
+<input id="cfgPassInput" type="password" style="margin:6px 0 12px" onkeydown="if(event.key==='Enter') verificarSenhaCfg()"/>
+<button class="btn primary" style="width:100%" onclick="verificarSenhaCfg()">Abrir</button>
+<button class="btn" style="width:100%;margin-top:8px" onclick="document.getElementById('cfgPass').style.display='none'">Cancelar</button>
+<div id="cfgPassErro" style="color:#ff6b6b;font-size:11px;margin-top:8px;text-align:center"></div>
+</div>
+</div>
+<div id="cfg" class="overlay" style="display:none;z-index:200">
+<div class="card" style="width:100%;max-width:540px;max-height:90vh;overflow:auto">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+<h3 style="margin:0;color:#f0c14a">Configurações</h3>
+<button class="btn" onclick="document.getElementById('cfg').style.display='none'">✕</button>
+</div>
+<div style="display:flex;gap:8px;margin-bottom:14px">
+<button class="tab active" id="tabBtnSupabase" onclick="trocarAba('supabase')">SupaBase</button>
+<button class="tab" id="tabBtnEntregadores" onclick="trocarAba('entregadores')">Entregadores</button>
+</div>
+<div id="abaSupabase">
+<label>Supabase URL</label><input id="cfgUrl" style="margin:6px 0 10px"/>
+<label>Anon Key</label><input id="cfgKey" style="margin:6px 0 14px"/>
+<button class="btn primary" onclick="salvarCfgSupabase()" style="width:100%;">Salvar SupaBase</button>
+<div id="cfgStatus" style="font-size:11px;color:#8b93a7;margin-top:8px;text-align:center"></div>
+</div>
+<div id="abaEntregadores" style="display:none">
+<div style="display:flex;gap:8px;margin-bottom:12px">
+<input id="novoNome" placeholder="Nome" style="flex:1"/>
+<input id="novaSenha" placeholder="Senha" style="flex:1"/>
+<button class="btn primary" onclick="addEntregador()">Add</button>
+</div>
+<div id="listaEntregadores"></div>
+</div>
+</div>
+</div>
+<div id="modalDup" class="overlay" style="display:none;z-index:220">
+<div class="card" style="width:100%;max-width:520px;max-height:85vh;overflow:auto">
+<h3 style="color:#f0c14a;margin:0 0 8px">⚠️ Pedidos duplicados</h3>
+<p style="color:#8b93a7;font-size:11px;margin:0 0 12px">Existem <span id="dupCount">2</span> pedidos com o número <b id="dupNumero" style="color:#fff"></b>. Selecione o correto:</p>
+<div id="dupLista"></div>
+<div style="display:flex;gap:8px;margin-top:14px">
+<button class="btn" style="flex:1" onclick="document.getElementById('modalDup').style.display='none'">Cancelar</button>
+<button class="btn primary" style="flex:1" onclick="confirmarDuplicado()">Adicionar selecionado</button>
+</div>
+</div>
+</div>
+<div class="card" id="cardAddPedido">
+<div style="font-size:12px;color:#f0c14a;font-weight:800;margin-bottom:8px">📦 ADICIONAR PEDIDO DO DIA</div>
+<div style="display:flex;gap:8px">
+<input id="inputPedido" placeholder="Número do pedido" style="flex:1" inputmode="numeric" onkeydown="if(event.key==='Enter') adicionarPedido()"/>
+<button class="btn primary" onclick="adicionarPedido()">Adicionar</button>
+</div>
+<div id="addStatus" style="font-size:11px;color:#8b93a7;margin-top:6px"></div>
+</div>
+<div class="card" id="cardFiltrosMaster" style="display:none">
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+<button class="btn primary" id="btnHoje" onclick="setFiltro('hoje')">Hoje</button>
+<button class="btn" id="btnOntem" onclick="setFiltro('ontem')">Ontem</button>
+<input type="date" id="inputData" onchange="setFiltro('data')" style="width:auto;"/>
+<span id="infoTotal" style="margin-left:auto;font-size:12px;color:#8b93a7;"></span>
+</div>
+<div style="margin-top:12px;position:relative;">
+<span style="position:absolute;left:12px;top:50%;transform:translateY(-50%)">🔍</span>
+<input id="busca" placeholder="Pesquisar..." oninput="render()" style="padding-left:36px"/>
+</div>
+</div>
+<div class="card" id="cardBuscaEntregador">
+<div style="position:relative;">
+<span style="position:absolute;left:12px;top:50%;transform:translateY(-50%)">🔍</span>
+<input id="buscaEntregador" placeholder="Buscar nos seus pedidos..." oninput="render()" style="padding-left:36px"/>
+</div>
+</div>
+<div class="grid">
+<div class="stat"><b id="stPendente">0</b><span>Pendentes</span></div>
+<div class="stat"><b id="stCodigo">0</b><span>Confirmados</span></div>
+</div>
+<div class="turno-header jantar" onclick="toggleTurno('jantar')">
+<div style="display:flex;align-items:center;gap:8px;"><h2>🌙 JANTAR</h2><span id="countJantar" class="count">0</span></div>
+<span id="iconJantar">🙈 Mostrar</span>
+</div>
+<div id="wrapJantar" style="display:none">
+  <div class="sub-header pendente" onclick="toggleSub('jantarPendente')"><span>🟡 A ENTREGAR - <span id="countJantarPendente">0</span></span><span id="iconJantarPendente">👁️</span></div>
+  <div id="listaJantarPendente"></div>
+  <div class="sub-header confirmado" onclick="toggleSub('jantarConfirmado')"><span>✅ CONFIRMADOS - <span id="countJantarConfirmado">0</span></span><span id="iconJantarConfirmado">🙈 Mostrar</span></div>
+  <div id="listaJantarConfirmado" style="display:none"></div>
+</div>
+<div class="turno-header almoco" onclick="toggleTurno('almoco')">
+<div style="display:flex;align-items:center;gap:8px;"><h2>☀️ ALMOÇO</h2><span id="countAlmoco" class="count">0</span></div>
+<span id="iconAlmoco">🙈 Mostrar</span>
+</div>
+<div id="wrapAlmoco" style="display:none">
+  <div class="sub-header pendente" onclick="toggleSub('almocoPendente')"><span>🟡 A ENTREGAR - <span id="countAlmocoPendente">0</span></span><span id="iconAlmocoPendente">👁️</span></div>
+  <div id="listaAlmocoPendente"></div>
+  <div class="sub-header confirmado" onclick="toggleSub('almocoConfirmado')"><span>✅ CONFIRMADOS - <span id="countAlmocoConfirmado">0</span></span><span id="iconAlmocoConfirmado">🙈 Mostrar</span></div>
+  <div id="listaAlmocoConfirmado" style="display:none"></div>
+</div>
+<div id="listaVazia" style="display:none;" class="card"><div style="text-align:center;color:#8b93a7;padding:10px">Nenhum pedido</div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const DEFAULT_URL = "https://umptefufjwvtsoegutet.supabase.co";
+const DEFAULT_KEY = "sb_publishable_J-YJjz-t5TTkR5kXtBMAUQ_2xvDEcDY";
+const SENHA_CFG = "lrcasa961";
+const DEFAULT_ENTREGADORES = [
+  {nome:"Eduardo", senha:"998271383"},
+  {nome:"Raphael", senha:"998720454"},
+  {nome:"Reserva1", senha:"reserva1"},
+  {nome:"Reserva2", senha:"reserva2"},
+  {nome:"Master", senha:"master961"}
+];
+let sb=null, todosPedidos=[], pedidosVisiveisIds=[], filtro='hoje', dataSel=null;
+let turnosVisiveis={jantar:false, almoco:false};
+let subsVisiveis={jantarPendente:true, almocoPendente:true, jantarConfirmado:false, almocoConfirmado:false};
+let usuarioLogado=null;
+let dupSelecionadoId=null, dupCandidatos=[];
+function getSb(){ if(sb) return sb; const url=localStorage.getItem('supabase_url')||DEFAULT_URL; const key=localStorage.getItem('supabase_key')||DEFAULT_KEY; sb=supabase.createClient(url,key); return sb; }
+function getEntregadores(){ const raw=localStorage.getItem('entregadores_lista'); if(!raw){ localStorage.setItem('entregadores_lista', JSON.stringify(DEFAULT_ENTREGADORES)); return DEFAULT_ENTREGADORES; } try{ return JSON.parse(raw); }catch(e){ return DEFAULT_ENTREGADORES; } }
+function salvarEntregadores(lista){ localStorage.setItem('entregadores_lista', JSON.stringify(lista)); renderEntregadores(); }
+function renderEntregadores(){ const lista=getEntregadores(); const div=document.getElementById('listaEntregadores'); div.innerHTML=lista.map((e,i)=>`<div class="list-item"><span><b style="color:#f0c14a">${e.nome}</b> <span style="color:#8b93a7;font-size:11px">/ ${e.senha}</span></span><button class="btn red" style="padding:4px 8px;font-size:11px" onclick="removerEntregador(${i})">Remover</button></div>`).join('') || '<div style="color:#555;font-size:12px;text-align:center">Nenhum cadastrado</div>'; }
+function addEntregador(){ const nome=document.getElementById('novoNome').value.trim(); const senha=document.getElementById('novaSenha').value.trim(); if(!nome||!senha){ alert('Preencha nome e senha'); return; } const lista=getEntregadores(); if(lista.some(e=>e.nome.toLowerCase()===nome.toLowerCase())){ alert('Já existe'); return; } lista.push({nome, senha}); salvarEntregadores(lista); document.getElementById('novoNome').value=''; document.getElementById('novaSenha').value=''; }
+function removerEntregador(idx){ if(!confirm('Remover entregador?')) return; const lista=getEntregadores(); lista.splice(idx,1); salvarEntregadores(lista); }
+function abrirCfgProtegida(){ document.getElementById('cfgPass').style.display='flex'; document.getElementById('cfgPassInput').value=''; document.getElementById('cfgPassErro').textContent=''; document.getElementById('cfgPassInput').focus(); }
+function verificarSenhaCfg(){ const v=document.getElementById('cfgPassInput').value; if(v===SENHA_CFG){ document.getElementById('cfgPass').style.display='none'; document.getElementById('cfg').style.display='flex'; renderEntregadores(); } else { document.getElementById('cfgPassErro').textContent='Senha incorreta'; } }
+function trocarAba(aba){ document.getElementById('abaSupabase').style.display = aba==='supabase'?'block':'none'; document.getElementById('abaEntregadores').style.display = aba==='entregadores'?'block':'none'; document.getElementById('tabBtnSupabase').className='tab'+(aba==='supabase'?' active':''); document.getElementById('tabBtnEntregadores').className='tab'+(aba==='entregadores'?' active':''); }
+function salvarCfgSupabase(){ const url=document.getElementById('cfgUrl').value.trim()||DEFAULT_URL; const key=document.getElementById('cfgKey').value.trim()||DEFAULT_KEY; localStorage.setItem('supabase_url',url); localStorage.setItem('supabase_key',key); document.getElementById('cfgStatus').textContent='Salvo!'; sb=null; setTimeout(()=>{ document.getElementById('cfg').style.display='none'; carregar(); },600); }
+function fazerLogin(){
+  const nomeInput=document.getElementById('loginUser').value.trim();
+  const senhaInput=document.getElementById('loginPass').value.trim();
+  if(!nomeInput||!senhaInput){ document.getElementById('loginErro').textContent='Preencha usuário e senha'; return; }
+  const lista=getEntregadores();
+  const achado=lista.find(e=> e.nome.toLowerCase()===nomeInput.toLowerCase() && e.senha.toLowerCase()===senhaInput.toLowerCase());
+  if(!achado){ document.getElementById('loginErro').textContent='Usuário ou senha inválidos'; return; }
+  usuarioLogado={nome:achado.nome, lower:achado.nome.toLowerCase(), isMaster: achado.nome.toLowerCase()==='master'};
+  localStorage.setItem('usuario_logado', JSON.stringify(usuarioLogado));
+  localStorage.setItem('entregador_nome', achado.nome);
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('userBadge').textContent=achado.nome + (usuarioLogado.isMaster?' 👑':'');
+  document.getElementById('cardFiltrosMaster').style.display = usuarioLogado.isMaster ? 'block' : 'none';
+  document.getElementById('cardBuscaEntregador').style.display = usuarioLogado.isMaster ? 'none' : 'block';
+  carregarPedidosVisiveis();
+  carregar();
+  ouvir();
+}
+function logout(){ localStorage.removeItem('usuario_logado'); usuarioLogado=null; document.getElementById('loginScreen').style.display='flex'; document.getElementById('loginUser').value=''; document.getElementById('loginPass').value=''; }
+function checkLoginPersistido(){
+  const raw=localStorage.getItem('usuario_logado');
+  if(raw){
+    try{
+      usuarioLogado=JSON.parse(raw);
+      document.getElementById('loginScreen').style.display='none';
+      document.getElementById('userBadge').textContent=usuarioLogado.nome + (usuarioLogado.isMaster?' 👑':'');
+      document.getElementById('cardFiltrosMaster').style.display = usuarioLogado.isMaster ? 'block' : 'none';
+      document.getElementById('cardBuscaEntregador').style.display = usuarioLogado.isMaster ? 'none' : 'block';
+      carregarPedidosVisiveis();
+      return true;
+    }catch(e){}
+  }
+  return false;
+}
+function carregarPedidosVisiveis(){ if(!usuarioLogado) return; if(usuarioLogado.isMaster) return; const key='meus_pedidos_'+usuarioLogado.lower; try{ pedidosVisiveisIds=JSON.parse(localStorage.getItem(key)||'[]'); }catch(e){ pedidosVisiveisIds=[]; } }
+function salvarPedidoVisivel(id){ if(!usuarioLogado || usuarioLogado.isMaster) return; const key='meus_pedidos_'+usuarioLogado.lower; if(!pedidosVisiveisIds.includes(id)) pedidosVisiveisIds.push(id); localStorage.setItem(key, JSON.stringify(pedidosVisiveisIds)); }
+function getHojeSP(){ return new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'}); }
+function getOntemSP(){ const hoje=new Date(); const sp=new Date(hoje.toLocaleString('en-US',{timeZone:'America/Sao_Paulo'})); sp.setDate(sp.getDate()-1); return sp.toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'}); }
+function setFiltro(t){ if(!usuarioLogado?.isMaster) return; filtro=t; document.getElementById('btnHoje').className='btn'+(t==='hoje'?' primary':''); document.getElementById('btnOntem').className='btn'+(t==='ontem'?' primary':''); if(t==='data') dataSel=document.getElementById('inputData').value; else dataSel=null; carregar(); }
+function getHoraMinSP(s){ if(!s) return {h:null,str:'--:--'}; try{ const d=new Date(s); const str=d.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit',hour12:false}); const h=parseInt(str.split(':')[0],10); return {h:isNaN(h)?null:h,str}; }catch(e){ return {h:null,str:'--:--'}; } }
+function getTurno(p){ const ct=(p.turno||p.periodo||'').toLowerCase(); if(ct.includes('almo')) return 'almoco'; if(ct.includes('jant')) return 'jantar'; const campos=['hora_pedido','hora','horario','horario_pedido','created_at','criado_em']; for(const c of campos){ if(p[c]){ if(typeof p[c]==='string' && /^\d{1,2}:\d{2}/.test(p[c])){ const h=parseInt(p[c].split(':')[0],10); if(!isNaN(h)) return h<16?'almoco':'jantar'; } const info=getHoraMinSP(p[c]); if(info.h!==null) return info.h<16?'almoco':'jantar'; } } return 'jantar'; }
+function toggleTurno(t){ turnosVisiveis[t]=!turnosVisiveis[t]; document.getElementById(t==='jantar'?'wrapJantar':'wrapAlmoco').style.display=turnosVisiveis[t]?'block':'none'; document.getElementById(t==='jantar'?'iconJantar':'iconAlmoco').textContent=turnosVisiveis[t]?'👁️ Ocultar':'🙈 Mostrar'; }
+function toggleSub(k){ subsVisiveis[k]=!subsVisiveis[k]; document.getElementById('lista'+k.charAt(0).toUpperCase()+k.slice(1)).style.display=subsVisiveis[k]?'block':'none'; document.getElementById('icon'+k.charAt(0).toUpperCase()+k.slice(1)).textContent=subsVisiveis[k]?'👁️ Ocultar':'🙈 Mostrar'; }
+async function carregar(){
+ const client=getSb();
+ let alvo=null;
+ if(usuarioLogado?.isMaster){
+   if(filtro==='hoje') alvo=getHojeSP();
+   else if(filtro==='ontem') alvo=getOntemSP();
+   else if(filtro==='data') alvo=dataSel;
+   if(!alvo) alvo=getHojeSP();
+   document.getElementById('infoTotal').textContent=alvo+' (Brasília)';
+   document.getElementById('inputData').value=alvo;
+ } else { alvo=getHojeSP(); }
+ const {data, error} = await client.from('pedidos_entrega_dia').select('*').eq('data',alvo).order('created_at',{ascending:true});
+ if(error){ document.getElementById('listaJantarPendente').innerHTML='<div class="card">Erro: '+error.message+'</div>'; return; }
+ todosPedidos=data||[];
+ render();
+}
+function adicionarPedido(){
+  const num=document.getElementById('inputPedido').value.trim();
+  if(!num){ document.getElementById('addStatus').textContent='Digite o número'; return; }
+  const encontrados=todosPedidos.filter(p=> String(p.numero_pedido).toLowerCase()===num.toLowerCase());
+  if(!encontrados.length){
+    document.getElementById('addStatus').textContent='❌ Pedido #'+num+' não encontrado no dia '+getHojeSP();
+    document.getElementById('addStatus').style.color='#ff6b6b';
+    return;
+  }
+  if(encontrados.length===1){ confirmarAdicionar(encontrados[0]); }
+  else {
+    dupCandidatos=encontrados;
+    dupSelecionadoId=encontrados[0].id;
+    document.getElementById('dupNumero').textContent=num;
+    document.getElementById('dupCount').textContent=encontrados.length;
+    document.getElementById('dupLista').innerHTML=encontrados.map(p=>{
+      const hora=getHoraMinSP(p.created_at).str;
+      return `<label style="display:flex;gap:10px;padding:10px;border:1px solid #2c3340;border-radius:10px;margin-bottom:8px;cursor:pointer;background:#0e1118">
+        <input type="radio" name="dupSel" value="${p.id}" ${p.id===dupSelecionadoId?'checked':''} onchange="dupSelecionadoId='${p.id}'" style="width:auto"/>
+        <div style="flex:1">
+          <div style="font-weight:800;color:#f0c14a">#${p.numero_pedido} • ${p.cliente_nome||''} • ${hora} • ${getTurno(p)}</div>
+          <div style="font-size:11px;color:#8b93a7">📍 ${p.cliente_endereco||'Sem endereço'}<br>🔑 ${p.localizador||''} • 🏪 ${p.loja||''}<br>ID: ${p.id.slice(0,8)}...</div>
+        </div>
+      </label>`;
+    }).join('');
+    document.getElementById('modalDup').style.display='flex';
+  }
+}
+function confirmarDuplicado(){ const sel=dupCandidatos.find(p=>p.id===dupSelecionadoId); if(!sel) return; document.getElementById('modalDup').style.display='none'; confirmarAdicionar(sel); }
+function confirmarAdicionar(pedido){
+  if(!usuarioLogado.isMaster && pedidosVisiveisIds.includes(pedido.id)){
+    document.getElementById('addStatus').textContent='⚠️ Pedido #'+pedido.numero_pedido+' já está na sua lista';
+    document.getElementById('addStatus').style.color='#f0c14a';
+    return;
+  }
+  if(!confirm('Adicionar pedido #'+pedido.numero_pedido+' - '+ (pedido.cliente_nome||'') +' - '+ (pedido.cliente_endereco||'') +' ?')) return;
+  salvarPedidoVisivel(pedido.id);
+  document.getElementById('inputPedido').value='';
+  document.getElementById('addStatus').textContent='✅ Pedido #'+pedido.numero_pedido+' adicionado em '+getTurno(pedido).toUpperCase();
+  document.getElementById('addStatus').style.color='#3dcc8a';
+  render();
+}
+function render(){
+ const buscaMaster=(document.getElementById('busca')?.value||'').toLowerCase().trim();
+ const buscaEnt=(document.getElementById('buscaEntregador')?.value||'').toLowerCase().trim();
+ const busca = (buscaMaster||buscaEnt).toLowerCase();
+ let base=todosPedidos;
+ if(usuarioLogado && !usuarioLogado.isMaster){ base = todosPedidos.filter(p=> pedidosVisiveisIds.includes(p.id)); }
+ let filtrados=base;
+ if(busca) filtrados=base.filter(p=> (p.cliente_nome||'').toLowerCase().includes(busca) || String(p.numero_pedido||'').toLowerCase().includes(busca) || (p.localizador||'').toLowerCase().includes(busca) );
+ if(!filtrados.length){
+   if(base.length===0 && !busca){
+     document.getElementById('listaVazia').innerHTML='<div style="text-align:center;color:#8b93a7;padding:10px">Nenhum pedido adicionado ainda.<br>Use o campo Pedido acima para adicionar.</div>';
+     document.getElementById('listaVazia').style.display='block';
+   } else {
+     document.getElementById('listaVazia').innerHTML='<div style="text-align:center;color:#8b93a7;padding:10px">Nenhum pedido encontrado</div>';
+     document.getElementById('listaVazia').style.display= filtrados.length===0 ? 'block' : 'none';
+   }
+   document.getElementById('countJantar').textContent='0'; document.getElementById('countAlmoco').textContent='0';
+   document.getElementById('countJantarPendente').textContent='0'; document.getElementById('countJantarConfirmado').textContent='0';
+   document.getElementById('countAlmocoPendente').textContent='0'; document.getElementById('countAlmocoConfirmado').textContent='0';
+   document.getElementById('listaJantarPendente').innerHTML=''; document.getElementById('listaJantarConfirmado').innerHTML='';
+   document.getElementById('listaAlmocoPendente').innerHTML=''; document.getElementById('listaAlmocoConfirmado').innerHTML='';
+   document.getElementById('stPendente').textContent=base.filter(p=>p.status!=='codigo_informado').length;
+   document.getElementById('stCodigo').textContent=base.filter(p=>p.status==='codigo_informado').length;
+   return;
+ }
+ document.getElementById('listaVazia').style.display='none';
+ const jantar = filtrados.filter(p=>getTurno(p)==='jantar').sort((a,b)=> new Date(a.created_at) - new Date(b.created_at));
+ const almoco = filtrados.filter(p=>getTurno(p)==='almoco').sort((a,b)=> new Date(a.created_at) - new Date(b.created_at));
+ const jantarPend = jantar.filter(p=>p.status!=='codigo_informado');
+ const jantarConf = jantar.filter(p=>p.status==='codigo_informado');
+ const almocoPend = almoco.filter(p=>p.status!=='codigo_informado');
+ const almocoConf = almoco.filter(p=>p.status==='codigo_informado');
+ document.getElementById('stPendente').textContent=filtrados.filter(p=>p.status!=='codigo_informado').length;
+ document.getElementById('stCodigo').textContent=filtrados.filter(p=>p.status==='codigo_informado').length;
+ document.getElementById('countJantar').textContent=jantar.length;
+ document.getElementById('countJantarPendente').textContent=jantarPend.length;
+ document.getElementById('countJantarConfirmado').textContent=jantarConf.length;
+ document.getElementById('countAlmoco').textContent=almoco.length;
+ document.getElementById('countAlmocoPendente').textContent=almocoPend.length;
+ document.getElementById('countAlmocoConfirmado').textContent=almocoConf.length;
+ document.getElementById('listaJantarPendente').innerHTML = jantarPend.length ? jantarPend.map(cardPedido).join('') : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
+ document.getElementById('listaJantarConfirmado').innerHTML = jantarConf.length ? jantarConf.map(cardPedido).join('') : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
+ document.getElementById('listaAlmocoPendente').innerHTML = almocoPend.length ? almocoPend.map(cardPedido).join('') : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
+ document.getElementById('listaAlmocoConfirmado').innerHTML = almocoConf.length ? almocoConf.map(cardPedido).join('') : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
+}
+function cardPedido(p){ const isCodigo=p.status==='codigo_informado'; const badge = isCodigo ? '<span class="badge codigo">✓ '+ (p.codigo_cliente||'') +'</span>' : '<span class="badge pendente">A entregar</span>'; const hora=getHoraMinSP(p.created_at).str; return `<div class="card" style="${isCodigo?'opacity:.6;border-color:#2a5a3a':''}"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><b style="color:#f0c14a;">#${p.numero_pedido} <span style="font-size:10px;color:#8b93a7;">${hora}</span></b> ${badge}</div><div style="font-weight:700;margin-bottom:4px;">${p.cliente_nome||''}</div><div style="font-size:12px;color:#8b93a7;margin-bottom:6px;">📍 ${p.cliente_endereco||'Sem endereço'}<br>🏪 ${p.loja||''} • 🔑 ${p.localizador||''}</div><div style="display:flex;gap:8px;margin-top:10px;">${!isCodigo?`<button class="btn green" style="flex:1;" onclick="informarCodigo('${p.id}')">🔢 Informar Código</button>`:`<button class="btn" style="flex:1;font-size:12px" onclick="editarCodigo('${p.id}','${p.codigo_cliente||''}')">✏️ Editar ${p.codigo_cliente||''}</button>`}</div></div>`; }
+async function informarCodigo(id){ const cod=prompt('Código 4 dígitos:'); if(!cod) return; const c=cod.replace(/\D/g,'').slice(0,4); if(c.length!==4){alert('4 dígitos');return;} const client=getSb(); const nome=localStorage.getItem('entregador_nome')||'Entregador'; const {error}=await client.from('pedidos_entrega_dia').update({codigo_cliente:c,status:'codigo_informado',entregador_nome:nome,codigo_informado_em:new Date().toISOString()}).eq('id',id); if(error) alert(error.message); else carregar(); }
+async function editarCodigo(id,atual){ const cod=prompt('Editar código:',atual); if(cod===null) return; const c=cod.replace(/\D/g,'').slice(0,4); if(c.length!==4){alert('4 dígitos');return;} const client=getSb(); const {error}=await client.from('pedidos_entrega_dia').update({codigo_cliente:c,codigo_informado_em:new Date().toISOString()}).eq('id',id); if(error) alert(error.message); else carregar(); }
+function ouvir(){ const client=getSb(); client.channel('entregador-v5').on('postgres_changes',{event:'*',schema:'public',table:'pedidos_entrega_dia'},()=>carregar()).subscribe(); }
+(function(){ document.getElementById('cfgUrl').value=localStorage.getItem('supabase_url')||DEFAULT_URL; document.getElementById('cfgKey').value=localStorage.getItem('supabase_key')||DEFAULT_KEY; if(!localStorage.getItem('supabase_url')) localStorage.setItem('supabase_url',DEFAULT_URL); if(!localStorage.getItem('supabase_key')) localStorage.setItem('supabase_key',DEFAULT_KEY); if(!localStorage.getItem('entregadores_lista')) localStorage.setItem('entregadores_lista', JSON.stringify(DEFAULT_ENTREGADORES)); if(checkLoginPersistido()){ carregar(); ouvir(); } })();
+</script>
+</body>
+</html>
