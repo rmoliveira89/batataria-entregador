@@ -109,7 +109,9 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 /* Grid de cards pequenos de pedidos */
 .pedidos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;padding:6px 12px 12px}
 .pedido-mini{background:#161a22;border:1px solid #2c3340;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px;min-height:0}
-.pedido-mini.ok{opacity:.72;border-color:#2a5a3a}
+/* Pedido finalizado: só o fundo do card e os botões ficam em cinza (textos e badges mantêm as cores) */
+.pedido-mini.ok{background:#22252b;border-color:#33363d !important}
+.pedido-mini.ok .btn{background:#30343b !important;color:#a3a9b5 !important;border:1px solid #3e424b !important}
 .pedido-mini .pm-top{display:flex;justify-content:space-between;align-items:flex-start;gap:4px}
 .pedido-mini .pm-num{font-weight:800;color:#f0c14a;font-size:15px;line-height:1.1}
 .pedido-mini .pm-meta{font-size:9px;color:#8b93a7;margin-top:2px}
