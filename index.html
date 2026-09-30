@@ -6,7 +6,17 @@
 <title>Entregador - A Batataria</title>
 <style>
 *{box-sizing:border-box} body{margin:0;background:#0c0e12;color:#e6e8ef;font-family:Inter,system-ui,sans-serif}
-header{position:sticky;top:0;z-index:10;background:#161a22;border-bottom:1px solid #2c3340;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+header{position:sticky;top:0;z-index:10;background:#161a22;border-bottom:1px solid #2c3340;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.hdr-left{display:flex;align-items:center;gap:10px;min-width:0;flex-wrap:wrap}
+.hdr-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+@media (max-width:600px){
+  header{padding:8px 10px;gap:8px}
+  .hdr-left{width:100%;gap:8px}
+  .hdr-left .logo{font-size:15px;white-space:nowrap}
+  .hdr-actions{width:100%;flex-wrap:nowrap;gap:6px}
+  .hdr-actions .btn{flex:1 1 0;min-width:0;height:40px;padding:0 6px !important;font-size:13px !important;line-height:38px;text-align:center;white-space:nowrap;overflow:visible}
+}
+@media (max-width:520px){ .hdr-actions .hlbl{display:none} }
 .logo{font-weight:800;color:#f0c14a;font-size:16px}
 .card{background:#161a22;border:1px solid #2c3340;border-radius:14px;padding:14px;margin:10px 12px}
 .btn{padding:10px 14px;border-radius:10px;border:1px solid #2c3340;background:#1c212e;color:#fff;font-weight:700;cursor:pointer}
@@ -142,20 +152,20 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 </div>
 </div>
 <header>
-<div style="display:flex;align-items:center;gap:10px">
+<div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
-<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+<div class="hdr-actions">
 <button class="btn" id="btnDinheiro" onclick="abrirModalDinheiro()" style="display:none;font-size:11px;padding:8px 10px;position:relative;background:#1a2a1a;border-color:#2a5a3a;color:#3dcc8a" title="Controle de dinheiro (somente leitura)">
   💵 <span id="badgeDinheiro" style="display:none;position:absolute;top:-6px;right:-6px;background:#ff6b6b;color:#fff;font-size:10px;font-weight:900;min-width:18px;height:18px;border-radius:999px;align-items:center;justify-content:center;padding:0 4px">0</span>
 </button>
-<button class="btn red" id="btnLimpeza30" onclick="abrirAlertaLimpeza30()" style="display:none;font-size:11px;padding:8px 10px" title="Excluir pedidos com mais de 30 dias no Supabase">🗑️ Limpeza 30d</button>
-<button class="btn" id="btnModoAgrupar" onclick="toggleModoAgrupamento()" style="display:none;font-size:11px;padding:8px 10px;background:#1c1c12;border-color:#5a4a2a;color:#f0c14a" title="Agrupar pedidos com mesmo endereço (1 entrega)">🔗 Agrupar</button>
+<button class="btn red" id="btnLimpeza30" onclick="abrirAlertaLimpeza30()" style="display:none;font-size:11px;padding:8px 10px" title="Excluir pedidos com mais de 30 dias no Supabase" aria-label="Limpeza 30 dias">🗑️ <span class="hlbl">Limpeza 30d</span></button>
+<button class="btn" id="btnModoAgrupar" onclick="toggleModoAgrupamento()" style="display:none;font-size:11px;padding:8px 10px;background:#1c1c12;border-color:#5a4a2a;color:#f0c14a" title="Agrupar pedidos com mesmo endereço (1 entrega)" aria-label="Agrupar">🔗 <span class="hlbl">Agrupar</span></button>
 <button class="btn" id="btnTrocarConta" onclick="abrirModalTrocarConta()" style="display:none;font-size:15px;padding:6px 10px;line-height:1;background:#141a2a;border-color:#2a4a7a;color:#6ab7ff" title="Trocar de conta (Master)" aria-label="Trocar de conta">🔄</button>
 <button class="btn" onclick="logout()" style="font-size:11px">Sair</button>
-<button class="btn" id="btnCfg" onclick="abrirCfg()" style="display:none">⚙️</button>
+<button class="btn" id="btnCfg" onclick="abrirCfg()" style="display:none" title="Configurações" aria-label="Configurações">⚙️</button>
 </div>
 </header>
 <!-- Alerta alta demanda (entregadores): >7 pedidos em espera -->
@@ -173,7 +183,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
   </div>
 </div>
 <!-- Barra de confirmação do agrupamento (Master) — logo abaixo do cabeçalho -->
-<div id="barraAgrupamento" style="display:none;background:#1c1c12;border-bottom:1px solid #5a4a2a;padding:10px 14px;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;position:sticky;top:52px;z-index:15">
+<div id="barraAgrupamento" style="display:none;background:#1c1c12;border-bottom:1px solid #5a4a2a;padding:10px 14px;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;position:sticky;top:var(--hdr-h,52px);z-index:15">
   <span style="font-size:12px;color:#f0c14a;font-weight:800;flex:1;min-width:180px">🔗 Toque nos pedidos com o mesmo endereço · <span id="qtdSelecionadosAgrupar">0</span> selecionado(s)</span>
   <div style="display:flex;gap:8px;flex-wrap:wrap">
     <button class="btn primary" style="font-size:11px;padding:8px 14px" onclick="confirmarAgrupamentoSelecionado()">✅ Confirmar agrupamento</button>
@@ -2968,6 +2978,8 @@ async function salvarModo(modo){
       console.warn('Erro ao salvar modo global:', error.message);
       const st=document.getElementById('modoStatus');
       if(st) st.textContent = '⚠️ Modo salvo localmente, mas falhou ao sincronizar globalmente: '+error.message;
+    } else {
+      try{ modoBaseline = modo; }catch(e){}
     }
   }catch(e){ console.warn('salvarModo exceção', e); }
 }
@@ -5121,7 +5133,7 @@ function toggleModoAgrupamento(){
   modoAgrupamento = !modoAgrupamento;
   selecaoAgrupamento.clear();
   const btn = document.getElementById('btnModoAgrupar');
-  if(btn) btn.textContent = modoAgrupamento ? '✖️ Cancelar' : '🔗 Agrupar';
+  if(btn) btn.innerHTML = modoAgrupamento ? '✖️ <span class="hlbl">Cancelar</span>' : '🔗 <span class="hlbl">Agrupar</span>';
   const barra = document.getElementById('barraAgrupamento');
   if(barra) barra.style.display = modoAgrupamento ? 'flex' : 'none';
   atualizarBarraAgrupamento();
@@ -5233,7 +5245,7 @@ async function executarAgrupamentoConfirmado(){
     // Encerra modo de seleção
     modoAgrupamento=false;
     selecaoAgrupamento.clear();
-    const btnHeader=document.getElementById('btnModoAgrupar'); if(btnHeader) btnHeader.textContent='🔗 Agrupar';
+    const btnHeader=document.getElementById('btnModoAgrupar'); if(btnHeader) btnHeader.innerHTML='🔗 <span class="hlbl">Agrupar</span>';
     const barra=document.getElementById('barraAgrupamento'); if(barra) barra.style.display='none';
     idsPendentesAgrupamento = [];
     render();
@@ -7250,6 +7262,70 @@ function ouvir(){
     .subscribe();
   carregarModoGlobal();
 }
+
+// =================== WATCHDOG DO MODO DE CONFIRMAÇÃO ===================
+// A cada 2 minutos (e ao voltar para o app) confere o modo no servidor.
+// Se for diferente do modo com que esta página está trabalhando, recarrega a página.
+let modoBaseline = null;          // modo com que a página está trabalhando
+let modoReloadPendente = false;
+const MODO_CHECK_MS = 2 * 60 * 1000;
+
+async function lerModoServidor(){
+  const client = getSb();
+  if(!client) return null;
+  try{
+    const {data, error} = await client.from('app_config').select('valor').eq('chave','modo_confirmacao').maybeSingle();
+    if(!error && data && data.valor) return data.valor;
+  }catch(e){ console.warn('lerModoServidor falhou', e); }
+  return null;
+}
+function modalDeConfirmacaoAberto(){
+  return ['modalConfirmEntregador','modalConfirmAutomatico'].some(id=>{
+    const el = document.getElementById(id);
+    return el && getComputedStyle(el).display !== 'none';
+  });
+}
+function avisoRecarregandoModo(modo){
+  try{
+    const d = document.createElement('div');
+    d.style.cssText = 'position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1a1a0e;color:#f0c14a;border:1px solid #f0c14a;border-radius:12px;padding:12px 16px;font-weight:800;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.5);text-align:center;max-width:92vw';
+    d.textContent = '🔄 Modo alterado para ' + (modo==='entregador' ? 'ENTREGADOR' : 'AUTOMÁTICO') + ' — atualizando...';
+    document.body.appendChild(d);
+  }catch(e){}
+}
+async function verificarModoEReload(){
+  if(modoReloadPendente) return;
+  if(navigator.onLine === false) return;
+  const atual = await lerModoServidor();
+  if(!atual) return;
+  if(modoBaseline === null){ modoBaseline = atual; return; }
+  if(atual === modoBaseline) return;
+  // Modo mudou. Se o entregador está no meio de uma confirmação, espera o próximo ciclo.
+  if(modalDeConfirmacaoAberto()) return;
+  modoReloadPendente = true;
+  try{ localStorage.setItem('modo_confirmacao', atual); }catch(e){}
+  avisoRecarregandoModo(atual);
+  setTimeout(()=>{ location.reload(); }, 1200);
+}
+function iniciarWatchdogModo(){
+  verificarModoEReload(); // define o baseline logo na abertura
+  setInterval(verificarModoEReload, MODO_CHECK_MS);
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState === 'visible') verificarModoEReload();
+  });
+}
+// =================== FIM WATCHDOG DO MODO ===================
+
+// Mantém elementos sticky abaixo do cabeçalho (que pode ter 2 linhas no celular)
+function ajustarAlturaHeader(){
+  const h = document.querySelector('header');
+  if(h) document.documentElement.style.setProperty('--hdr-h', h.offsetHeight + 'px');
+}
+window.addEventListener('resize', ajustarAlturaHeader);
+window.addEventListener('load', ajustarAlturaHeader);
+if(window.ResizeObserver){ try{ new ResizeObserver(ajustarAlturaHeader).observe(document.querySelector('header')); }catch(e){} }
+ajustarAlturaHeader();
+
 (function(){
   document.getElementById('cfgUrl').value=localStorage.getItem('supabase_url')||DEFAULT_URL||'';
   document.getElementById('cfgKey').value=localStorage.getItem('supabase_key')||DEFAULT_KEY||'';
@@ -7280,6 +7356,7 @@ function ouvir(){
     }
   }, 30000);
   iniciarMonitorFilaOffline();
+  iniciarWatchdogModo();
 })();
 </script>
 </body>
