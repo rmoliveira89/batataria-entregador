@@ -95,6 +95,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 .custo-item .ci-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:auto;padding-top:4px}
 .custo-item select{flex:1;min-width:0;width:100%;padding:10px 10px;border-radius:10px;border:1px solid #2c3340;background:#0e1118;color:#fff;font-weight:700;font-size:13px}
 .custo-item .ci-salvo{font-size:11px;color:#3dcc8a;font-weight:700}
+.custo-item.custo-item-grupo{border-color:#f0c14a}
 .custo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;padding:6px 12px 8px}
 @media (min-width:520px){.custo-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}}
 @media (min-width:900px){.custo-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}}
@@ -2526,7 +2527,6 @@ function _htmlCardCustoMaster(p){
       ? `<span class="ci-salvo">R$ ${Number(val).toFixed(2)}</span>`
       : `<span style="font-size:10px;color:#8b93a7">sem valor</span>`;
   }
-  const endEsc = String(end).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   return `<div class="custo-item${pedBloq?' ok':''}" id="custoMasterItem_${p.id}">
     <div class="ci-top">
       <div>
@@ -2542,6 +2542,65 @@ function _htmlCardCustoMaster(p){
       <button class="btn blue" style="width:100%;padding:10px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px" onclick="event.stopPropagation();abrirMapaPorId('${p.id}')"><span>📍</span><span>Abrir mapa</span></button>
     </div>
   </div>`;
+}
+
+/** Master: card de grupo na aba custo (somente leitura + mapa). */
+function _htmlCardCustoMasterGrupo(membros){
+  if(!membros || !membros.length) return '';
+  const p0 = membros[0];
+  const data = p0.data || '—';
+  const hora = (typeof _fmtHoraPedido==='function') ? _fmtHoraPedido(p0) : '';
+  const end = p0.cliente_endereco || 'Sem endereço';
+  const ent = _nomeEntPedidoCusto(p0);
+  let val = null;
+  for(const m of membros){
+    const v = (typeof _valorCustoEfetivo==='function') ? _valorCustoEfetivo(m) : (m.valor_entrega!=null?Number(m.valor_entrega):null);
+    if(v != null && !isNaN(v)){ val = v; break; }
+  }
+  const pedBloq = membros.every(m => isPedidoCustoBloqueado(m));
+  const turnoP = getTurno(p0);
+  const turnoLab = turnoP==='almoco' ? '☀️' : '🌙';
+  let badge;
+  if(pedBloq){
+    badge = val != null
+      ? `<span class="ci-salvo">🔒 R$ ${Number(val).toFixed(2)}</span>`
+      : `<span style="font-size:10px;color:#8b93a7">🔒</span>`;
+  } else {
+    badge = val != null
+      ? `<span class="ci-salvo">R$ ${Number(val).toFixed(2)}</span>`
+      : `<span style="font-size:10px;color:#8b93a7">sem valor</span>`;
+  }
+  const linhas = membros.map(m=>{
+    const ok = m.status === 'codigo_informado';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #2c3340">
+      <span style="font-weight:800;color:#f0c14a;font-size:12px">#${m.numero_pedido||'—'}</span>
+      <span style="font-size:11px;color:#e6e8ef;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.cliente_nome||'—'}</span>
+      <span style="font-size:11px">${ok?'✅':'🟡'}</span>
+    </div>`;
+  }).join('');
+  return `<div class="custo-item custo-item-grupo${pedBloq?' ok':''}" id="custoMasterItem_${p0.id}" style="border-color:#f0c14a;grid-column:span 2;min-width:260px">
+    <div class="ci-top">
+      <div>
+        <div class="ci-num">🔗 Grupo · ${membros.length} pedidos</div>
+        <div class="ci-meta">${hora} · ${turnoLab} · ${typeof formatarDataBR==='function'?formatarDataBR(data):data} · 1 entrega</div>
+      </div>
+      ${badge}
+    </div>
+    <div class="ci-end" title="${String(end).replace(/"/g,'&quot;')}">📍 ${end}</div>
+    <div class="ci-ent">🛵 ${ent}</div>
+    <div style="background:#0e1118;border:1px solid #2c3340;border-radius:8px;padding:6px 8px;margin-top:4px">${linhas}</div>
+    <div class="ci-row" style="margin-top:6px">
+      <button class="btn blue" style="width:100%;padding:10px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px" onclick="event.stopPropagation();abrirMapaPorId('${p0.id}')"><span>📍</span><span>Abrir mapa</span></button>
+    </div>
+  </div>`;
+}
+
+function _htmlItensCustoMaster(listaTurno){
+  const itens = (typeof montarItensAgrupados==='function') ? montarItensAgrupados(listaTurno||[]) : (listaTurno||[]).map(p=>({tipo:'pedido',pedido:p}));
+  return itens.map(it=>{
+    if(it.tipo === 'grupo') return _htmlCardCustoMasterGrupo(it.pedidos||[]);
+    return _htmlCardCustoMaster(it.pedido);
+  }).join('');
 }
 
 function toggleMasterCustoEnt(key){
@@ -2732,7 +2791,7 @@ async function renderAbaCustoMaster(){
         <span id="iconMasterCustoTurno_${keyT}">${abertoT?'👁️ Ocultar':'🙈 Mostrar'}</span>
       </div>
       <div id="wrapMasterCustoTurno_${keyT}" style="display:${abertoT?'block':'none'}">
-        <div class="custo-grid">${listaT.map(_htmlCardCustoMaster).join('')}</div>
+        <div class="custo-grid">${_htmlItensCustoMaster(listaT)}</div>
         <div style="margin:8px 12px 14px;padding:12px;background:#0e1118;border:1px solid #2c3340;border-radius:12px;font-size:12px;color:#8b93a7">
           ${resumoVal||'<div>Sem valores atribuídos</div>'}
           ${enviado?`<button class="btn" onclick="event.stopPropagation();abrirModalReabrirCustoMaster('${nomeEsc}','${idEsc}','${turno}')" style="width:100%;padding:14px;margin-top:10px;font-size:13px;font-weight:900;background:#3a2a1a;color:#f0c14a;border-color:#5a4a2a">🔓 Reabrir ${turno==='almoco'?'Almoço':'Jantar'}</button>`:''}
@@ -2854,6 +2913,69 @@ async function renderAbaCusto(){
     </div>`;
   }
 
+  /** Grupo = 1 entrega: um único card e um único campo de valor para todos os membros. */
+  function _htmlCardCustoGrupo(membros){
+    if(!membros || !membros.length) return '';
+    const p0 = membros[0];
+    const data = p0.data || '—';
+    const hora = _fmtHoraPedido(p0);
+    const end = p0.cliente_endereco || 'Sem endereço';
+    const ent = getNomeReserva(p0) || p0.entregador_nome || nomeLogado;
+    const turnoP = getTurno(p0);
+    const turnoLab = turnoP==='almoco' ? '☀️' : '🌙';
+    // Valor do grupo: 1º membro com valor efetivo
+    let val = null;
+    for(const m of membros){
+      const v = _valorCustoEfetivo(m);
+      if(v != null && !isNaN(v)){ val = v; break; }
+    }
+    const pedBloq = membros.every(m => isCustoTurnoBloqueado(getTurno(m)) || isPedidoCustoBloqueado(m));
+    // Select ancorado no 1º pedido; _propagarCustoGrupo aplica aos demais
+    const idAncora = p0.id;
+    let badge;
+    if(pedBloq){
+      badge = val != null
+        ? `<span class="ci-salvo">🔒 R$ ${Number(val).toFixed(2)}</span>`
+        : `<span style="font-size:10px;color:#8b93a7">—</span>`;
+    } else {
+      badge = val != null
+        ? `<span class="ci-salvo">R$ ${Number(val).toFixed(2)}</span>`
+        : `<span style="font-size:10px;color:#ff6b6b;font-weight:700">sem valor</span>`;
+    }
+    const linhas = membros.map(m=>{
+      const ok = m.status === 'codigo_informado';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #2c3340">
+        <span style="font-weight:800;color:#f0c14a;font-size:12px">#${m.numero_pedido||'—'}</span>
+        <span style="font-size:11px;color:#e6e8ef;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.cliente_nome||'—'}</span>
+        <span style="font-size:11px">${ok?'✅':'🟡'}</span>
+      </div>`;
+    }).join('');
+    return `<div class="custo-item custo-item-grupo${pedBloq?' ok':''}" id="custoItem_${idAncora}" style="border-color:#f0c14a;grid-column:span 2;min-width:260px">
+      <div class="ci-top">
+        <div>
+          <div class="ci-num">🔗 Grupo · ${membros.length} pedidos</div>
+          <div class="ci-meta">${hora} · ${turnoLab} · ${data} · conta como 1 entrega</div>
+        </div>
+        ${badge}
+      </div>
+      <div class="ci-end" title="${String(end).replace(/"/g,'&quot;')}">📍 ${end}</div>
+      <div class="ci-ent">🛵 ${ent}</div>
+      <div style="background:#0e1118;border:1px solid #2c3340;border-radius:8px;padding:6px 8px;margin-top:4px">${linhas}</div>
+      <div class="ci-row" style="margin-top:8px">
+        ${_htmlSelectCusto(idAncora, val, pedBloq)}
+      </div>
+      <div id="custoSt_${idAncora}" style="font-size:10px;color:#8b93a7;min-height:12px">${pedBloq?'🔒 Bloqueado após envio':'🔗 1 valor para o grupo inteiro'}</div>
+    </div>`;
+  }
+
+  function _htmlItensCusto(listaTurno){
+    const itens = montarItensAgrupados(listaTurno||[]);
+    return itens.map(it=>{
+      if(it.tipo === 'grupo') return _htmlCardCustoGrupo(it.pedidos||[]);
+      return _htmlCardCusto(it.pedido);
+    }).join('');
+  }
+
   // Separa entregas por turno (Jantar / Almoço)
   const listaJantar = lista.filter(p => getTurno(p) === 'jantar');
   const listaAlmoco = lista.filter(p => getTurno(p) === 'almoco');
@@ -2908,7 +3030,7 @@ async function renderAbaCusto(){
       <span id="iconCusto_${turno}">${iconTxt}</span>
     </div>
     <div id="wrapCusto_${turno}" style="display:${vis?'block':'none'}">
-      <div class="custo-grid">${listaTurno.map(_htmlCardCusto).join('')}</div>
+      <div class="custo-grid">${_htmlItensCusto(listaTurno)}</div>
       <div style="margin:8px 12px 16px;padding:12px;background:#0e1118;border:1px solid #2c3340;border-radius:12px;font-size:12px;color:#8b93a7">
         ${_resumoTurnoHtml(listaTurno, turno)}
         ${_botoesTurnoHtml(listaTurno, turno)}
@@ -2921,7 +3043,7 @@ async function renderAbaCusto(){
   html += _blocoTurnoCusto('☀️', 'ALMOÇO', listaAlmoco, 'almoco', 'almoco');
   html += _blocoTurnoCusto('🌙', 'JANTAR', listaJantar, 'jantar', 'jantar');
   if(!listaJantar.length && !listaAlmoco.length){
-    html = `<div class="custo-grid">${lista.map(_htmlCardCusto).join('')}</div>`;
+    html = `<div class="custo-grid">${_htmlItensCusto(lista)}</div>`;
   }
   listaEl.innerHTML = html;
 
