@@ -291,6 +291,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 011026.184652</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -5699,6 +5700,25 @@ function abrirModalMasterNovoPedido(){
   carregarEntregadoresDoBanco().then(()=>renderEntregadores());
 }
 
+/** Monta um created_at (ISO) cujo horário de Brasília cai dentro do turno ('almoco' | 'jantar') na data AAAA-MM-DD. */
+function _createdAtParaTurno(turno, data){
+  const agora = new Date();
+  // Se for para hoje e o turno escolhido é o turno atual, usa o horário real
+  try{
+    if(data === getHojeSP() && getTurno({created_at: agora.toISOString()}) === turno) return agora.toISOString();
+  }catch(e){}
+  const prefer = turno === 'almoco' ? [12*60, 11*60, 13*60] : [20*60, 19*60, 21*60];
+  const todos = [];
+  for(let m=0;m<24*60;m+=15) todos.push(m);
+  for(const min of prefer.concat(todos)){
+    const hh = String(Math.floor(min/60)).padStart(2,'0');
+    const mm = String(min%60).padStart(2,'0');
+    const iso = new Date(`${data}T${hh}:${mm}:00-03:00`).toISOString();
+    try{ if(getTurno({created_at: iso}) === turno) return iso; }catch(e){}
+  }
+  return new Date(`${data}T${turno==='almoco'?'12':'20'}:00:00-03:00`).toISOString();
+}
+
 async function masterCriarPedido(){
   if(!usuarioLogado?.isMaster){ alert('Apenas Master'); return; }
   const numero = document.getElementById('novoPedNumero').value.trim();
@@ -5714,31 +5734,21 @@ async function masterCriarPedido(){
   if(!client){ statusEl.textContent='❌ Supabase não configurado'; return; }
   statusEl.textContent='Criando...'; statusEl.style.color='#8b93a7';
   try{
+    // A tabela pedidos_entrega_dia NÃO tem coluna "turno": o turno é calculado pelo horário de created_at.
+    // Por isso gravamos um created_at (horário de Brasília) que cai dentro do turno escolhido.
+    const createdAtTurno = _createdAtParaTurno(turno, data);
     const payload = {
       numero_pedido: numero,
       cliente_nome: cliente,
       cliente_endereco: endereco,
       loja: loja,
       localizador: localizador,
-      turno: turno,
       data: data,
       status: 'pendente',
-      created_at: new Date().toISOString()
+      created_at: createdAtTurno
     };
-    // O banco (Batataria) usa ALMOÇO / JANTAR em maiúsculas. Tenta esse formato primeiro e,
-    // se a restrição do campo "turno" recusar, tenta as variações antes de desistir.
-    const _isAlm = (turno === 'almoco');
-    const _turnosTentar = _isAlm ? ['ALMOÇO','ALMOCO','almoco','Almoço'] : ['JANTAR','jantar','Jantar'];
-    let inserted = null, error = null;
-    for(const _t of _turnosTentar){
-      payload.turno = _t;
-      const _r = await client.from('pedidos_entrega_dia').insert(payload).select().single();
-      inserted = _r.data; error = _r.error;
-      if(!error) break;
-      const _msg = String(error.message||'').toLowerCase();
-      const _ehTurno = _msg.includes('turno') || _msg.includes('check constraint') || error.code === '23514' || _msg.includes('invalid input value for enum');
-      if(!_ehTurno) break;
-    }
+    const _r = await client.from('pedidos_entrega_dia').insert(payload).select().single();
+    const inserted = _r.data, error = _r.error;
     if(error){ statusEl.textContent='❌ '+error.message; statusEl.style.color='#ff6b6b'; return; }
     if(inserted && !todosPedidos.some(x=>x.id===inserted.id)) todosPedidos.push(inserted);
     statusEl.textContent='✅ Pedido #'+numero+' criado em '+data;
