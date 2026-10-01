@@ -84,6 +84,9 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 #entregadorAbas{display:none;margin:10px 12px 0;gap:8px;flex-wrap:wrap}
 #entregadorAbas .tab{flex:1;min-width:120px;text-align:center;padding:12px 14px;font-size:13px}
 #viewCustoEntregador{margin:0 0 16px}
+.alt-end{margin-top:4px;padding:4px 6px;border-radius:8px;background:#3a2210;border:1px solid #ff8a3d;color:#ffb066;font-size:10px;font-weight:800;line-height:1.3}
+.alt-end-ant{font-size:9px;color:#8b93a7;text-decoration:line-through;font-weight:600;margin-top:2px;word-break:break-word}
+.pedido-mini.alterado,.custo-item.alterado{border-color:#ff8a3d !important;box-shadow:0 0 0 1px #ff8a3d inset}
 .custo-item{background:#161a22;border:1px solid #2c3340;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px;min-height:0}
 .custo-item.ok{opacity:.72;border-color:#2a5a3a}
 .custo-item .ci-top{display:flex;justify-content:space-between;align-items:flex-start;gap:4px}
@@ -742,6 +745,27 @@ select '06:00','15:59','16:00','05:59','07:00','23:30',5,false where not exists 
 </div>
 
 <div id="masterModalStatus" style="font-size:11px;color:#8b93a7;margin-top:12px;text-align:center"></div>
+</div>
+</div>
+
+<!-- MODAL MASTER - EDITAR ENDEREÇO DO PEDIDO -->
+<div id="modalEditarEndereco" class="overlay" style="display:none;z-index:270">
+<div class="card" style="width:100%;max-width:460px;max-height:90vh;overflow:auto">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+<h3 style="margin:0;color:#f0c14a">✏️ Editar endereço</h3>
+<button class="btn" onclick="fecharModalEditarEndereco()">✕</button>
+</div>
+<div id="editEndInfo" style="background:#0e1118;border:1px solid #2c3340;border-radius:10px;padding:10px;font-size:11px;color:#8b93a7;margin-bottom:10px"></div>
+<label style="font-size:11px;color:#8b93a7">Endereço</label>
+<textarea id="editEndTexto" rows="3" placeholder="Rua, número, bairro, cidade" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;background:#0e1118;color:#fff;font-family:inherit;font-size:13px;resize:vertical"></textarea>
+<label id="editEndGrupoWrap" style="display:none;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:#e6e8ef">
+<input type="checkbox" id="editEndGrupo" checked style="width:auto"/> <span id="editEndGrupoLabel">Aplicar a todos os pedidos do grupo</span>
+</label>
+<div style="display:flex;gap:8px;margin-top:14px">
+<button class="btn" style="flex:1" onclick="fecharModalEditarEndereco()">Cancelar</button>
+<button class="btn primary" id="btnSalvarEndereco" style="flex:1" onclick="salvarEnderecoMaster()">💾 Salvar</button>
+</div>
+<div id="editEndStatus" style="font-size:11px;color:#8b93a7;margin-top:8px;text-align:center"></div>
 </div>
 </div>
 
@@ -2527,7 +2551,7 @@ function _htmlCardCustoMaster(p){
       ? `<span class="ci-salvo">R$ ${Number(val).toFixed(2)}</span>`
       : `<span style="font-size:10px;color:#8b93a7">sem valor</span>`;
   }
-  return `<div class="custo-item${pedBloq?' ok':''}" id="custoMasterItem_${p.id}">
+  return `<div class="custo-item${pedBloq?' ok':''}${_enderecoAlterado(p)?' alterado':''}" id="custoMasterItem_${p.id}">
     <div class="ci-top">
       <div>
         <div class="ci-num">#${num}</div>
@@ -2537,9 +2561,15 @@ function _htmlCardCustoMaster(p){
     </div>
     <div class="ci-nome">${nome}</div>
     <div class="ci-end" title="${String(end).replace(/"/g,'&quot;')}">📍 ${end}</div>
+      ${_htmlAlteradoEnd(p)}
     <div class="ci-ent">🛵 ${ent}</div>
-    <div class="ci-row" style="margin-top:6px">
-      <button class="btn blue" style="width:100%;padding:10px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px" onclick="event.stopPropagation();abrirMapaPorId('${p.id}')"><span>📍</span><span>Abrir mapa</span></button>
+    <div class="ci-row" style="margin-top:8px">
+      ${_htmlSelectCustoMaster(p.id, val, pedBloq)}
+    </div>
+    <div id="custoMasterSt_${p.id}" style="font-size:10px;color:#8b93a7;min-height:12px">${pedBloq?'🔒 Bloqueado após envio (reabra o turno para alterar)':''}</div>
+    <div class="ci-row" style="margin-top:6px;display:flex;gap:6px">
+      <button class="btn blue" style="flex:1;padding:10px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px" onclick="event.stopPropagation();abrirMapaPorId('${p.id}')"><span>📍</span><span>Mapa</span></button>
+      <button class="btn" style="flex:1;padding:10px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="event.stopPropagation();abrirModalEditarEndereco('${p.id}')"><span>✏️</span><span>Endereço</span></button>
     </div>
   </div>`;
 }
@@ -2578,7 +2608,7 @@ function _htmlCardCustoMasterGrupo(membros){
       <span style="font-size:11px">${ok?'✅':'🟡'}</span>
     </div>`;
   }).join('');
-  return `<div class="custo-item custo-item-grupo${pedBloq?' ok':''}" id="custoMasterItem_${p0.id}" style="border-color:#f0c14a;grid-column:span 2;min-width:260px">
+  return `<div class="custo-item custo-item-grupo${pedBloq?' ok':''}${_algumAlterado(membros)?' alterado':''}" id="custoMasterItem_${p0.id}" style="border-color:#f0c14a;grid-column:span 2;min-width:260px">
     <div class="ci-top">
       <div>
         <div class="ci-num">🔗 Grupo · ${membros.length} pedidos</div>
@@ -2587,12 +2617,74 @@ function _htmlCardCustoMasterGrupo(membros){
       ${badge}
     </div>
     <div class="ci-end" title="${String(end).replace(/"/g,'&quot;')}">📍 ${end}</div>
+      ${_htmlAlteradoEnd(membros)}
     <div class="ci-ent">🛵 ${ent}</div>
     <div style="background:#0e1118;border:1px solid #2c3340;border-radius:8px;padding:6px 8px;margin-top:4px">${linhas}</div>
-    <div class="ci-row" style="margin-top:6px">
-      <button class="btn blue" style="width:100%;padding:10px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px" onclick="event.stopPropagation();abrirMapaPorId('${p0.id}')"><span>📍</span><span>Abrir mapa</span></button>
+    <div class="ci-row" style="margin-top:8px">
+      ${_htmlSelectCustoMaster(p0.id, val, pedBloq)}
+    </div>
+    <div id="custoMasterSt_${p0.id}" style="font-size:10px;color:#8b93a7;min-height:12px">${pedBloq?'🔒 Bloqueado após envio (reabra o turno para alterar)':'🔗 1 valor para o grupo inteiro'}</div>
+    <div class="ci-row" style="margin-top:6px;display:flex;gap:6px">
+      <button class="btn blue" style="flex:1;padding:10px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px" onclick="event.stopPropagation();abrirMapaPorId('${p0.id}')"><span>📍</span><span>Mapa</span></button>
+      <button class="btn" style="flex:1;padding:10px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="event.stopPropagation();abrirModalEditarEndereco('${p0.id}')"><span>✏️</span><span>Endereço</span></button>
     </div>
   </div>`;
+}
+
+/** Select de valor do Master (mesmas opções do entregador). Grupo = 1 campo para todos os pedidos. */
+function _htmlSelectCustoMaster(pedidoId, valorAtual, bloqueado){
+  return _htmlSelectCusto(pedidoId, valorAtual, bloqueado)
+    .replace('id="selCusto_', 'id="selCustoM_')
+    .replace("onchange=\"onChangeCustoPedido(", "onchange=\"onChangeCustoMaster(");
+}
+
+/** Master escolhe o valor: grava em todos os pedidos do grupo (1 entrega) ou só no pedido avulso. */
+async function onChangeCustoMaster(pedidoId){
+  if(!usuarioLogado || !usuarioLogado.isMaster) return;
+  const p = (todosPedidos||[]).find(x=>x.id===pedidoId);
+  if(!p) return;
+  const st = document.getElementById('custoMasterSt_'+pedidoId);
+  const sel = document.getElementById('selCustoM_'+pedidoId);
+  if(!sel) return;
+  const rawId = sel.value;
+  let custo = null;
+  if(rawId){
+    const opt = sel.options[sel.selectedIndex];
+    custo = opt ? parseFloat(opt.getAttribute('data-custo')) : NaN;
+    if(isNaN(custo)){
+      const o = (cacheOpcoesCusto||[]).find(x=> String(x.id)===String(rawId));
+      if(o) custo = Number(o.custo);
+    }
+    if(isNaN(custo) || custo < 0){
+      if(st){ st.textContent = 'Valor inválido'; st.style.color = '#ff6b6b'; }
+      return;
+    }
+  }
+  const membros = p.grupo_entrega
+    ? (todosPedidos||[]).filter(m=> m && m.grupo_entrega===p.grupo_entrega && (m.data||'')===(p.data||''))
+    : [p];
+  const alvos = membros.filter(m=> !isPedidoCustoBloqueado(m));
+  if(!alvos.length){
+    if(typeof mostrarAlerta==='function') mostrarAlerta('Custo já enviado: reabra o turno para alterar o valor', { tipo:'erro' });
+    renderAbaCustoMaster();
+    return;
+  }
+  const client = getSb();
+  if(!client){ if(st){ st.textContent = '❌ Supabase não configurado'; st.style.color = '#ff6b6b'; } return; }
+  if(st){ st.textContent = 'Salvando...'; st.style.color = '#8b93a7'; }
+  try{
+    for(const m of alvos){
+      const {error} = await client.from('pedidos_entrega_dia').update({ valor_entrega: custo }).eq('id', m.id);
+      if(error) throw error;
+      m.valor_entrega = custo;
+      delete rascunhoCusto[m.id];
+    }
+    if(st){ st.textContent = custo==null ? 'Valor removido' : ('✅ R$ '+Number(custo).toFixed(2)+(alvos.length>1?' aplicado aos '+alvos.length+' pedidos do grupo':' salvo')); st.style.color = '#3dcc8a'; }
+  }catch(e){
+    if(st){ st.textContent = '❌ '+(e.message||e); st.style.color = '#ff6b6b'; }
+    return;
+  }
+  try{ renderAbaCustoMaster(); }catch(e){}
 }
 
 function _htmlItensCustoMaster(listaTurno){
@@ -2658,6 +2750,7 @@ async function renderAbaCustoMaster(){
 
   const tit = document.getElementById('tituloAbaCusto');
   if(tit) tit.textContent = '💵 CONFERIR CUSTOS (Master)';
+  if(!(cacheOpcoesCusto||[]).length){ try{ await carregarOpcoesCusto(); }catch(e){} }
 
   const dataAlvo = getDataFiltroCustoEnt();
   // Garante pedidos do dia no cache
@@ -2740,61 +2833,64 @@ async function renderAbaCustoMaster(){
 
   let html = '';
   html += `<div style="margin:0 12px 10px;padding:10px;background:#0e1118;border:1px solid #2c3340;border-radius:12px;font-size:11px;color:#8b93a7;line-height:1.4">
-    Conferência por <b style="color:#f0c14a">entregador</b> e <b style="color:#f0c14a">turno</b>.
+    Conferência por <b style="color:#f0c14a">turno</b> › <b style="color:#f0c14a">entregador</b> › <b style="color:#f0c14a">entregas</b>.
     Cards no mesmo formato da aba de custo. Use <b style="color:#6ab7ff">📍 Abrir mapa</b> em cada pedido.
     Turnos já enviados podem ser <b style="color:#f0c14a">reabertos</b>.
   </div>`;
 
-  nomes.forEach((nome, idxEnt)=>{
-    const pedidosEnt = porEnt[nome];
-    const keyEnt = 'ent_'+idxEnt;
-    if(masterCustoEntVisiveis[keyEnt] === undefined) masterCustoEntVisiveis[keyEnt] = true;
-    const abertoEnt = !!masterCustoEntVisiveis[keyEnt];
-    const cont = typeof _contarEntregasCusto==='function' ? _contarEntregasCusto(pedidosEnt) : { qtdEntregas: pedidosEnt.length, qtdPedidos: pedidosEnt.length };
-    const idE = _idEntByNome(nome);
+  // Hierarquia: TURNO > ENTREGADORES > ENTREGAS (pedidos)
+  const _esc = v => String(v).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  ['almoco','jantar'].forEach(turno=>{
+    const pedidosTurno = lista.filter(p => getTurno(p) === turno);
+    if(!pedidosTurno.length) return;
+    const keyT = 'T_'+turno;
+    if(masterCustoTurnoVisiveis[keyT] === undefined) masterCustoTurnoVisiveis[keyT] = true;
+    const abertoT = !!masterCustoTurnoVisiveis[keyT];
+    const lab = turno==='almoco' ? '☀️ ALMOÇO' : '🌙 JANTAR';
+    const estilo = turno==='almoco' ? 'almoco' : 'jantar';
+    const contTurno = typeof _contarEntregasCusto==='function' ? _contarEntregasCusto(pedidosTurno) : { qtdEntregas: pedidosTurno.length };
 
-    html += `<div class="master-ent-header com-pedidos" style="margin:12px 12px 6px" onclick="toggleMasterCustoEnt('${keyEnt}')">
+    html += `<div class="turno-header ${estilo}" style="margin:14px 12px 6px" onclick="toggleMasterCustoTurno('${keyT}')">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <h2 style="margin:0;font-size:14px">🛵 ${nome}</h2>
-        <span class="count">${cont.qtdEntregas||pedidosEnt.length} entrega(s) · ${pedidosEnt.length} ped.</span>
+        <h2 style="margin:0;font-size:16px">${lab}</h2>
+        <span class="count">${contTurno.qtdEntregas||pedidosTurno.length} entrega(s) · ${pedidosTurno.length} ped.</span>
+        ${contTurno.total?`<span class="count" style="color:#3dcc8a">R$ ${Number(contTurno.total).toFixed(2)}</span>`:''}
       </div>
-      <span id="iconMasterCustoEnt_${keyEnt}">${abertoEnt?'👁️ Ocultar':'🙈 Mostrar'}</span>
+      <span id="iconMasterCustoTurno_${keyT}">${abertoT?'👁️ Ocultar':'🙈 Mostrar'}</span>
     </div>
-    <div id="wrapMasterCustoEnt_${keyEnt}" style="display:${abertoEnt?'block':'none'}">`;
+    <div id="wrapMasterCustoTurno_${keyT}" style="display:${abertoT?'block':'none'}">`;
 
-    ['almoco','jantar'].forEach(turno=>{
-      const listaT = pedidosEnt.filter(p => getTurno(p) === turno);
-      if(!listaT.length) return;
-      const keyT = keyEnt+'_'+turno;
-      if(masterCustoTurnoVisiveis[keyT] === undefined) masterCustoTurnoVisiveis[keyT] = true;
-      const abertoT = !!masterCustoTurnoVisiveis[keyT];
-      const lab = turno==='almoco' ? '☀️ ALMOÇO' : '🌙 JANTAR';
-      const estilo = turno==='almoco' ? 'almoco' : 'jantar';
+    // Entregadores deste turno
+    const entsTurno = nomes.filter(n => pedidosTurno.some(p => _nomeEntPedidoCusto(p) === n));
+    entsTurno.forEach((nome, idxEnt)=>{
+      const listaE = pedidosTurno.filter(p => _nomeEntPedidoCusto(p) === nome);
+      const keyE = keyT+'_ent_'+idxEnt;
+      if(masterCustoEntVisiveis[keyE] === undefined) masterCustoEntVisiveis[keyE] = true;
+      const abertoE = !!masterCustoEntVisiveis[keyE];
+      const idE = _idEntByNome(nome);
       const enviado = turnoEnviado(nome, turno);
-      const contT = typeof _contarEntregasCusto==='function' ? _contarEntregasCusto(listaT) : { qtdEntregas: listaT.length, total: 0, porValor: {} };
+      const contE = typeof _contarEntregasCusto==='function' ? _contarEntregasCusto(listaE) : { qtdEntregas: listaE.length, total: 0, porValor: {} };
       let resumoVal = '';
-      const pv = contT.porValor || {};
+      const pv = contE.porValor || {};
       Object.keys(pv).sort((a,b)=>Number(a)-Number(b)).forEach(v=>{
         resumoVal += `<div style="font-size:11px">R$ ${v} → <b style="color:#fff">${pv[v]}</b></div>`;
       });
-      if(contT.total) resumoVal += `<div style="margin-top:4px;font-weight:800;color:#3dcc8a">Total: R$ ${Number(contT.total).toFixed(2)}</div>`;
+      if(contE.total) resumoVal += `<div style="margin-top:4px;font-weight:800;color:#3dcc8a">Total: R$ ${Number(contE.total).toFixed(2)}</div>`;
+      const nomeEsc = _esc(nome), idEsc = _esc(idE);
 
-      const nomeEsc = String(nome).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      const idEsc = String(idE).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-
-      html += `<div class="turno-header ${estilo}" style="margin:10px 12px 6px" onclick="toggleMasterCustoTurno('${keyT}')">
+      html += `<div class="master-ent-header com-pedidos" style="margin:8px 12px 6px 24px" onclick="toggleMasterCustoEnt('${keyE}')">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <h2 style="margin:0;font-size:14px">${lab}</h2>
-          <span class="count">${contT.qtdEntregas||listaT.length} entrega(s) · ${listaT.length} ped.</span>
+          <h2 style="margin:0;font-size:14px">🛵 ${nome}</h2>
+          <span class="count">${contE.qtdEntregas||listaE.length} entrega(s) · ${listaE.length} ped.</span>
           ${enviado?'<span class="badge" style="font-size:10px;padding:3px 8px;background:#0f1f15;color:#3dcc8a;border:1px solid #2a5a3a">🔒 enviado</span>':'<span class="badge" style="font-size:10px;padding:3px 8px;background:#1c1c12;color:#f0c14a;border:1px solid #5a4a2a">aberto</span>'}
         </div>
-        <span id="iconMasterCustoTurno_${keyT}">${abertoT?'👁️ Ocultar':'🙈 Mostrar'}</span>
+        <span id="iconMasterCustoEnt_${keyE}">${abertoE?'👁️ Ocultar':'🙈 Mostrar'}</span>
       </div>
-      <div id="wrapMasterCustoTurno_${keyT}" style="display:${abertoT?'block':'none'}">
-        <div class="custo-grid">${_htmlItensCustoMaster(listaT)}</div>
-        <div style="margin:8px 12px 14px;padding:12px;background:#0e1118;border:1px solid #2c3340;border-radius:12px;font-size:12px;color:#8b93a7">
+      <div id="wrapMasterCustoEnt_${keyE}" style="display:${abertoE?'block':'none'}">
+        <div class="custo-grid">${_htmlItensCustoMaster(listaE)}</div>
+        <div style="margin:8px 12px 14px 24px;padding:12px;background:#0e1118;border:1px solid #2c3340;border-radius:12px;font-size:12px;color:#8b93a7">
           ${resumoVal||'<div>Sem valores atribuídos</div>'}
-          ${enviado?`<button class="btn" onclick="event.stopPropagation();abrirModalReabrirCustoMaster('${nomeEsc}','${idEsc}','${turno}')" style="width:100%;padding:14px;margin-top:10px;font-size:13px;font-weight:900;background:#3a2a1a;color:#f0c14a;border-color:#5a4a2a">🔓 Reabrir ${turno==='almoco'?'Almoço':'Jantar'}</button>`:''}
+          ${enviado?`<button class="btn" onclick="event.stopPropagation();abrirModalReabrirCustoMaster('${nomeEsc}','${idEsc}','${turno}')" style="width:100%;padding:14px;margin-top:10px;font-size:13px;font-weight:900;background:#3a2a1a;color:#f0c14a;border-color:#5a4a2a">🔓 Reabrir ${turno==='almoco'?'Almoço':'Jantar'} de ${nome}</button>`:''}
         </div>
       </div>`;
     });
@@ -2895,7 +2991,7 @@ async function renderAbaCusto(){
         ? `<span class="ci-salvo">R$ ${Number(val).toFixed(2)}</span>`
         : `<span style="font-size:10px;color:#ff6b6b;font-weight:700">sem valor</span>`;
     }
-    return `<div class="custo-item${pedBloq?' ok':''}" id="custoItem_${p.id}">
+    return `<div class="custo-item${pedBloq?' ok':''}${_enderecoAlterado(p)?' alterado':''}" id="custoItem_${p.id}">
       <div class="ci-top">
         <div>
           <div class="ci-num">#${num}</div>
@@ -2905,6 +3001,7 @@ async function renderAbaCusto(){
       </div>
       <div class="ci-nome">${nome}</div>
       <div class="ci-end" title="${String(end).replace(/"/g,'&quot;')}">📍 ${end}</div>
+      ${_htmlAlteradoEnd(p)}
       <div class="ci-ent">🛵 ${ent}</div>
       <div class="ci-row">
         ${_htmlSelectCusto(p.id, val, pedBloq)}
@@ -2950,7 +3047,7 @@ async function renderAbaCusto(){
         <span style="font-size:11px">${ok?'✅':'🟡'}</span>
       </div>`;
     }).join('');
-    return `<div class="custo-item custo-item-grupo${pedBloq?' ok':''}" id="custoItem_${idAncora}" style="border-color:#f0c14a;grid-column:span 2;min-width:260px">
+    return `<div class="custo-item custo-item-grupo${pedBloq?' ok':''}${_algumAlterado(membros)?' alterado':''}" id="custoItem_${idAncora}" style="border-color:#f0c14a;grid-column:span 2;min-width:260px">
       <div class="ci-top">
         <div>
           <div class="ci-num">🔗 Grupo · ${membros.length} pedidos</div>
@@ -2959,6 +3056,7 @@ async function renderAbaCusto(){
         ${badge}
       </div>
       <div class="ci-end" title="${String(end).replace(/"/g,'&quot;')}">📍 ${end}</div>
+      ${_htmlAlteradoEnd(membros)}
       <div class="ci-ent">🛵 ${ent}</div>
       <div style="background:#0e1118;border:1px solid #2c3340;border-radius:8px;padding:6px 8px;margin-top:4px">${linhas}</div>
       <div class="ci-row" style="margin-top:8px">
@@ -5627,8 +5725,22 @@ async function masterCriarPedido(){
       status: 'pendente',
       created_at: new Date().toISOString()
     };
-    const {data: inserted, error} = await client.from('pedidos_entrega_dia').insert(payload).select().single();
+    // O banco (Batataria) usa ALMOÇO / JANTAR em maiúsculas. Tenta esse formato primeiro e,
+    // se a restrição do campo "turno" recusar, tenta as variações antes de desistir.
+    const _isAlm = (turno === 'almoco');
+    const _turnosTentar = _isAlm ? ['ALMOÇO','ALMOCO','almoco','Almoço'] : ['JANTAR','jantar','Jantar'];
+    let inserted = null, error = null;
+    for(const _t of _turnosTentar){
+      payload.turno = _t;
+      const _r = await client.from('pedidos_entrega_dia').insert(payload).select().single();
+      inserted = _r.data; error = _r.error;
+      if(!error) break;
+      const _msg = String(error.message||'').toLowerCase();
+      const _ehTurno = _msg.includes('turno') || _msg.includes('check constraint') || error.code === '23514' || _msg.includes('invalid input value for enum');
+      if(!_ehTurno) break;
+    }
     if(error){ statusEl.textContent='❌ '+error.message; statusEl.style.color='#ff6b6b'; return; }
+    if(inserted && !todosPedidos.some(x=>x.id===inserted.id)) todosPedidos.push(inserted);
     statusEl.textContent='✅ Pedido #'+numero+' criado em '+data;
     statusEl.style.color='#3dcc8a';
     // limpa
@@ -5640,6 +5752,133 @@ async function masterCriarPedido(){
   }catch(e){
     statusEl.textContent='❌ '+(e.message||e);
     statusEl.style.color='#ff6b6b';
+  }
+}
+
+// ===================== PEDIDO ALTERADO (endereço novo) =====================
+/** Coluna `alterado` (SIM/NÃO) em pedidos_entrega_dia. */
+function _enderecoAlterado(p){
+  if(!p) return false;
+  const v = p.alterado;
+  if(v === true || v === 1 || v === '1') return true;
+  if(typeof v === 'string'){
+    const n = v.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    return n === 'true' || n === 'sim' || n === 's' || n === 'yes';
+  }
+  return false;
+}
+function _algumAlterado(lista){ return (lista||[]).some(_enderecoAlterado); }
+function _escAttrTxt(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+/** Faixa de destaque: aceita 1 pedido ou lista (grupo). */
+function _htmlAlteradoEnd(pedOuLista){
+  const lista = Array.isArray(pedOuLista) ? pedOuLista : [pedOuLista];
+  const alt = lista.find(_enderecoAlterado);
+  if(!alt) return '';
+  let quando = '';
+  try{
+    if(alt.endereco_alterado_em){
+      const d = new Date(alt.endereco_alterado_em);
+      if(!isNaN(d)) quando = ' · ' + d.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    }
+  }catch(e){}
+  const ant = alt.endereco_original ? `<div class="alt-end-ant">Antes: ${_escAttrTxt(alt.endereco_original)}</div>` : '';
+  return `<div class="alt-end">✏️ ENDEREÇO NOVO — alterado${quando}${ant}</div>`;
+}
+
+// ===================== MASTER: EDITAR ENDEREÇO =====================
+let _editEndPedidoId = null;
+
+function abrirModalEditarEndereco(pedidoId){
+  if(!usuarioLogado?.isMaster){ alert('Apenas Master'); return; }
+  const p = (todosPedidos||[]).find(x=>x.id===pedidoId);
+  if(!p){ alert('Pedido não encontrado'); return; }
+  _editEndPedidoId = pedidoId;
+  const info = document.getElementById('editEndInfo');
+  if(info) info.innerHTML = `<b style="color:#f0c14a">#${p.numero_pedido||'—'}</b> · ${p.cliente_nome||'—'}<br>📍 Atual: ${p.cliente_endereco||'—'}`;
+  const ta = document.getElementById('editEndTexto');
+  if(ta) ta.value = p.cliente_endereco || '';
+  const wrap = document.getElementById('editEndGrupoWrap');
+  const membros = p.grupo_entrega ? (todosPedidos||[]).filter(m=>m && m.grupo_entrega===p.grupo_entrega) : [];
+  if(wrap){
+    if(membros.length > 1){
+      wrap.style.display = 'flex';
+      document.getElementById('editEndGrupo').checked = true;
+      document.getElementById('editEndGrupoLabel').textContent = 'Aplicar a todos os '+membros.length+' pedidos do grupo';
+    } else wrap.style.display = 'none';
+  }
+  const st = document.getElementById('editEndStatus');
+  if(st){ st.textContent=''; st.style.color='#8b93a7'; }
+  const btn = document.getElementById('btnSalvarEndereco');
+  if(btn){ btn.disabled=false; btn.textContent='💾 Salvar'; }
+  document.getElementById('modalEditarEndereco').style.display = 'flex';
+  setTimeout(()=>{ try{ ta && ta.focus(); }catch(e){} }, 50);
+}
+
+function fecharModalEditarEndereco(){
+  const m = document.getElementById('modalEditarEndereco');
+  if(m) m.style.display = 'none';
+  _editEndPedidoId = null;
+}
+
+async function salvarEnderecoMaster(){
+  if(!usuarioLogado?.isMaster){ alert('Apenas Master'); return; }
+  const st = document.getElementById('editEndStatus');
+  const btn = document.getElementById('btnSalvarEndereco');
+  const p = (todosPedidos||[]).find(x=>x.id===_editEndPedidoId);
+  if(!p){ if(st){ st.textContent='❌ Pedido não encontrado'; st.style.color='#ff6b6b'; } return; }
+  const novo = (document.getElementById('editEndTexto').value||'').replace(/\s+/g,' ').trim();
+  if(!novo){ if(st){ st.textContent='❌ Informe o endereço'; st.style.color='#ff6b6b'; } return; }
+  const client = getSb();
+  if(!client){ if(st){ st.textContent='❌ Supabase não configurado'; st.style.color='#ff6b6b'; } return; }
+  const aplicarGrupo = !!(p.grupo_entrega && document.getElementById('editEndGrupoWrap').style.display !== 'none' && document.getElementById('editEndGrupo').checked);
+  const alvos = aplicarGrupo ? (todosPedidos||[]).filter(m=>m && m.grupo_entrega===p.grupo_entrega) : [p];
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
+  if(st){ st.textContent = 'Salvando...'; st.style.color = '#8b93a7'; }
+  if(alvos.every(m => String(m.cliente_endereco||'').trim() === novo)){
+    if(st){ st.textContent = 'O endereço é igual ao atual — nada a alterar'; st.style.color = '#f0c14a'; }
+    if(btn){ btn.disabled = false; btn.textContent = '💾 Salvar'; }
+    return;
+  }
+  let avisoColunas = false;
+  try{
+    const agora = new Date().toISOString();
+    for(const m of alvos){
+      const original = m.endereco_original || m.cliente_endereco || null;
+      const full = { cliente_endereco: novo, alterado: true, endereco_original: original, endereco_alterado_em: agora };
+      let {error} = await client.from('pedidos_entrega_dia').update(full).eq('id', m.id);
+      if(error){
+        const msg = String(error.message||'').toLowerCase();
+        const faltaColuna = error.code === 'PGRST204' || error.code === '42703' || msg.includes('column') || msg.includes('schema cache');
+        if(!faltaColuna) throw error;
+        // colunas ainda não criadas: salva só o endereço novo
+        const r2 = await client.from('pedidos_entrega_dia').update({ cliente_endereco: novo }).eq('id', m.id);
+        if(r2.error) throw r2.error;
+        avisoColunas = true;
+      }
+      m.cliente_endereco = novo;
+      m.alterado = true;
+      m.endereco_original = original;
+      m.endereco_alterado_em = agora;
+    }
+    if(avisoColunas){
+      if(st){ st.textContent = '⚠️ Endereço salvo, mas faltam as colunas alterado / endereco_original / endereco_alterado_em no Supabase (rode o SQL). Sem elas o destaque some ao recarregar.'; st.style.color = '#f0c14a'; }
+    } else if(st){ st.textContent = '✅ Endereço atualizado e pedido marcado como ALTERADO'; st.style.color = '#3dcc8a'; }
+    setTimeout(()=>{
+      const gidAberto = masterGrupoSelecionadoId, pidAberto = masterPedidoSelecionadoId;
+      fecharModalEditarEndereco();
+      try{ render(); }catch(e){}
+      try{ if(abaEntregadorAtual === 'custo') renderAbaCustoMaster(); }catch(e){}
+      try{
+        const mp = document.getElementById('modalMasterPedido');
+        if(mp && mp.style.display !== 'none'){
+          if(gidAberto) abrirModalMasterGrupo(gidAberto);
+          else if(pidAberto) abrirModalMasterPedido(pidAberto);
+        }
+      }catch(e){}
+    }, avisoColunas ? 3500 : 700);
+  }catch(e){
+    if(st){ st.textContent = '❌ '+(e.message||e); st.style.color = '#ff6b6b'; }
+    if(btn){ btn.disabled = false; btn.textContent = '💾 Salvar'; }
   }
 }
 
@@ -5669,6 +5908,7 @@ async function abrirModalMasterPedido(pedidoId){
     <div><b style="color:#f0c14a">#${p.numero_pedido}</b> ${isCodigo?'<span style="color:#3dcc8a">✅ Finalizado</span>':'<span style="color:#f0c14a">🟡 A entregar</span>'}</div>
     <div style="margin-top:4px">👤 ${p.cliente_nome||'—'}</div>
     <div>📍 ${p.cliente_endereco||'—'}</div>
+    ${_htmlAlteradoEnd(p)}
     <div>🏪 ${p.loja||'—'} · 🔑 ${p.localizador||'—'} · ${p.data} · ${getTurno(p)}</div>
     ${pagLine}
     <div style="margin-top:6px">Entregador atual: <b style="color:#6ab7ff">${nomeReserva||'⏳ Em espera (sem entregador)'}</b></div>
@@ -5688,6 +5928,7 @@ async function abrirModalMasterPedido(pedidoId){
     acoes += `<button class="btn red" onclick="removerEntregadorDoPedido('${p.id}')">❌ Remover do entregador (voltar p/ espera)</button>`;
   }
   acoes += `<button class="btn blue" onclick="abrirMapaPorId('${p.id}')">📍 Ver no Mapa</button>`;
+  acoes += `<button class="btn" style="background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="abrirModalEditarEndereco('${p.id}')">✏️ Editar endereço</button>`;
   if(!custoBloq){
     acoes += `<button class="btn red" onclick="excluirPedidoDefinitivo('${p.id}')">🗑️ Excluir DEFINITIVO</button>`;
   }
@@ -6306,6 +6547,7 @@ async function abrirModalMasterGrupo(gid){
     <div style="margin-top:6px">Entregador atual: <b style="color:#6ab7ff">${nomeReserva||'⏳ Em espera (sem entregador)'}</b></div>
   `;
   let acoes = `<button class="btn blue" onclick="abrirMapa('${(membros[0].cliente_endereco||'').replace(/'/g,"\\'")}')">📍 Ver no Mapa</button>`;
+  acoes += `<button class="btn" style="background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="abrirModalEditarEndereco('${membros[0].id}')">✏️ Editar endereço do grupo</button>`;
   acoes += `<button class="btn red" onclick="desfazerGrupo('${gid}'); fecharModalMasterPedido()">🔓 Desfazer agrupamento</button>`;
   document.getElementById('masterModalAcoesGerais').innerHTML = acoes;
   document.getElementById('masterModalListaTitulo').textContent = nomeReserva ? '🔄 Transferir grupo para:' : '📤 Enviar grupo para:';
@@ -6554,6 +6796,12 @@ function render(){
  // Esconde o bloco antigo de entregadores no topo (agora fica DENTRO de cada turno)
  if(rootMaster){ rootMaster.style.display='none'; rootMaster.innerHTML=''; }
 
+ if(typeof abaEntregadorAtual !== 'undefined' && abaEntregadorAtual === 'custo'){
+   // Aba Custo tem render próprio; não mexe na lista de Pedidos
+   if(viewTurnos) viewTurnos.style.display='none';
+   const _lv = document.getElementById('listaVazia'); if(_lv) _lv.style.display='none';
+   return;
+ }
  if(!filtrados.length){
    if(base.length===0 && !busca){
      document.getElementById('listaVazia').innerHTML='<div style="text-align:center;color:#8b93a7;padding:10px">Nenhum pedido'+(isMaster?' para esta data.':'.<br>Use o campo Pedido acima para adicionar.')+'</div>';
@@ -6590,7 +6838,8 @@ function render(){
    else gridStats.classList.remove('master3');
  }
 
- if(viewTurnos) viewTurnos.style.display='block';
+ // Na aba Custo (Master ou entregador) os blocos de turno de Pedidos devem ficar ocultos
+ if(viewTurnos) viewTurnos.style.display = (typeof abaEntregadorAtual !== 'undefined' && abaEntregadorAtual === 'custo') ? 'none' : 'block';
 
  let jantarAll = filtrados.filter(p=>getTurno(p)==='jantar');
  let almocoAll = filtrados.filter(p=>getTurno(p)==='almoco');
@@ -6705,6 +6954,7 @@ function cardPedido(p, idx, lista){
   const custoBloq = isPedidoCustoBloqueado(p);
   if(isMasterUser){
     let acoes = `<button class="btn blue" onclick="event.stopPropagation(); abrirMapaPorId('${p.id}')"><span>📍</span><span>Mapa</span></button>`;
+    acoes += `<button class="btn" style="background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="event.stopPropagation(); abrirModalEditarEndereco('${p.id}')"><span>✏️</span><span>Endereço</span></button>`;
     if(custoBloq){
       acoes += `<button class="btn" style="background:#3a2a1a;color:#f0c14a;border-color:#5a4a2a" onclick="event.stopPropagation(); reativarPedido('${p.id}')"><span>↺</span><span>Liberar</span></button>`;
       acoes += `<button class="btn blue pm-full" onclick="event.stopPropagation(); abrirModalMasterPedido('${p.id}')"><span>👁️</span><span>Ver</span></button>`;
@@ -6748,7 +6998,7 @@ function cardPedido(p, idx, lista){
   }
 
   const tempoHtml = getHtmlTempoEntrega(p);
-  return `<div class="pedido-mini${isCodigo?' ok':''}${masterClass}"${masterClickAttr}>
+  return `<div class="pedido-mini${isCodigo?' ok':''}${masterClass}${_enderecoAlterado(p)?' alterado':''}"${masterClickAttr}>
     <div class="pm-top">
       <div style="display:flex;align-items:flex-start;gap:6px">
         ${checkboxAgrupar}
@@ -6761,6 +7011,7 @@ function cardPedido(p, idx, lista){
     </div>
     <div class="pm-nome">${p.cliente_nome||'—'}</div>
     <div class="pm-end" title="${end.replace(/"/g,'&quot;')}">📍 ${end}</div>
+    ${_htmlAlteradoEnd(p)}
     <div class="pm-loja" title="${(loja+' · '+loc).replace(/"/g,'&quot;')}">🏪 ${loja||'—'} · 🔑 ${loc||'—'}</div>
     ${tempoHtml}
     ${pagHtml}
@@ -6822,6 +7073,7 @@ function cardGrupoPedidos(item){
   const acoesGrupo = isMasterUser
     ? `<div class="master-modal-actions" style="margin-top:8px">
         <button class="btn blue small" onclick="event.stopPropagation();abrirMapa('${end.replace(/'/g,"\'")}')"><span>📍</span><span>Mapa</span></button>
+        <button class="btn small" style="background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="event.stopPropagation();abrirModalEditarEndereco('${membros[0].id}')"><span>✏️</span><span>Endereço</span></button>
         <button class="btn blue small" onclick="event.stopPropagation();abrirModalMasterGrupo('${gid}')"><span>${nomeRes?'🔄':'📤'}</span><span>${nomeRes?'Mover':'Enviar'}</span></button>
         <button class="btn red small pm-full" onclick="event.stopPropagation();desfazerGrupo('${gid}')"><span>🗑️</span><span>Desfazer grupo</span></button>
       </div>`
@@ -6831,7 +7083,7 @@ function cardGrupoPedidos(item){
     ? `<div class="pm-rota" style="grid-template-columns:1fr 1fr"><button class="btn small" onclick="moverGrupoCima('${gid}')">↑ Subir</button><button class="btn small" onclick="moverGrupoBaixo('${gid}')">↓ Descer</button></div>`
     : '';
 
-  return `<div class="pedido-mini${todosConfirmados?' ok':''}" style="border-color:#f0c14a;grid-column:span 2;min-width:260px">
+  return `<div class="pedido-mini${todosConfirmados?' ok':''}${_algumAlterado(membros)?' alterado':''}" style="border-color:#f0c14a;grid-column:span 2;min-width:260px">
     <div class="pm-top">
       <div>
         <div class="pm-num">🔗 Grupo · ${membros.length} pedidos</div>
@@ -6840,6 +7092,7 @@ function cardGrupoPedidos(item){
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">${badgeEnt}${badgeStatus}</div>
     </div>
     <div class="pm-end" title="${end.replace(/"/g,'&quot;')}">📍 ${end}</div>
+    ${_htmlAlteradoEnd(membros)}
     ${rota}
     <div class="master-modal-list" style="max-height:none">${linhasMembros}</div>
     ${acoesGrupo}
