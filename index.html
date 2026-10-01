@@ -138,9 +138,36 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 }
 @keyframes dinPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,107,107,.55)}50%{box-shadow:0 0 0 7px rgba(255,107,107,0)}}
 #btnDinheiro.din-alerta{animation:dinPulse 1.6s infinite;background:#2a1414 !important}
+
+/* Modal alerta UI (substitui window.alert) */
+#modalAlertaUI .card{width:100%;max-width:400px;margin:0;padding:18px 16px 14px;border-radius:16px;border:1px solid #2c3340;background:#161a22;box-shadow:0 12px 40px rgba(0,0,0,.55)}
+#modalAlertaUI .ma-icon{font-size:28px;line-height:1;margin-bottom:8px;text-align:center}
+#modalAlertaUI .ma-titulo{margin:0 0 10px;font-size:16px;font-weight:900;text-align:center;color:#f0c14a}
+#modalAlertaUI .ma-titulo.erro{color:#ff6b6b}
+#modalAlertaUI .ma-titulo.sucesso{color:#3dcc8a}
+#modalAlertaUI .ma-titulo.info{color:#6ab7ff}
+#modalAlertaUI .ma-titulo.aviso{color:#f0c14a}
+#modalAlertaUI .ma-msg{font-size:13px;color:#e6e8ef;line-height:1.45;text-align:center;white-space:pre-wrap;word-break:break-word;max-height:50vh;overflow:auto;margin:0 0 16px;padding:0 4px}
+#modalAlertaUI .ma-acoes{display:flex;gap:8px}
+#modalAlertaUI .ma-acoes .btn{flex:1;padding:14px;font-weight:900;font-size:14px}
+
 </style>
 </head>
 <body>
+
+<!-- MODAL ALERTA UI (substitui alert nativo) -->
+<div id="modalAlertaUI" class="overlay" style="display:none;z-index:9990" role="dialog" aria-modal="true" aria-labelledby="modalAlertaTitulo">
+<div class="card">
+  <div class="ma-icon" id="modalAlertaIcon">⚠️</div>
+  <h3 class="ma-titulo aviso" id="modalAlertaTitulo">Aviso</h3>
+  <div class="ma-msg" id="modalAlertaMsg"></div>
+  <div class="ma-acoes">
+    <button type="button" class="btn" id="modalAlertaBtnCancelar" style="display:none" onclick="fecharModalAlertaUI(false)">Cancelar</button>
+    <button type="button" class="btn primary" id="modalAlertaBtnOk" onclick="fecharModalAlertaUI(true)">OK</button>
+  </div>
+</div>
+</div>
+
 <div id="loginScreen" class="overlay" style="z-index:300">
 <div class="card" style="width:100%;max-width:380px;">
 <h2 style="margin:0 0 6px;color:#f0c14a;text-align:center">🛵 A BATATARIA</h2>
@@ -1048,6 +1075,138 @@ Os valores enviados deste dia serão desbloqueados. O entregador poderá alterar
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
+// ===================== MODAL ALERTA UI (substitui window.alert / confirm simples) =====================
+let _alertaUIResolve = null;
+let _alertaUIHistory = false;
+
+function _detectarTipoAlerta(msg){
+  const s = String(msg||'');
+  if(/^(✅|✓)/.test(s) || /\b(sucesso|conclu[ií]da|copiado|gravado|finalizado)\b/i.test(s)) return 'sucesso';
+  if(/^(❌|⛔|🚫)/.test(s) || /\b(erro|falha|inv[aá]lido|n[aã]o (foi|encontr|dispon|config)|bloqueado)\b/i.test(s)) return 'erro';
+  if(/^(⚠️|⚠)/.test(s) || /\b(aten[cç][aã]o|aviso|preencha|faltando)\b/i.test(s)) return 'aviso';
+  return 'info';
+}
+function _tituloPorTipo(tipo){
+  if(tipo==='sucesso') return 'Sucesso';
+  if(tipo==='erro') return 'Atenção';
+  if(tipo==='aviso') return 'Aviso';
+  return 'Informação';
+}
+function _iconePorTipo(tipo){
+  if(tipo==='sucesso') return '✅';
+  if(tipo==='erro') return '⛔';
+  if(tipo==='aviso') return '⚠️';
+  return 'ℹ️';
+}
+/**
+ * Exibe modal no lugar de alert().
+ * @param {string} mensagem
+ * @param {object} [opts] { titulo, tipo:'info'|'erro'|'sucesso'|'aviso', okTexto, cancelar, cancelarTexto }
+ * @returns {Promise<boolean>} true se OK, false se Cancelar
+ */
+function mostrarAlerta(mensagem, opts){
+  opts = opts || {};
+  const msg = String(mensagem==null ? '' : mensagem);
+  const tipo = opts.tipo || _detectarTipoAlerta(msg);
+  const titulo = opts.titulo || _tituloPorTipo(tipo);
+  const icon = opts.icone || _iconePorTipo(tipo);
+  const m = document.getElementById('modalAlertaUI');
+  const elTit = document.getElementById('modalAlertaTitulo');
+  const elMsg = document.getElementById('modalAlertaMsg');
+  const elIcon = document.getElementById('modalAlertaIcon');
+  const btnOk = document.getElementById('modalAlertaBtnOk');
+  const btnCancel = document.getElementById('modalAlertaBtnCancelar');
+  if(!m){
+    // fallback extremo
+    try{ window.__alertNativo && window.__alertNativo(msg); }catch(e){}
+    return Promise.resolve(true);
+  }
+  if(elIcon) elIcon.textContent = icon;
+  if(elTit){
+    elTit.textContent = titulo;
+    elTit.className = 'ma-titulo ' + tipo;
+  }
+  if(elMsg) elMsg.textContent = msg;
+  if(btnOk) btnOk.textContent = opts.okTexto || 'OK';
+  if(btnCancel){
+    const showCancel = !!opts.cancelar;
+    btnCancel.style.display = showCancel ? 'block' : 'none';
+    btnCancel.textContent = opts.cancelarTexto || 'Cancelar';
+  }
+  m.style.display = 'flex';
+  try{
+    if(!_alertaUIHistory){
+      history.pushState({ modalAlertaUI: true }, '');
+      _alertaUIHistory = true;
+    }
+  }catch(e){}
+  return new Promise(resolve=>{
+    _alertaUIResolve = resolve;
+    setTimeout(()=>{ try{ btnOk && btnOk.focus(); }catch(e){} }, 80);
+  });
+}
+function fecharModalAlertaUI(ok){
+  const m = document.getElementById('modalAlertaUI');
+  if(m) m.style.display = 'none';
+  const resolve = _alertaUIResolve;
+  _alertaUIResolve = null;
+  if(_alertaUIHistory){
+    _alertaUIHistory = false;
+    try{ history.back(); }catch(e){}
+  }
+  if(typeof resolve === 'function') resolve(ok !== false);
+}
+/** confirm() via modal — retorna Promise<boolean> */
+function mostrarConfirmacao(mensagem, opts){
+  opts = opts || {};
+  return mostrarAlerta(mensagem, {
+    titulo: opts.titulo || 'Confirmar',
+    tipo: opts.tipo || 'aviso',
+    icone: opts.icone || '❓',
+    okTexto: opts.okTexto || 'Confirmar',
+    cancelar: true,
+    cancelarTexto: opts.cancelarTexto || 'Cancelar'
+  });
+}
+// Substitui alert nativo em toda a página
+(function(){
+  try{
+    if(!window.__alertNativo) window.__alertNativo = window.alert.bind(window);
+    window.alert = function(msg){
+      try{ mostrarAlerta(msg); }catch(e){
+        try{ window.__alertNativo(String(msg)); }catch(e2){}
+      }
+    };
+  }catch(e){}
+})();
+window.addEventListener('popstate', function(){
+  const m = document.getElementById('modalAlertaUI');
+  if(m && m.style.display === 'flex'){
+    _alertaUIHistory = false;
+    m.style.display = 'none';
+    const resolve = _alertaUIResolve;
+    _alertaUIResolve = null;
+    if(typeof resolve === 'function') resolve(false);
+  }
+});
+document.addEventListener('keydown', function(ev){
+  if(ev.key !== 'Escape') return;
+  const m = document.getElementById('modalAlertaUI');
+  if(m && m.style.display === 'flex'){
+    ev.preventDefault();
+    fecharModalAlertaUI(false);
+  }
+});
+// Clique no fundo (overlay) fecha
+(function(){
+  const m = document.getElementById('modalAlertaUI');
+  if(!m) return;
+  m.addEventListener('click', function(ev){
+    if(ev.target === m) fecharModalAlertaUI(false);
+  });
+})();
+// =================== FIM MODAL ALERTA UI ===================
+
 const DEFAULT_URL = "https://umptefufjwvtsoegutet.supabase.co";
 const DEFAULT_KEY = "sb_publishable_J-YJjz-t5TTkR5kXtBMAUQ_2xvDEcDY";
 let sb=null, todosPedidos=[], filtro='hoje', dataSel=null;
@@ -1136,9 +1295,11 @@ function getDataHoraPedido(p){
   return null;
 }
 function isPedidoBloqueadoPorTempo(p){
+  // Só bloqueia por TEMPO decorrido desde a criação/hora do pedido.
+  // NÃO bloqueia só porque já está confirmado (codigo_informado) —
+  // senão o entregador não consegue RECOPIAR localizador/código antes das N horas.
   if(usuarioLogado?.isMaster) return false;
   if(!p) return false;
-  if(p.status==='codigo_informado') return true;
   const horas = configHorarios.horas_bloqueio_edicao!=null ? configHorarios.horas_bloqueio_edicao : 5;
   if(!horas || horas<=0) return false;
   const dt=getDataHoraPedido(p);
@@ -1517,7 +1678,7 @@ async function addEntregador(){
 
 async function removerEntregador(id, nome){
   if(!usuarioLogado?.isMaster){ alert('Apenas Master pode remover'); return; }
-  if(!confirm('Remover entregador "' + (nome||'') + '"? Ele não poderá mais fazer login.')) return;
+  if(!(await mostrarConfirmacao('Remover entregador "' + (nome||'') + '"?\n\nEle não poderá mais fazer login.', { titulo:'Remover entregador', okTexto:'Remover', cancelarTexto:'Cancelar' }))) return;
   const client = getSb();
   if(!client){ alert('Supabase não configurado'); return; }
   try{
@@ -1643,7 +1804,7 @@ async function addCustoEntrega(){
 async function removerCustoEntrega(id){
   if(!usuarioLogado?.isMaster){ alert('Apenas Master'); return; }
   if(!id) return;
-  if(!confirm('Excluir este valor de custo?')) return;
+  if(!(await mostrarConfirmacao('Excluir este valor de custo?', { titulo:'Excluir custo', okTexto:'Excluir', cancelarTexto:'Cancelar' }))) return;
   const st = document.getElementById('custoStatus');
   const client = getSb();
   if(!client){
@@ -1928,76 +2089,6 @@ function _valorCustoEfetivo(p){
 function _pedidoTemValorEntrega(p){
   const v = _valorCustoEfetivo(p);
   return v != null && !isNaN(v);
-}
-
-/** Valor efetivo de um item de custo (solo ou grupo). Grupo usa o 1º membro com valor. */
-function _valorCustoItem(item){
-  if(!item) return null;
-  if(item.tipo==='grupo'){
-    for(const p of (item.pedidos||[])){
-      const v = _valorCustoEfetivo(p);
-      if(v != null && !isNaN(v)) return v;
-    }
-    return null;
-  }
-  return _valorCustoEfetivo(item.pedido);
-}
-function _itemCustoTemValor(item){
-  const v = _valorCustoItem(item);
-  return v != null && !isNaN(v);
-}
-/** Aplica o mesmo valor de custo a todos os pedidos de um grupo (rascunho local). */
-function _aplicarCustoAoGrupo(gid, custo){
-  if(!gid) return;
-  (todosPedidos||[]).forEach(p=>{
-    if(p && p.grupo_entrega===gid){
-      if(custo==null || custo==='') rascunhoCusto[p.id]=null;
-      else rascunhoCusto[p.id]=Number(custo);
-    }
-  });
-}
-/** Conta entregas para custo: cada grupo = 1 entrega; pedidos soltos = 1 cada.
- *  Retorna { itens, qtdEntregas, qtdPedidos, qtdAgrupadas, qtdPedidosAgrupados, qtdPagas, porValor, total, comValor }.
- *  "pagas" = entregas cujo pedido (ou todos do grupo) têm forma_pagamento já pago. */
-function _contarEntregasCusto(lista){
-  const itens = typeof montarItensAgrupados==='function' ? montarItensAgrupados(lista||[]) : (lista||[]).map(p=>({tipo:'solo',pedido:p}));
-  const porValor = {};
-  let total = 0;
-  let comValor = 0;
-  let qtdAgrupadas = 0;
-  let qtdPedidosAgrupados = 0;
-  let qtdPagas = 0;
-  let qtdPedidos = 0;
-  itens.forEach(it=>{
-    if(it.tipo==='grupo'){
-      qtdAgrupadas += 1;
-      qtdPedidosAgrupados += (it.pedidos||[]).length;
-      qtdPedidos += (it.pedidos||[]).length;
-      const todosPagos = (it.pedidos||[]).length && (it.pedidos||[]).every(p=> typeof isFormaJaPago==='function' && isFormaJaPago(p));
-      if(todosPagos) qtdPagas += 1;
-    } else {
-      qtdPedidos += 1;
-      if(typeof isFormaJaPago==='function' && isFormaJaPago(it.pedido)) qtdPagas += 1;
-    }
-    const v = _valorCustoItem(it);
-    if(v != null && !isNaN(v)){
-      const k = Number(v).toFixed(2);
-      porValor[k] = (porValor[k] || 0) + 1;
-      total += Number(v);
-      comValor += 1;
-    }
-  });
-  return {
-    itens,
-    qtdEntregas: itens.length,
-    qtdPedidos,
-    qtdAgrupadas,
-    qtdPedidosAgrupados,
-    qtdPagas,
-    porValor,
-    total,
-    comValor
-  };
 }
 
 function _resolverIdEntregaPorValor(valor){
@@ -2307,80 +2398,29 @@ async function renderAbaCusto(){
     </div>`;
   }
 
-  /** Card de custo para grupo (mesmo endereço = 1 entrega, 1 valor). */
-  function _htmlCardCustoGrupo(item){
-    const membros = item.pedidos || [];
-    if(!membros.length) return '';
-    const p0 = membros[0];
-    const nums = membros.map(p=>'#'+(p.numero_pedido||'—')).join(' · ');
-    const data = p0.data || '—';
-    const hora = _fmtHoraPedido(p0);
-    const end = p0.cliente_endereco || 'Sem endereço';
-    const ent = getNomeReserva(p0) || p0.entregador_nome || nomeLogado;
-    const val = _valorCustoItem(item);
-    const turnoP = getTurno(p0);
-    const turnoLab = turnoP==='almoco' ? '☀️' : '🌙';
-    const pedBloq = isCustoTurnoBloqueado(turnoP) || membros.some(isPedidoCustoBloqueado);
-    let badge;
-    if(pedBloq){
-      badge = val != null
-        ? `<span class="ci-salvo">🔒 R$ ${Number(val).toFixed(2)}</span>`
-        : `<span style="font-size:10px;color:#8b93a7">—</span>`;
-    } else {
-      badge = val != null
-        ? `<span class="ci-salvo">R$ ${Number(val).toFixed(2)}</span>`
-        : `<span style="font-size:10px;color:#ff6b6b;font-weight:700">sem valor</span>`;
-    }
-    const nomes = membros.map(p=>p.cliente_nome||'—').join(', ');
-    // usa o id do 1º pedido no select; onChange propaga para o grupo
-    const pid = p0.id;
-    return `<div class="custo-item${pedBloq?' ok':''}" id="custoItem_${pid}" style="border-color:#f0c14a;grid-column:span 2;min-width:200px">
-      <div class="ci-top">
-        <div>
-          <div class="ci-num">🔗 Grupo · ${membros.length} pedidos</div>
-          <div class="ci-meta">${hora} · ${turnoLab} · ${data} · conta como 1 entrega</div>
-        </div>
-        ${badge}
-      </div>
-      <div class="ci-nome" style="font-size:11px;color:#f0c14a">${nums}</div>
-      <div class="ci-nome" style="font-size:11px">${nomes}</div>
-      <div class="ci-end" title="${String(end).replace(/"/g,'&quot;')}">📍 ${end}</div>
-      <div class="ci-ent">🛵 ${ent}</div>
-      <div class="ci-row">
-        ${_htmlSelectCusto(pid, val, pedBloq)}
-      </div>
-      <div id="custoSt_${pid}" style="font-size:10px;color:#8b93a7;min-height:12px">${pedBloq?'🔒 Bloqueado após envio':'Valor único para o grupo (1 entrega)'}</div>
-    </div>`;
-  }
-
-  function _htmlCardsCustoItens(listaTurno){
-    const itens = montarItensAgrupados(listaTurno);
-    return itens.map(it => it.tipo==='grupo' ? _htmlCardCustoGrupo(it) : _htmlCardCusto(it.pedido)).join('');
-  }
-
   // Separa entregas por turno (Jantar / Almoço)
   const listaJantar = lista.filter(p => getTurno(p) === 'jantar');
   const listaAlmoco = lista.filter(p => getTurno(p) === 'almoco');
 
   function _resumoTurnoHtml(listaTurno, turno){
     const bloq = isCustoTurnoBloqueado(turno);
-    const c = _contarEntregasCusto(listaTurno);
-    const faltam = c.qtdEntregas - c.comValor;
+    const preenc = listaTurno.filter(_pedidoTemValorEntrega);
+    const faltam = listaTurno.length - preenc.length;
+    const porValor = {};
+    preenc.forEach(p=>{
+      const v = Number(_valorCustoEfetivo(p)).toFixed(2);
+      porValor[v] = (porValor[v] || 0) + 1;
+    });
     let linhas = '';
     if(bloq){
       linhas = `<div style="color:#3dcc8a;font-weight:800">🔒 Turno já enviado</div>
-        <div style="margin-top:4px;color:#8b93a7;font-size:11px">${c.qtdEntregas} entrega(s)` +
-        (c.qtdAgrupadas ? ` · ${c.qtdAgrupadas} agrupada(s)` : '') +
-        ` · ${c.qtdPedidos} pedido(s). Valores bloqueados.</div>`;
+        <div style="margin-top:4px;color:#8b93a7;font-size:11px">Valores bloqueados neste turno.</div>`;
     } else {
-      linhas = `<div><b style="color:#fff">${c.comValor}/${c.qtdEntregas}</b> entrega(s) preenchida(s)` +
-        (c.qtdAgrupadas ? ` · <span style="color:#f0c14a">${c.qtdAgrupadas} grupo(s)</span>` : '') +
+      linhas = `<div><b style="color:#fff">${preenc.length}/${listaTurno.length}</b> preenchido(s)` +
         (faltam ? ` · <span style="color:#ff6b6b">${faltam} sem valor</span>` : ` · <span style="color:#3dcc8a">pronto</span>`) + `</div>`;
-      linhas += `<div style="margin-top:2px;font-size:10px;color:#5a657a">${c.qtdPedidos} pedido(s)` +
-        (c.qtdPedidosAgrupados ? ` · ${c.qtdPedidosAgrupados} em grupos (contam como ${c.qtdAgrupadas})` : '') + `</div>`;
-      const vals = Object.keys(c.porValor).sort((a,b)=>Number(a)-Number(b));
+      const vals = Object.keys(porValor).sort((a,b)=>Number(a)-Number(b));
       vals.forEach(v=>{
-        linhas += `<div style="margin-top:2px">R$ ${v} → <b style="color:#fff">${c.porValor[v]}</b></div>`;
+        linhas += `<div style="margin-top:2px">R$ ${v} → <b style="color:#fff">${porValor[v]}</b></div>`;
       });
     }
     return linhas;
@@ -2395,8 +2435,7 @@ async function renderAbaCusto(){
       }
       return `<div style="width:100%;padding:12px;margin-top:8px;text-align:center;font-size:12px;font-weight:800;color:#3dcc8a;background:#0f1f15;border:1px solid #2a5a3a;border-radius:10px">🔒 ${lab} enviado</div>`;
     }
-    const cBtn = _contarEntregasCusto(listaTurno);
-    const faltam = cBtn.qtdEntregas - cBtn.comValor;
+    const faltam = listaTurno.filter(p => !_pedidoTemValorEntrega(p)).length;
     const dis = faltam > 0;
     const txt = dis ? `📤 Preencha todos (${faltam} faltando)` : `📤 Enviar ${lab}`;
     return `<button class="btn primary" id="btnEnviarCusto_${turno}" onclick="enviarCalcEntregas('${turno}')" ${dis?'disabled':''} style="width:100%;padding:16px;margin-top:8px;font-size:14px;font-weight:900;opacity:${dis?0.5:1}">${txt}</button>`;
@@ -2408,14 +2447,14 @@ async function renderAbaCusto(){
     const iconTxt = vis ? '👁️ Ocultar' : '🙈 Mostrar';
     return `<div class="turno-header ${estilo}" style="margin:14px 12px 6px" onclick="toggleTurnoCusto('${turno}')">
       <div style="display:flex;align-items:center;gap:8px"><h2 style="margin:0;font-size:15px">${emoji} ${titulo}</h2>
-      <span class="count">${_contarEntregasCusto(listaTurno).qtdEntregas} entrega(s) · ${listaTurno.length} ped.</span>
+      <span class="count">${listaTurno.length}</span>
       ${isCustoTurnoBloqueado(turno)?'<span class="badge" style="font-size:10px;padding:3px 8px;background:#0f1f15;color:#3dcc8a;border:1px solid #2a5a3a">🔒 enviado</span>':''}
       ${isCustoTurnoBloqueado(turno)?`<button class="btn small" title="Relatório do turno (enviado)" onclick="event.stopPropagation();abrirRelatorioCustoTurno('${turno}')" style="padding:4px 8px;font-size:12px;background:#1a2a3a;border-color:#2a4a5a;color:#6ab7ff">📋</button>`:''}
       </div>
       <span id="iconCusto_${turno}">${iconTxt}</span>
     </div>
     <div id="wrapCusto_${turno}" style="display:${vis?'block':'none'}">
-      <div class="custo-grid">${_htmlCardsCustoItens(listaTurno)}</div>
+      <div class="custo-grid">${listaTurno.map(_htmlCardCusto).join('')}</div>
       <div style="margin:8px 12px 16px;padding:12px;background:#0e1118;border:1px solid #2c3340;border-radius:12px;font-size:12px;color:#8b93a7">
         ${_resumoTurnoHtml(listaTurno, turno)}
         ${_botoesTurnoHtml(listaTurno, turno)}
@@ -2428,7 +2467,7 @@ async function renderAbaCusto(){
   html += _blocoTurnoCusto('☀️', 'ALMOÇO', listaAlmoco, 'almoco', 'almoco');
   html += _blocoTurnoCusto('🌙', 'JANTAR', listaJantar, 'jantar', 'jantar');
   if(!listaJantar.length && !listaAlmoco.length){
-    html = `<div class="custo-grid">${_htmlCardsCustoItens(lista)}</div>`;
+    html = `<div class="custo-grid">${lista.map(_htmlCardCusto).join('')}</div>`;
   }
   listaEl.innerHTML = html;
 
@@ -2450,7 +2489,6 @@ function onChangeCustoPedido(pedidoId){
   const rawId = sel.value;
   if(!rawId){
     rascunhoCusto[pedidoId] = null;
-    if(p && p.grupo_entrega) _aplicarCustoAoGrupo(p.grupo_entrega, null);
     if(st){ st.textContent = 'Valor limpo (ainda não enviado)'; st.style.color = '#8b93a7'; }
   } else {
     let custo = opt ? parseFloat(opt.getAttribute('data-custo')) : NaN;
@@ -2466,8 +2504,7 @@ function onChangeCustoPedido(pedidoId){
       return;
     }
     rascunhoCusto[pedidoId] = custo;
-    if(p && p.grupo_entrega) _aplicarCustoAoGrupo(p.grupo_entrega, custo);
-    if(st){ st.textContent = (p && p.grupo_entrega) ? 'Grupo: 1 entrega · grava ao enviar' : 'Selecionado — grava ao enviar'; st.style.color = '#f0c14a'; }
+    if(st){ st.textContent = 'Selecionado — grava ao enviar'; st.style.color = '#f0c14a'; }
   }
   // Atualiza badge no card
   const item = document.getElementById('custoItem_'+pedidoId);
@@ -2536,23 +2573,23 @@ function enviarCalcEntregas(turno){
     alert('Nenhum pedido neste turno');
     return;
   }
-  const contCheck = _contarEntregasCusto(lista);
-  const faltamCheck = contCheck.qtdEntregas - contCheck.comValor;
-  if(faltamCheck > 0){
-    alert('Preencha o valor de todas as entregas do turno antes de enviar ('+faltamCheck+' faltando). Grupos contam como 1 entrega.');
+  const semValor = lista.filter(p => !_pedidoTemValorEntrega(p));
+  if(semValor.length){
+    alert('Preencha o valor de todas as entregas do turno antes de enviar ('+semValor.length+' faltando)');
     return;
   }
 
   _envioCustoTurno = t;
   const dataAlvo = getDataFiltroCustoEnt();
   const labTurno = t === 'almoco' ? '☀️ Almoço' : '🌙 Jantar';
-  const cont = _contarEntregasCusto(lista);
-  const porValor = cont.porValor;
+  const porValor = {};
+  lista.forEach(p=>{
+    const v = Number(_valorCustoEfetivo(p)).toFixed(2);
+    porValor[v] = (porValor[v] || 0) + 1;
+  });
 
-  let html = `<div style="margin-bottom:8px">Data: <b style="color:#fff">${dataAlvo}</b> · Turno: <b style="color:#f0c14a">${labTurno}</b> · <b style="color:#fff">${cont.qtdEntregas}</b> entrega(s)` +
-    (cont.qtdAgrupadas ? ` · <b style="color:#f0c14a">${cont.qtdAgrupadas}</b> agrupada(s)` : '') +
-    ` · ${cont.qtdPedidos} pedido(s)</div>`;
-  html += `<div style="color:#f0c14a;font-weight:800;margin-bottom:4px">Totais por valor (grupo = 1 entrega)</div>`;
+  let html = `<div style="margin-bottom:8px">Data: <b style="color:#fff">${dataAlvo}</b> · Turno: <b style="color:#f0c14a">${labTurno}</b> · <b style="color:#fff">${lista.length}</b> entrega(s)</div>`;
+  html += `<div style="color:#f0c14a;font-weight:800;margin-bottom:4px">Totais por valor</div>`;
   Object.keys(porValor).sort((a,b)=>Number(a)-Number(b)).forEach(v=>{
     html += `<div>R$ ${v} → <b style="color:#fff">${porValor[v]}</b></div>`;
   });
@@ -2591,9 +2628,9 @@ async function executarEnvioCalcEntregas(){
       });
     }
   }catch(e){}
-  const contEnv = _contarEntregasCusto(lista);
-  if(contEnv.qtdEntregas - contEnv.comValor > 0){
-    if(stModal){ stModal.textContent = 'Ainda há entregas sem valor neste turno (grupo = 1)'; stModal.style.color = '#ff6b6b'; }
+  const semValor = lista.filter(p => !_pedidoTemValorEntrega(p));
+  if(semValor.length){
+    if(stModal){ stModal.textContent = 'Ainda há entregas sem valor neste turno'; stModal.style.color = '#ff6b6b'; }
     return;
   }
   if(!cacheOpcoesCusto.length) await carregarOpcoesCusto();
@@ -2627,16 +2664,7 @@ async function executarEnvioCalcEntregas(){
   if(stModal){ stModal.textContent = 'Gravando valores do turno e enviando...'; stModal.style.color = '#8b93a7'; }
 
   try{
-    // 1) Sincroniza valor do grupo (1 valor para todos os membros) e grava valor_entrega
-    {
-      const itensSync = montarItensAgrupados(lista);
-      for(const it of itensSync){
-        if(it.tipo!=='grupo') continue;
-        const v = _valorCustoItem(it);
-        if(v == null) continue;
-        (it.pedidos||[]).forEach(mp=>{ rascunhoCusto[mp.id] = Number(v); });
-      }
-    }
+    // 1) Grava valor_entrega só dos pedidos deste turno
     for(const p of lista){
       const custo = _valorCustoEfetivo(p);
       if(custo == null) continue;
@@ -2663,12 +2691,10 @@ async function executarEnvioCalcEntregas(){
       delete rascunhoCusto[p.id];
     }
 
-    // 2) Agrega para calc_entregas (só este turno) — cada grupo conta como 1 entrega
+    // 2) Agrega para calc_entregas (só este turno)
     const grupos = {};
-    const itensEnvio = montarItensAgrupados(lista);
-    for(const it of itensEnvio){
-      const custo = Number(_valorCustoItem(it));
-      if(isNaN(custo)) continue;
+    for(const p of lista){
+      const custo = Number(_valorCustoEfetivo(p));
       let idEntrega = _resolverIdEntregaPorValor(custo);
       if(!idEntrega) idEntrega = 'valor_' + custo.toFixed(2);
       const key = idEntrega + '|' + t;
@@ -2682,7 +2708,7 @@ async function executarEnvioCalcEntregas(){
           custo: custo
         };
       }
-      grupos[key].quant += 1; // grupo ou solo = +1
+      grupos[key].quant += 1;
     }
     const rows = Object.values(grupos);
     const payload = rows.map(r => ({
@@ -2755,19 +2781,18 @@ function _listaCustoDoTurno(turno){
 }
 
 function _resumoValoresCusto(lista){
-  // Cada grupo conta como 1 entrega (não N pedidos)
-  const c = _contarEntregasCusto(lista||[]);
-  return {
-    porValor: c.porValor,
-    total: c.total,
-    comValor: c.comValor,
-    qtd: c.qtdEntregas,
-    qtdPedidos: c.qtdPedidos,
-    qtdAgrupadas: c.qtdAgrupadas,
-    qtdPedidosAgrupados: c.qtdPedidosAgrupados,
-    qtdPagas: c.qtdPagas,
-    itens: c.itens
-  };
+  const porValor = {};
+  let total = 0;
+  let comValor = 0;
+  (lista||[]).forEach(p=>{
+    const v = _valorCustoEfetivo(p);
+    if(v == null || isNaN(v)) return;
+    const k = Number(v).toFixed(2);
+    porValor[k] = (porValor[k] || 0) + 1;
+    total += Number(v);
+    comValor += 1;
+  });
+  return { porValor, total, comValor, qtd: (lista||[]).length };
 }
 
 function abrirRelatorioCustoTurno(turno){
@@ -2787,18 +2812,14 @@ function abrirRelatorioCustoTurno(turno){
   _relCustoDataCache = getDataFiltroCustoEnt();
   const lab = t === 'almoco' ? '☀️ Almoço' : '🌙 Jantar';
   const nome = nomeEntregadorAtual() || (usuarioLogado && usuarioLogado.nome) || 'Entregador';
-  const { porValor, total, comValor, qtd, qtdPedidos, qtdAgrupadas, qtdPedidosAgrupados, qtdPagas, itens } = _resumoValoresCusto(lista);
+  const { porValor, total, comValor, qtd } = _resumoValoresCusto(lista);
 
   const titulo = document.getElementById('relCustoTitulo');
   if(titulo) titulo.textContent = '📋 Relatório · ' + lab;
 
   const meta = document.getElementById('relCustoMeta');
   if(meta){
-    meta.innerHTML = `<b style="color:#f0c14a">${nome}</b> · 📅 <b style="color:#fff">${_relCustoDataCache}</b> · ${lab}<br>` +
-      `<b style="color:#fff">${qtd}</b> entrega(s) total` +
-      ` · <b style="color:#3dcc8a">${qtdPagas||0}</b> paga(s)` +
-      ` · <b style="color:#f0c14a">${qtdAgrupadas||0}</b> agrupada(s)` +
-      ` · ${qtdPedidos||lista.length} pedido(s)` +
+    meta.innerHTML = `<b style="color:#f0c14a">${nome}</b> · 📅 <b style="color:#fff">${_relCustoDataCache}</b> · ${lab} · <b style="color:#fff">${qtd}</b> entrega(s)` +
       (comValor < qtd ? ` · <span style="color:#ff6b6b">${qtd-comValor} sem valor</span>` : '');
   }
 
@@ -2821,48 +2842,23 @@ function abrirRelatorioCustoTurno(turno){
   }
   const totEl = document.getElementById('relCustoTotalGeral');
   if(totEl){
-    totEl.innerHTML = `Total: <b style="color:#fff">R$ ${total.toFixed(2)}</b> · ${qtd} entrega(s)` +
-      ` · <span style="color:#3dcc8a">${qtdPagas||0} paga(s)</span>` +
-      ` · <span style="color:#f0c14a">${qtdAgrupadas||0} agrupada(s)</span>` +
-      ` · ${qtdPedidos||lista.length} pedido(s)`;
+    totEl.innerHTML = `Total: <b style="color:#fff">R$ ${total.toFixed(2)}</b> · ${comValor}/${qtd} com valor`;
   }
 
   const box = document.getElementById('relCustoLista');
   if(box){
-    const itensRel = itens || montarItensAgrupados(lista);
-    box.innerHTML = itensRel.map((it,i)=>{
-      if(it.tipo==='grupo'){
-        const membros = it.pedidos||[];
-        const p0 = membros[0]||{};
-        const val = _valorCustoItem(it);
-        const valTxt = val != null ? ('R$ ' + Number(val).toFixed(2)) : '— sem valor';
-        const valColor = val != null ? '#3dcc8a' : '#ff6b6b';
-        const end = p0.cliente_endereco || 'Sem endereço';
-        const nums = membros.map(p=>'#'+(p.numero_pedido||'—')).join(' · ');
-        const nomes = membros.map(p=>p.cliente_nome||'—').join(', ');
-        return `<div style="background:#0e1118;border:1px solid #f0c14a;border-radius:10px;padding:10px 12px">
-          <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
-            <div style="font-weight:900;color:#f0c14a">🔗 Grupo · ${membros.length} pedidos (1 entrega)</div>
-            <div style="font-weight:900;color:${valColor};font-size:13px">${valTxt}</div>
-          </div>
-          <div style="font-size:12px;color:#e6e8ef;margin-top:4px">${nums}</div>
-          <div style="font-size:11px;color:#8b93a7;margin-top:2px">${nomes}</div>
-          <div style="font-size:11px;color:#8b93a7;margin-top:3px">📍 ${end}</div>
-        </div>`;
-      }
-      const p = it.pedido;
+    box.innerHTML = lista.map((p,i)=>{
       const val = _valorCustoEfetivo(p);
       const valTxt = val != null ? ('R$ ' + Number(val).toFixed(2)) : '— sem valor';
       const valColor = val != null ? '#3dcc8a' : '#ff6b6b';
       const end = p.cliente_endereco || 'Sem endereço';
       const hora = (typeof _fmtHoraPedido === 'function') ? _fmtHoraPedido(p) : '';
-      const pagoTag = (typeof isFormaJaPago==='function' && isFormaJaPago(p)) ? ' · <span style="color:#3dcc8a">pago</span>' : '';
       return `<div style="background:#0e1118;border:1px solid #2c3340;border-radius:10px;padding:10px 12px">
         <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
           <div style="font-weight:900;color:#f0c14a">#${p.numero_pedido||'—'}</div>
           <div style="font-weight:900;color:${valColor};font-size:13px">${valTxt}</div>
         </div>
-        <div style="font-size:12px;color:#e6e8ef;margin-top:4px">${p.cliente_nome||'—'}${pagoTag}</div>
+        <div style="font-size:12px;color:#e6e8ef;margin-top:4px">${p.cliente_nome||'—'}</div>
         <div style="font-size:11px;color:#8b93a7;margin-top:3px">📍 ${end}</div>
         <div style="font-size:10px;color:#5a657a;margin-top:4px">${hora ? '🕐 '+hora+' · ' : ''}🏪 ${p.loja||'—'} · 🔑 ${p.localizador||'—'}</div>
       </div>`;
@@ -2880,16 +2876,13 @@ function _montarTextoRelatorioCusto(modo){
   const lab = t === 'almoco' ? 'Almoço' : 'Jantar';
   const nome = nomeEntregadorAtual() || (usuarioLogado && usuarioLogado.nome) || 'Entregador';
   const lista = _relCustoListaCache || [];
-  const { porValor, total, comValor, qtd, qtdPedidos, qtdAgrupadas, qtdPedidosAgrupados, qtdPagas, itens } = _resumoValoresCusto(lista);
+  const { porValor, total, comValor, qtd } = _resumoValoresCusto(lista);
   const lines = [];
   lines.push('A BATATARIA - Relatório de custos' + (tipo === 'resumo' ? ' (RESUMO)' : ' (COMPLETO)'));
   lines.push('Entregador: ' + nome);
   lines.push('Data: ' + (_relCustoDataCache || ''));
   lines.push('Turno: ' + lab);
-  lines.push('Total entregas: ' + qtd + (qtdAgrupadas ? ' (grupos contam como 1)' : ''));
-  lines.push('Pagas: ' + (qtdPagas||0));
-  lines.push('Agrupadas: ' + (qtdAgrupadas||0) + (qtdPedidosAgrupados ? ' ('+qtdPedidosAgrupados+' pedidos)' : ''));
-  lines.push('Pedidos: ' + (qtdPedidos||lista.length));
+  lines.push('Entregas: ' + qtd);
   lines.push('');
   lines.push('=== QUANTIDADES POR VALOR ===');
   const keys = Object.keys(porValor).sort((a,b)=>Number(a)-Number(b));
@@ -2908,25 +2901,12 @@ function _montarTextoRelatorioCusto(modo){
   if(tipo === 'completo'){
     lines.push('');
     lines.push('=== ENTREGAS DO TURNO ===');
-    const itensRel = itens || montarItensAgrupados(lista);
-    itensRel.forEach((it,i)=>{
-      if(it.tipo==='grupo'){
-        const membros = it.pedidos||[];
-        const val = _valorCustoItem(it);
-        const valTxt = val != null ? ('R$ ' + Number(val).toFixed(2)) : 'sem valor';
-        const nums = membros.map(p=>'#'+(p.numero_pedido||'-')).join(', ');
-        lines.push((i+1) + '. 🔗 GRUPO (' + membros.length + ' pedidos = 1 entrega) | ' + valTxt);
-        lines.push('   Pedidos: ' + nums);
-        lines.push('   ' + ((membros[0]&&membros[0].cliente_endereco)||'Sem endereço'));
-      } else {
-        const p = it.pedido;
-        const val = _valorCustoEfetivo(p);
-        const valTxt = val != null ? ('R$ ' + Number(val).toFixed(2)) : 'sem valor';
-        const pago = (typeof isFormaJaPago==='function' && isFormaJaPago(p)) ? ' | PAGO' : '';
-        lines.push((i+1) + '. #' + (p.numero_pedido||'-') + ' | ' + (p.cliente_nome||'-') + ' | ' + valTxt + pago);
-        lines.push('   ' + (p.cliente_endereco||'Sem endereço'));
-        if(p.loja) lines.push('   Loja: ' + p.loja);
-      }
+    lista.forEach((p,i)=>{
+      const val = _valorCustoEfetivo(p);
+      const valTxt = val != null ? ('R$ ' + Number(val).toFixed(2)) : 'sem valor';
+      lines.push((i+1) + '. #' + (p.numero_pedido||'-') + ' | ' + (p.cliente_nome||'-') + ' | ' + valTxt);
+      lines.push('   ' + (p.cliente_endereco||'Sem endereço'));
+      if(p.loja) lines.push('   Loja: ' + p.loja);
     });
   }
   return lines.join('\n');
@@ -2967,7 +2947,7 @@ function _gerarPdfRelatorioCustoSync(JsPDF, modo){
   const lab = t === 'almoco' ? 'Almoco' : 'Jantar';
   const nome = nomeEntregadorAtual() || (usuarioLogado && usuarioLogado.nome) || 'Entregador';
   const lista = _relCustoListaCache || [];
-  const { porValor, total, comValor, qtd, qtdPedidos, qtdAgrupadas, qtdPedidosAgrupados, qtdPagas, itens } = _resumoValoresCusto(lista);
+  const { porValor, total, comValor, qtd } = _resumoValoresCusto(lista);
   const margem = 14;
   let y = 16;
   const maxW = 180;
@@ -2989,8 +2969,7 @@ function _gerarPdfRelatorioCustoSync(JsPDF, modo){
   doc.setFontSize(10);
   txt('Entregador: ' + nome, margem, y); y += 5;
   txt('Data: ' + (_relCustoDataCache || '') + '  |  Turno: ' + lab, margem, y); y += 5;
-  txt('Total: ' + qtd + '  |  Pagas: ' + (qtdPagas||0) + '  |  Agrupadas: ' + (qtdAgrupadas||0), margem, y); y += 5;
-  txt('Pedidos: ' + (qtdPedidos||lista.length) + '  |  Valor total: R$ ' + total.toFixed(2), margem, y); y += 7;
+  txt('Entregas: ' + qtd + '  |  Total: R$ ' + total.toFixed(2), margem, y); y += 7;
   doc.setDrawColor(160);
   doc.setLineWidth(0.3);
   doc.line(margem, y, margem + maxW, y); y += 6;
@@ -3037,30 +3016,15 @@ function _gerarPdfRelatorioCustoSync(JsPDF, modo){
       y += 2;
     };
 
-    const itensPdf = (typeof itens !== 'undefined' && itens) ? itens : montarItensAgrupados(lista);
-    itensPdf.forEach((it,i)=>{
-      if(it.tipo==='grupo'){
-        const membros = it.pedidos||[];
-        const val = _valorCustoItem(it);
-        const valTxt = val != null ? ('R$ ' + Number(val).toFixed(2)) : 'sem valor';
-        const nums = membros.map(p=>'#'+(p.numero_pedido||'-')).join(', ');
-        escrever([
-          (i+1) + '. GRUPO (' + membros.length + ' pedidos = 1 entrega)  |  ' + valTxt,
-          'Pedidos: ' + nums,
-          'Endereco: ' + ((membros[0]&&membros[0].cliente_endereco)||'Sem endereco')
-        ]);
-      } else {
-        const p = it.pedido;
-        const val = _valorCustoEfetivo(p);
-        const valTxt = val != null ? ('R$ ' + Number(val).toFixed(2)) : 'sem valor';
-        const pago = (typeof isFormaJaPago==='function' && isFormaJaPago(p)) ? ' | PAGO' : '';
-        escrever([
-          (i+1) + '. #' + (p.numero_pedido||'-') + '  |  ' + valTxt + pago,
-          'Cliente: ' + (p.cliente_nome||'-'),
-          'Endereco: ' + (p.cliente_endereco||'Sem endereco'),
-          'Loja: ' + (p.loja||'-') + '  |  Loc: ' + (p.localizador||'-')
-        ]);
-      }
+    lista.forEach((p,i)=>{
+      const val = _valorCustoEfetivo(p);
+      const valTxt = val != null ? ('R$ ' + Number(val).toFixed(2)) : 'sem valor';
+      escrever([
+        (i+1) + '. #' + (p.numero_pedido||'-') + '  |  ' + valTxt,
+        'Cliente: ' + (p.cliente_nome||'-'),
+        'Endereco: ' + (p.cliente_endereco||'Sem endereco'),
+        'Loja: ' + (p.loja||'-') + '  |  Loc: ' + (p.localizador||'-')
+      ]);
     });
   }
 
@@ -3451,9 +3415,9 @@ function moverBaixo(id){
   if(!ordem.length){ ordem=todosPedidos.filter(x=>x.data===data).sort((a,b)=> new Date(a.created_at)-new Date(b.created_at)).map(x=>x.id); }
   const idx=ordem.indexOf(id); if(idx>=0 && idx<ordem.length-1){ [ordem[idx+1], ordem[idx]]=[ordem[idx], ordem[idx+1]]; salvarOrdem(data, ordem); carregarPedidosVisiveis(); render(); }
 }
-function resetarOrdem(){
+async function resetarOrdem(){
   if(usuarioLogado.isMaster) return;
-  if(!confirm('Voltar a ordenar por tempo (antigos primeiro)?')) return;
+  if(!(await mostrarConfirmacao('Voltar a ordenar por tempo (antigos primeiro)?', { titulo:'Ordenação', okTexto:'Sim', cancelarTexto:'Não' }))) return;
   localStorage.removeItem(getKeyOrdem(getHojeSP())); localStorage.removeItem(getKeyOrdem(getAmanhaSP()));
   carregarPedidosVisiveis(); render();
 }
@@ -4664,7 +4628,7 @@ async function excluirPedido(id){
   }
   const p = todosPedidos.find(x=>x.id===id);
   const nome = p ? `#${p.numero_pedido} - ${p.cliente_nome||''}` : id;
-  if(!confirm('Excluir '+nome+' da sua lista? Vai voltar para EM ESPERA e liberar para outro entregador.')) return;
+  if(!(await mostrarConfirmacao('Excluir '+nome+' da sua lista?\n\nVai voltar para EM ESPERA e liberar para outro entregador.', { titulo:'Remover da lista', okTexto:'Excluir', cancelarTexto:'Cancelar' }))) return;
   
   const client = getSb();
   const btnStatus = document.getElementById('addStatus');
@@ -5195,7 +5159,7 @@ async function executarEnvioConfirmado(){
 
 async function removerEntregadorDoPedido(pedidoId){
   if(!usuarioLogado?.isMaster) return;
-  if(!confirm('Remover entregador deste pedido e voltar para EM ESPERA?')) return;
+  if(!(await mostrarConfirmacao('Remover entregador deste pedido e voltar para EM ESPERA?', { titulo:'Remover reserva', okTexto:'Remover', cancelarTexto:'Cancelar' }))) return;
   const client=getSb();
   const statusEl=document.getElementById('masterModalStatus');
   statusEl.textContent='⏳ Removendo...';
@@ -6262,8 +6226,8 @@ async function executarLimpeza30Dias(){
     mostrarAlertaLimpezaUI(false);
     return;
   }
-  if(!confirm('Limpeza diária\n\nExcluir DEFINITIVAMENTE '+qtd+' pedido(s) com data anterior a '+limite+' (mais de 30 dias)?\n\nTambém remove reservas desses pedidos no Supabase.\nNão dá para desfazer.')) return;
-  if(!confirm('Última confirmação: apagar '+qtd+' pedido(s) antigos no Supabase?')) return;
+  if(!(await mostrarConfirmacao('Limpeza diária\n\nExcluir DEFINITIVAMENTE '+qtd+' pedido(s) com data anterior a '+limite+' (mais de 30 dias)?\n\nTambém remove reservas desses pedidos no Supabase.\nNão dá para desfazer.', { titulo:'Limpeza 30 dias', tipo:'erro', icone:'🗑️', okTexto:'Excluir', cancelarTexto:'Cancelar' }))) return;
+  if(!(await mostrarConfirmacao('Última confirmação: apagar '+qtd+' pedido(s) antigos no Supabase?', { titulo:'Confirmar exclusão', tipo:'erro', icone:'⚠️', okTexto:'Sim, apagar', cancelarTexto:'Cancelar' }))) return;
   const client = getSb();
   if(!client){ alert('Supabase não configurado'); return; }
   const bar = document.getElementById('alertaLimpeza30');
@@ -7058,7 +7022,7 @@ async function finalizarPedidoExterno(id){
   const pedido = todosPedidos.find(x=>x.id===id);
   if(!pedido){ alert('Pedido não encontrado'); return; }
   const plataforma = getLabelPlataformaExterna(pedido.numero_pedido);
-  if(!confirm('Finalizar pedido #'+pedido.numero_pedido+' - '+(pedido.cliente_nome||'')+' ?\n\nPlataforma: '+plataforma+'\nNão vai abrir iFood, só grava no sistema.')) return;
+  if(!(await mostrarConfirmacao('Finalizar pedido #'+pedido.numero_pedido+' - '+(pedido.cliente_nome||'')+' ?\n\nPlataforma: '+plataforma+'\nNão vai abrir iFood, só grava no sistema.', { titulo:'Finalizar pedido', okTexto:'Finalizar', cancelarTexto:'Cancelar' }))) return;
   const nomeEntregador = nomeEntregadorAtual() || 'Entregador';
   let statusGravacao = '';
   if(!navigator.onLine){
@@ -7402,7 +7366,7 @@ async function informarCodigo(id){
     return;
   }
   if(_pedCheck && isPedidoBloqueadoPorTempo(_pedCheck)){
-    alert('⛔ Pedido bloqueado para edição: já se passaram '+ (configHorarios.horas_bloqueio_edicao||5) +'h desde a criação. Apenas Master pode finalizar.');
+    mostrarAlerta('Pedido bloqueado para edição: limite de '+ (configHorarios.horas_bloqueio_edicao||5) +'h desde a criação do pedido.\n\nApenas Master pode finalizar.', { tipo:'erro', titulo:'Pedido bloqueado', icone:'⛔' });
     return;
   }
   if(_pedCheck && isPedidoExterno(_pedCheck.numero_pedido)){
@@ -7429,7 +7393,7 @@ async function editarCodigo(id,atual){
     return;
   }
   if(_pedCheckEdit && isPedidoBloqueadoPorTempo(_pedCheckEdit)){
-    alert('⛔ Pedido bloqueado para edição: já se passaram '+ (configHorarios.horas_bloqueio_edicao||5) +'h. Apenas Master pode reativar/finalizar.');
+    mostrarAlerta('Pedido bloqueado para edição: limite de '+ (configHorarios.horas_bloqueio_edicao||5) +'h desde a criação do pedido.\n\nApenas Master pode reativar/finalizar.', { tipo:'erro', titulo:'Pedido bloqueado', icone:'⛔' });
     return;
   }
   const modo = getModoConfirmacao();
