@@ -291,7 +291,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 011026.184652</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 011026.200805</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -2642,7 +2642,7 @@ function _htmlSelectCustoMaster(pedidoId, valorAtual, bloqueado){
 /** Master escolhe o valor: grava em todos os pedidos do grupo (1 entrega) ou só no pedido avulso. */
 async function onChangeCustoMaster(pedidoId){
   if(!usuarioLogado || !usuarioLogado.isMaster) return;
-  const p = (todosPedidos||[]).find(x=>x.id===pedidoId);
+  const p = _pedidoPorIdCusto(pedidoId);
   if(!p) return;
   const st = document.getElementById('custoMasterSt_'+pedidoId);
   const sel = document.getElementById('selCustoM_'+pedidoId);
@@ -2662,7 +2662,7 @@ async function onChangeCustoMaster(pedidoId){
     }
   }
   const membros = p.grupo_entrega
-    ? (todosPedidos||[]).filter(m=> m && m.grupo_entrega===p.grupo_entrega && (m.data||'')===(p.data||''))
+    ? _todosPedidosComCache().filter(m=> m && m.grupo_entrega===p.grupo_entrega && (m.data||'')===(p.data||''))
     : [p];
   const alvos = membros.filter(m=> !isPedidoCustoBloqueado(m));
   if(!alvos.length){
@@ -2782,6 +2782,9 @@ async function renderAbaCustoMaster(){
     const n = _nomeEntPedidoCusto(p);
     return n && n !== '— sem entregador —';
   });
+  // guarda cópia para os botões (mapa, endereço, valor) funcionarem mesmo se todosPedidos for recarregado
+  _cachePedidosCustoMaster = {};
+  lista.forEach(p=>{ if(p && p.id) _cachePedidosCustoMaster[p.id] = p; });
 
   if(!lista.length){
     listaEl.innerHTML = '';
@@ -4853,8 +4856,29 @@ function abrirMapa(endereco){
     location.href = url;
   }
 }
-function abrirMapaPorId(id){
-  const p = todosPedidos.find(x=>x.id===id);
+// Cache dos pedidos exibidos em Conferir Custos (o carregar() pode trocar todosPedidos e deixar de fora outros dias)
+let _cachePedidosCustoMaster = {};
+function _todosPedidosComCache(){
+  const base = Array.isArray(todosPedidos) ? todosPedidos : [];
+  const ids = new Set(base.map(x=>x && x.id));
+  const extra = Object.values(_cachePedidosCustoMaster||{}).filter(x=> x && !ids.has(x.id));
+  return extra.length ? base.concat(extra) : base;
+}
+function _pedidoPorIdCusto(id){
+  return (Array.isArray(todosPedidos) ? todosPedidos.find(x=>x && x.id===id) : null) || (_cachePedidosCustoMaster||{})[id] || null;
+}
+async function abrirMapaPorId(id){
+  let p = _pedidoPorIdCusto(id);
+  if(!p){
+    // Último recurso: busca o pedido direto no Supabase
+    try{
+      const client = getSb();
+      if(client){
+        const {data} = await client.from('pedidos_entrega_dia').select('*').eq('id', id).maybeSingle();
+        if(data){ p = data; _cachePedidosCustoMaster[id] = data; }
+      }
+    }catch(e){ console.warn('abrirMapaPorId fetch', e); }
+  }
   if(!p){ alert('Pedido não encontrado'); return; }
   abrirMapa(p.cliente_endereco);
 }
@@ -5800,7 +5824,7 @@ let _editEndPedidoId = null;
 
 function abrirModalEditarEndereco(pedidoId){
   if(!usuarioLogado?.isMaster){ alert('Apenas Master'); return; }
-  const p = (todosPedidos||[]).find(x=>x.id===pedidoId);
+  const p = _pedidoPorIdCusto(pedidoId);
   if(!p){ alert('Pedido não encontrado'); return; }
   _editEndPedidoId = pedidoId;
   const info = document.getElementById('editEndInfo');
@@ -5808,7 +5832,7 @@ function abrirModalEditarEndereco(pedidoId){
   const ta = document.getElementById('editEndTexto');
   if(ta) ta.value = p.cliente_endereco || '';
   const wrap = document.getElementById('editEndGrupoWrap');
-  const membros = p.grupo_entrega ? (todosPedidos||[]).filter(m=>m && m.grupo_entrega===p.grupo_entrega) : [];
+  const membros = p.grupo_entrega ? _todosPedidosComCache().filter(m=>m && m.grupo_entrega===p.grupo_entrega) : [];
   if(wrap){
     if(membros.length > 1){
       wrap.style.display = 'flex';
@@ -5834,14 +5858,14 @@ async function salvarEnderecoMaster(){
   if(!usuarioLogado?.isMaster){ alert('Apenas Master'); return; }
   const st = document.getElementById('editEndStatus');
   const btn = document.getElementById('btnSalvarEndereco');
-  const p = (todosPedidos||[]).find(x=>x.id===_editEndPedidoId);
+  const p = _pedidoPorIdCusto(_editEndPedidoId);
   if(!p){ if(st){ st.textContent='❌ Pedido não encontrado'; st.style.color='#ff6b6b'; } return; }
   const novo = (document.getElementById('editEndTexto').value||'').replace(/\s+/g,' ').trim();
   if(!novo){ if(st){ st.textContent='❌ Informe o endereço'; st.style.color='#ff6b6b'; } return; }
   const client = getSb();
   if(!client){ if(st){ st.textContent='❌ Supabase não configurado'; st.style.color='#ff6b6b'; } return; }
   const aplicarGrupo = !!(p.grupo_entrega && document.getElementById('editEndGrupoWrap').style.display !== 'none' && document.getElementById('editEndGrupo').checked);
-  const alvos = aplicarGrupo ? (todosPedidos||[]).filter(m=>m && m.grupo_entrega===p.grupo_entrega) : [p];
+  const alvos = aplicarGrupo ? _todosPedidosComCache().filter(m=>m && m.grupo_entrega===p.grupo_entrega) : [p];
   if(btn){ btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
   if(st){ st.textContent = 'Salvando...'; st.style.color = '#8b93a7'; }
   if(alvos.every(m => String(m.cliente_endereco||'').trim() === novo)){
