@@ -126,10 +126,114 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 .pm-tempo.ok{background:#0f1f15;color:#3dcc8a;border:1px solid #2a5a3a}
 .pm-tempo.warn{background:#2a2a1a;color:#f0c14a;border:1px solid #5a4a2a}
 .pm-tempo.late{background:#3a1a1a;color:#ff6b6b;border:1px solid #5a2a2a;animation:dinPulse 1.6s infinite}
-.pedido-mini .pm-actions{display:flex;gap:4px;flex-wrap:wrap;margin-top:auto;padding-top:4px}
-.pedido-mini .pm-actions .btn{padding:6px 8px;font-size:10px;border-radius:8px;flex:1;min-width:0;text-align:center}
-.pedido-mini .pm-rota{display:flex;gap:3px;flex-wrap:wrap}
-.pedido-mini .pm-rota .btn{padding:4px 6px;font-size:9px;flex:0 0 auto}
+.pedido-mini .pm-actions{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:6px;
+  margin-top:auto;
+  padding-top:6px;
+  width:100%;
+}
+.pedido-mini .pm-actions .btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  padding:8px 6px;
+  font-size:11px;
+  font-weight:800;
+  line-height:1.15;
+  border-radius:9px;
+  min-width:0;
+  min-height:36px;
+  width:100%;
+  text-align:center;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  box-sizing:border-box;
+}
+/* 3º e 4º botão em linha completa quando só 3 botões: 2+1 centralizado via span full */
+.pedido-mini .pm-actions .btn.pm-full{
+  grid-column:1 / -1;
+}
+.pedido-mini .pm-rota{
+  display:grid;
+  grid-template-columns:1fr 1fr auto;
+  gap:6px;
+  margin-bottom:8px;
+  width:100%;
+}
+.pedido-mini .pm-rota .btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:8px 6px;
+  font-size:11px;
+  font-weight:800;
+  min-height:36px;
+  border-radius:9px;
+  white-space:nowrap;
+}
+.pedido-mini .pm-actions-entregador .btn,
+.btn-entregador-mapa,
+.btn-entregador-localizador{
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  text-align:center;
+  white-space:normal;
+  line-height:1.2;
+  box-sizing:border-box;
+}
+/* Grupo: ações inferiores */
+.pedido-mini .master-modal-actions{
+  display:grid !important;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:6px;
+  width:100%;
+  margin-top:8px;
+}
+.pedido-mini .master-modal-actions .btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  padding:8px 6px;
+  font-size:11px;
+  font-weight:800;
+  min-height:36px;
+  min-width:0;
+  width:100%;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  line-height:1.15;
+}
+.pedido-mini .master-modal-actions .btn.pm-full{grid-column:1 / -1}
+/* Membros do grupo */
+.pedido-mini .list-item .btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  padding:8px 8px;
+  font-size:11px;
+  font-weight:800;
+  min-height:34px;
+  white-space:nowrap;
+  line-height:1.15;
+}
+@media (max-width:420px){
+  .pedido-mini .pm-actions .btn,
+  .pedido-mini .master-modal-actions .btn,
+  .pedido-mini .pm-rota .btn{
+    font-size:10px;
+    padding:8px 4px;
+    letter-spacing:0;
+  }
+  .pedidos-grid{grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:6px;padding:6px 8px 12px}
+}
 @media (min-width:520px){
   .pedidos-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
 }
@@ -991,7 +1095,7 @@ Após confirmar, os valores das entregas serão gravados e <b style="color:#ff6b
 <div id="viewCustoEntregador" style="display:none">
 <div class="card" style="margin:10px 12px">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-<div style="font-size:13px;color:#3dcc8a;font-weight:900">💵 CUSTO DAS ENTREGAS</div>
+<div id="tituloAbaCusto" style="font-size:13px;color:#3dcc8a;font-weight:900">💵 CUSTO DAS ENTREGAS</div>
 <span id="custoDiaInfo" style="font-size:10px;color:#8b93a7"></span>
 </div>
 <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
@@ -1225,6 +1329,39 @@ let modoAgrupamento=false;
 let selecaoAgrupamento=new Set();
 
 
+/** Converte YYYY-MM-DD (ou Date/ISO) para dd/mm/aa */
+function formatarDataBR(dataStr, comAnoCompleto){
+  if(dataStr == null || dataStr === '') return '';
+  let y, m, d;
+  if(dataStr instanceof Date && !isNaN(dataStr.getTime())){
+    y = dataStr.getFullYear();
+    m = dataStr.getMonth()+1;
+    d = dataStr.getDate();
+  } else {
+    const s = String(dataStr).trim();
+    // YYYY-MM-DD or YYYY-MM-DDTHH:mm...
+    let m1 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if(m1){
+      y = parseInt(m1[1],10); m = parseInt(m1[2],10); d = parseInt(m1[3],10);
+    } else {
+      // already dd/mm/yyyy or dd/mm/yy
+      let m2 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+      if(m2){
+        d = parseInt(m2[1],10); m = parseInt(m2[2],10); y = parseInt(m2[3],10);
+        if(y < 100) y += 2000;
+      } else {
+        const dt = new Date(s);
+        if(isNaN(dt.getTime())) return s;
+        y = dt.getFullYear(); m = dt.getMonth()+1; d = dt.getDate();
+      }
+    }
+  }
+  const dd = String(d).padStart(2,'0');
+  const mm = String(m).padStart(2,'0');
+  if(comAnoCompleto) return dd+'/'+mm+'/'+String(y);
+  const aa = String(y).slice(-2);
+  return dd+'/'+mm+'/'+aa;
+}
 function getHojeSP(){
   const now = new Date();
   const fmt = new Intl.DateTimeFormat('en-CA', {timeZone:'America/Sao_Paulo', year:'numeric', month:'2-digit', day:'2-digit'});
@@ -1848,7 +1985,8 @@ function setFiltroCustoEnt(t){
   custoTurnoBloqueado = { jantar: false, almoco: false };
   custoDiaBloqueado = false;
   atualizarUIFiltroCustoEnt();
-  renderAbaCusto();
+  if(usuarioLogado && usuarioLogado.isMaster) renderAbaCustoMaster();
+  else renderAbaCusto();
 }
 
 function atualizarUIFiltroCustoEnt(){
@@ -1864,18 +2002,14 @@ function atualizarUIFiltroCustoEnt(){
     inp.style.borderColor = filtroCustoEnt==='data' ? '#f0c14a' : '#2c3340';
   }
   if(info){
-    if(filtroCustoEnt==='hoje') info.textContent = '📅 Hoje · '+alvo;
-    else if(filtroCustoEnt==='ontem') info.textContent = '📅 Ontem · '+alvo;
-    else info.textContent = '📅 '+alvo;
+    if(filtroCustoEnt==='hoje') info.textContent = '📅 Hoje · '+formatarDataBR(alvo);
+    else if(filtroCustoEnt==='ontem') info.textContent = '📅 Ontem · '+formatarDataBR(alvo);
+    else info.textContent = '📅 '+formatarDataBR(alvo);
   }
 }
 
 function setAbaEntregador(aba){
   const isMasterCheck = !!(usuarioLogado && usuarioLogado.isMaster);
-  if(isMasterCheck){
-    // Master não usa essas abas
-    aba = 'pedidos';
-  }
   abaEntregadorAtual = aba || 'pedidos';
   const btnP = document.getElementById('btnAbaPedidos');
   const btnC = document.getElementById('btnAbaCusto');
@@ -1905,7 +2039,7 @@ function setAbaEntregador(aba){
       if(toggleBar) toggleBar.style.display = 'none';
       if(filtroDia) filtroDia.style.display = 'none';
       atualizarUIFiltroCustoEnt();
-      renderAbaCusto();
+      renderAbaCustoMaster();
     } else {
       if(gridStats) gridStats.style.display = '';
       if(viewTurnos) viewTurnos.style.display = 'block';
@@ -1969,22 +2103,12 @@ function setAbaEntregador(aba){
 function atualizarVisibilidadeAbasEntregador(){
   const bar = document.getElementById('entregadorAbas');
   if(!bar) return;
-  const isEnt = !!(usuarioLogado && !usuarioLogado.isMaster);
-  bar.style.display = isEnt ? 'flex' : 'none';
-  if(!isEnt){
-    // Master: sempre visão de pedidos
-    abaEntregadorAtual = 'pedidos';
-    const viewCusto = document.getElementById('viewCustoEntregador');
-    if(viewCusto) viewCusto.style.display = 'none';
-    const gridStats = document.getElementById('gridStats');
-    if(gridStats) gridStats.style.display = '';
-    const viewTurnos = document.getElementById('viewTurnos');
-    if(viewTurnos) viewTurnos.style.display = 'block';
-    const filtroDia = document.getElementById('filtroDiaPedidos');
-    if(filtroDia) filtroDia.style.display = 'block';
-    try{ atualizarUIFiltroEntregador(); }catch(e){}
-    try{ aplicarVisibilidadeBarras(); }catch(e){}
-  } else {
+  const logado = !!usuarioLogado;
+  const isMaster = !!(usuarioLogado && usuarioLogado.isMaster);
+  bar.style.display = logado ? 'flex' : 'none';
+  const btnC = document.getElementById('btnAbaCusto');
+  if(btnC) btnC.textContent = isMaster ? '💵 Conferir custos' : '💵 Custo';
+  if(logado){
     setAbaEntregador(abaEntregadorAtual || 'pedidos');
   }
 }
@@ -2156,6 +2280,7 @@ function fecharModalReabrirCustoDia(){
   if(st){ st.textContent = ''; st.style.color = '#8b93a7'; }
   const btn = document.getElementById('btnExecutarReabrirCusto');
   if(btn){ btn.disabled = false; btn.textContent = '🔓 Reabrir'; }
+  _reabrirCustoCtx = null;
 }
 
 // turno pendente para reabrir (null = dia inteiro legado)
@@ -2205,10 +2330,16 @@ async function executarReabrirCustoDia(){
     if(st){ st.textContent = '❌ Supabase não configurado'; st.style.color = '#ff6b6b'; }
     return;
   }
-  const dataAlvo = getDataFiltroCustoEnt();
-  const idEntregador = String(usuarioLogado.id || usuarioLogado.nome || '');
-  const nomeEnt = nomeEntregadorAtual() || (usuarioLogado && usuarioLogado.nome) || '';
-  const turnoAlvo = _reabrirCustoTurno; // 'jantar' | 'almoco' | null
+  const dataAlvo = (_reabrirCustoCtx && _reabrirCustoCtx.data) ? _reabrirCustoCtx.data : getDataFiltroCustoEnt();
+  let idEntregador, nomeEnt;
+  if(_reabrirCustoCtx && (_reabrirCustoCtx.idEntregador || _reabrirCustoCtx.nome)){
+    idEntregador = String(_reabrirCustoCtx.idEntregador || _reabrirCustoCtx.nome || '');
+    nomeEnt = String(_reabrirCustoCtx.nome || _reabrirCustoCtx.idEntregador || '');
+  } else {
+    idEntregador = String(usuarioLogado.id || usuarioLogado.nome || '');
+    nomeEnt = nomeEntregadorAtual() || (usuarioLogado && usuarioLogado.nome) || '';
+  }
+  const turnoAlvo = (_reabrirCustoCtx && _reabrirCustoCtx.turno) ? _reabrirCustoCtx.turno : _reabrirCustoTurno; // 'jantar' | 'almoco' | null
   if(!idEntregador){
     if(st){ st.textContent = '❌ ID do entregador não encontrado'; st.style.color = '#ff6b6b'; }
     return;
@@ -2228,7 +2359,16 @@ async function executarReabrirCustoDia(){
     }
 
     // 2) Desbloqueia só pedidos do turno (ou todos se null)
-    let lista = getPedidosAbaCusto();
+    let lista;
+    if(_reabrirCustoCtx && _reabrirCustoCtx.nome){
+      const nomeAlvo = _reabrirCustoCtx.nome;
+      lista = getPedidosCustoMasterDia().filter(p => {
+        const n = _nomeEntPedidoCusto(p);
+        return n && n.toLowerCase() === String(nomeAlvo).toLowerCase();
+      });
+    } else {
+      lista = getPedidosAbaCusto();
+    }
     if(turnoAlvo) lista = lista.filter(p => getTurno(p) === turnoAlvo);
     const ids = lista.map(p=>p.id).filter(Boolean);
     if(ids.length){
@@ -2268,7 +2408,10 @@ async function executarReabrirCustoDia(){
     if(st){ st.textContent = '✅ Custo do '+lab+' reaberto!'; st.style.color = '#3dcc8a'; }
     setTimeout(()=>{
       fecharModalReabrirCustoDia();
-      try{ renderAbaCusto(); }catch(e){}
+      try{
+        if(usuarioLogado && usuarioLogado.isMaster) renderAbaCustoMaster();
+        else renderAbaCusto();
+      }catch(e){}
       try{ render(); }catch(e){}
     }, 600);
   }catch(e){
@@ -2288,6 +2431,279 @@ function _atualizarResumoEnvioCusto(){
   if(btnRe) btnRe.style.display = 'none';
   if(box) box.style.display = 'none';
   if(footer) footer.style.display = 'none';
+}
+
+
+// ===================== MASTER: CONFERIR CUSTOS =====================
+let masterCustoEntVisiveis = {}; // chave entregador -> aberto
+let masterCustoTurnoVisiveis = {}; // chave ent|turno -> aberto
+let _reabrirCustoCtx = null; // { nome, idEntregador, turno, data }
+
+function _nomeEntPedidoCusto(p){
+  return (getNomeReserva(p) || p.entregador_nome || '').toString().trim() || '— sem entregador —';
+}
+
+function getPedidosCustoMasterDia(){
+  const dataAlvo = getDataFiltroCustoEnt();
+  return (todosPedidos||[]).filter(p => p && (p.data||'') === dataAlvo);
+}
+
+/** Verifica se há envio em calc_entregas para entregador+dia+turno */
+async function _turnoCustoEnviadoMaster(idOuNome, turno, dataAlvo){
+  const client = getSb();
+  if(!client) return false;
+  const keys = [String(idOuNome||'')];
+  // tenta também pelo nome
+  try{
+    for(const k of keys){
+      if(!k) continue;
+      let q = client.from('calc_entregas').select('id').eq('dia', dataAlvo).eq('id_entregador', k).eq('turno', turno).limit(1);
+      const {data} = await q;
+      if(data && data.length) return true;
+    }
+  }catch(e){}
+  return false;
+}
+
+function _htmlCardCustoMaster(p){
+  const num = p.numero_pedido || '—';
+  const data = p.data || '—';
+  const hora = (typeof _fmtHoraPedido==='function') ? _fmtHoraPedido(p) : '';
+  const end = p.cliente_endereco || 'Sem endereço';
+  const nome = p.cliente_nome || '—';
+  const ent = _nomeEntPedidoCusto(p);
+  const val = (typeof _valorCustoEfetivo==='function') ? _valorCustoEfetivo(p) : (p.valor_entrega!=null?Number(p.valor_entrega):null);
+  const turnoP = getTurno(p);
+  const turnoLab = turnoP==='almoco' ? '☀️' : '🌙';
+  const pedBloq = isPedidoCustoBloqueado(p);
+  let badge;
+  if(pedBloq){
+    badge = val != null
+      ? `<span class="ci-salvo">🔒 R$ ${Number(val).toFixed(2)}</span>`
+      : `<span style="font-size:10px;color:#8b93a7">🔒</span>`;
+  } else {
+    badge = val != null
+      ? `<span class="ci-salvo">R$ ${Number(val).toFixed(2)}</span>`
+      : `<span style="font-size:10px;color:#8b93a7">sem valor</span>`;
+  }
+  const endEsc = String(end).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  return `<div class="custo-item${pedBloq?' ok':''}" id="custoMasterItem_${p.id}">
+    <div class="ci-top">
+      <div>
+        <div class="ci-num">#${num}</div>
+        <div class="ci-meta">${hora} · ${turnoLab} · ${typeof formatarDataBR==='function'?formatarDataBR(data):data}</div>
+      </div>
+      ${badge}
+    </div>
+    <div class="ci-nome">${nome}</div>
+    <div class="ci-end" title="${String(end).replace(/"/g,'&quot;')}">📍 ${end}</div>
+    <div class="ci-ent">🛵 ${ent}</div>
+    <div class="ci-row" style="margin-top:6px">
+      <button class="btn blue" style="width:100%;padding:10px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px" onclick="event.stopPropagation();abrirMapaPorId('${p.id}')"><span>📍</span><span>Abrir mapa</span></button>
+    </div>
+  </div>`;
+}
+
+function toggleMasterCustoEnt(key){
+  masterCustoEntVisiveis[key] = !masterCustoEntVisiveis[key];
+  const wrap = document.getElementById('wrapMasterCustoEnt_'+key);
+  const icon = document.getElementById('iconMasterCustoEnt_'+key);
+  if(wrap) wrap.style.display = masterCustoEntVisiveis[key] ? 'block' : 'none';
+  if(icon) icon.textContent = masterCustoEntVisiveis[key] ? '👁️ Ocultar' : '🙈 Mostrar';
+}
+function toggleMasterCustoTurno(key){
+  masterCustoTurnoVisiveis[key] = !masterCustoTurnoVisiveis[key];
+  const wrap = document.getElementById('wrapMasterCustoTurno_'+key);
+  const icon = document.getElementById('iconMasterCustoTurno_'+key);
+  if(wrap) wrap.style.display = masterCustoTurnoVisiveis[key] ? 'block' : 'none';
+  if(icon) icon.textContent = masterCustoTurnoVisiveis[key] ? '👁️ Ocultar' : '🙈 Mostrar';
+}
+
+function abrirModalReabrirCustoMaster(nomeEnt, idEnt, turno){
+  if(!podeReabrirCustoDia()){
+    mostrarAlerta('Apenas Master pode reabrir o custo', { tipo:'erro' });
+    return;
+  }
+  const t = (turno === 'almoco') ? 'almoco' : 'jantar';
+  const dataAlvo = getDataFiltroCustoEnt();
+  _reabrirCustoCtx = {
+    nome: nomeEnt || '',
+    idEntregador: idEnt || nomeEnt || '',
+    turno: t,
+    data: dataAlvo
+  };
+  _reabrirCustoTurno = t;
+  const labTurno = t === 'almoco' ? '☀️ Almoço' : '🌙 Jantar';
+  const info = document.getElementById('reabrirCustoDiaInfo');
+  if(info){
+    info.innerHTML = `Dia <b style="color:#f0c14a">${typeof formatarDataBR==='function'?formatarDataBR(dataAlvo):dataAlvo}</b> · <b style="color:#f0c14a">${labTurno}</b> · entregador <b style="color:#6ab7ff">${nomeEnt||'—'}</b>.<br><br>
+      Será removido o envio em <b>calc_entregas</b> deste turno e o bloqueio de custo nos pedidos deste entregador neste turno.<br>
+      O entregador poderá ajustar os valores e enviar de novo.`;
+  }
+  const st = document.getElementById('reabrirCustoDiaStatus');
+  if(st){ st.textContent = ''; st.style.color = '#8b93a7'; }
+  const btn = document.getElementById('btnExecutarReabrirCusto');
+  if(btn){ btn.disabled = false; btn.textContent = '🔓 Reabrir '+labTurno; }
+  document.getElementById('modalReabrirCustoDia').style.display = 'flex';
+}
+
+async function renderAbaCustoMaster(){
+  if(!usuarioLogado || !usuarioLogado.isMaster) return;
+  if(abaEntregadorAtual !== 'custo') return;
+  atualizarUIFiltroCustoEnt();
+  const listaEl = document.getElementById('listaCustoEntregador');
+  const vazioEl = document.getElementById('custoEntVazio');
+  const footer = document.getElementById('custoEntFooter');
+  if(footer) footer.style.display = 'none';
+  if(!listaEl) return;
+
+  const tit = document.getElementById('tituloAbaCusto');
+  if(tit) tit.textContent = '💵 CONFERIR CUSTOS (Master)';
+
+  const dataAlvo = getDataFiltroCustoEnt();
+  // Garante pedidos do dia no cache
+  const temDia = (todosPedidos||[]).some(p => (p.data||'') === dataAlvo);
+  if(!temDia){
+    const client = getSb();
+    if(client){
+      try{
+        const {data, error} = await client.from('pedidos_entrega_dia').select('*').eq('data', dataAlvo).order('created_at',{ascending:true});
+        if(!error && data){
+          data.forEach(p=>{
+            const i = todosPedidos.findIndex(x=>x.id===p.id);
+            if(i>=0) todosPedidos[i] = p;
+            else todosPedidos.push(p);
+          });
+        }
+        try{
+          const {data: res} = await client.from('reservas_entregadores').select('pedido_id,entregador_nome,data').eq('data', dataAlvo);
+          (res||[]).forEach(r=>{ if(r.pedido_id) mapaReservas[r.pedido_id]=r.entregador_nome||''; });
+        }catch(e2){}
+      }catch(e){ console.warn('renderAbaCustoMaster load', e); }
+    }
+  }
+
+  let lista = getPedidosCustoMasterDia();
+  // só pedidos com entregador (conferência de custos enviados/atribuídos)
+  lista = lista.filter(p => {
+    const n = _nomeEntPedidoCusto(p);
+    return n && n !== '— sem entregador —';
+  });
+
+  if(!lista.length){
+    listaEl.innerHTML = '';
+    if(vazioEl){
+      vazioEl.style.display = 'block';
+      vazioEl.innerHTML = '<div style="text-align:center;color:#8b93a7;padding:10px">Nenhum pedido com entregador neste dia</div>';
+    }
+    return;
+  }
+  if(vazioEl) vazioEl.style.display = 'none';
+
+  // Agrupa por entregador
+  const porEnt = {};
+  lista.forEach(p=>{
+    const n = _nomeEntPedidoCusto(p);
+    if(!porEnt[n]) porEnt[n] = [];
+    porEnt[n].push(p);
+  });
+  const nomes = Object.keys(porEnt).sort((a,b)=> a.localeCompare(b,'pt-BR'));
+
+  // Resolve id do entregador no cache (para calc_entregas)
+  function _idEntByNome(nome){
+    const e = (cacheEntregadores||[]).find(x => String(x.nome||'').toLowerCase() === String(nome||'').toLowerCase());
+    return e ? String(e.id||e.nome) : String(nome||'');
+  }
+
+  // Pré-carrega status de envio por ent+turno
+  const enviadoMap = {};
+  const client = getSb();
+  if(client){
+    try{
+      const {data: calcs} = await client.from('calc_entregas').select('id_entregador,turno,dia').eq('dia', dataAlvo);
+      (calcs||[]).forEach(c=>{
+        const k = String(c.id_entregador||'').toLowerCase() + '|' + (c.turno||'');
+        enviadoMap[k] = true;
+      });
+    }catch(e){}
+  }
+
+  function turnoEnviado(nome, turno){
+    const idE = _idEntByNome(nome);
+    const keys = [
+      String(idE).toLowerCase()+'|'+turno,
+      String(nome).toLowerCase()+'|'+turno
+    ];
+    if(keys.some(k => enviadoMap[k])) return true;
+    // fallback: algum pedido do turno com custo_bloqueado
+    return (porEnt[nome]||[]).filter(p=>getTurno(p)===turno).some(isPedidoCustoBloqueado);
+  }
+
+  let html = '';
+  html += `<div style="margin:0 12px 10px;padding:10px;background:#0e1118;border:1px solid #2c3340;border-radius:12px;font-size:11px;color:#8b93a7;line-height:1.4">
+    Conferência por <b style="color:#f0c14a">entregador</b> e <b style="color:#f0c14a">turno</b>.
+    Cards no mesmo formato da aba de custo. Use <b style="color:#6ab7ff">📍 Abrir mapa</b> em cada pedido.
+    Turnos já enviados podem ser <b style="color:#f0c14a">reabertos</b>.
+  </div>`;
+
+  nomes.forEach((nome, idxEnt)=>{
+    const pedidosEnt = porEnt[nome];
+    const keyEnt = 'ent_'+idxEnt;
+    if(masterCustoEntVisiveis[keyEnt] === undefined) masterCustoEntVisiveis[keyEnt] = true;
+    const abertoEnt = !!masterCustoEntVisiveis[keyEnt];
+    const cont = typeof _contarEntregasCusto==='function' ? _contarEntregasCusto(pedidosEnt) : { qtdEntregas: pedidosEnt.length, qtdPedidos: pedidosEnt.length };
+    const idE = _idEntByNome(nome);
+
+    html += `<div class="master-ent-header com-pedidos" style="margin:12px 12px 6px" onclick="toggleMasterCustoEnt('${keyEnt}')">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <h2 style="margin:0;font-size:14px">🛵 ${nome}</h2>
+        <span class="count">${cont.qtdEntregas||pedidosEnt.length} entrega(s) · ${pedidosEnt.length} ped.</span>
+      </div>
+      <span id="iconMasterCustoEnt_${keyEnt}">${abertoEnt?'👁️ Ocultar':'🙈 Mostrar'}</span>
+    </div>
+    <div id="wrapMasterCustoEnt_${keyEnt}" style="display:${abertoEnt?'block':'none'}">`;
+
+    ['almoco','jantar'].forEach(turno=>{
+      const listaT = pedidosEnt.filter(p => getTurno(p) === turno);
+      if(!listaT.length) return;
+      const keyT = keyEnt+'_'+turno;
+      if(masterCustoTurnoVisiveis[keyT] === undefined) masterCustoTurnoVisiveis[keyT] = true;
+      const abertoT = !!masterCustoTurnoVisiveis[keyT];
+      const lab = turno==='almoco' ? '☀️ ALMOÇO' : '🌙 JANTAR';
+      const estilo = turno==='almoco' ? 'almoco' : 'jantar';
+      const enviado = turnoEnviado(nome, turno);
+      const contT = typeof _contarEntregasCusto==='function' ? _contarEntregasCusto(listaT) : { qtdEntregas: listaT.length, total: 0, porValor: {} };
+      let resumoVal = '';
+      const pv = contT.porValor || {};
+      Object.keys(pv).sort((a,b)=>Number(a)-Number(b)).forEach(v=>{
+        resumoVal += `<div style="font-size:11px">R$ ${v} → <b style="color:#fff">${pv[v]}</b></div>`;
+      });
+      if(contT.total) resumoVal += `<div style="margin-top:4px;font-weight:800;color:#3dcc8a">Total: R$ ${Number(contT.total).toFixed(2)}</div>`;
+
+      const nomeEsc = String(nome).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      const idEsc = String(idE).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+
+      html += `<div class="turno-header ${estilo}" style="margin:10px 12px 6px" onclick="toggleMasterCustoTurno('${keyT}')">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <h2 style="margin:0;font-size:14px">${lab}</h2>
+          <span class="count">${contT.qtdEntregas||listaT.length} entrega(s) · ${listaT.length} ped.</span>
+          ${enviado?'<span class="badge" style="font-size:10px;padding:3px 8px;background:#0f1f15;color:#3dcc8a;border:1px solid #2a5a3a">🔒 enviado</span>':'<span class="badge" style="font-size:10px;padding:3px 8px;background:#1c1c12;color:#f0c14a;border:1px solid #5a4a2a">aberto</span>'}
+        </div>
+        <span id="iconMasterCustoTurno_${keyT}">${abertoT?'👁️ Ocultar':'🙈 Mostrar'}</span>
+      </div>
+      <div id="wrapMasterCustoTurno_${keyT}" style="display:${abertoT?'block':'none'}">
+        <div class="custo-grid">${listaT.map(_htmlCardCustoMaster).join('')}</div>
+        <div style="margin:8px 12px 14px;padding:12px;background:#0e1118;border:1px solid #2c3340;border-radius:12px;font-size:12px;color:#8b93a7">
+          ${resumoVal||'<div>Sem valores atribuídos</div>'}
+          ${enviado?`<button class="btn" onclick="event.stopPropagation();abrirModalReabrirCustoMaster('${nomeEsc}','${idEsc}','${turno}')" style="width:100%;padding:14px;margin-top:10px;font-size:13px;font-weight:900;background:#3a2a1a;color:#f0c14a;border-color:#5a4a2a">🔓 Reabrir ${turno==='almoco'?'Almoço':'Jantar'}</button>`:''}
+        </div>
+      </div>`;
+    });
+
+    html += `</div>`;
+  });
+
+  listaEl.innerHTML = html;
 }
 
 async function renderAbaCusto(){
@@ -2588,7 +3004,7 @@ function enviarCalcEntregas(turno){
     porValor[v] = (porValor[v] || 0) + 1;
   });
 
-  let html = `<div style="margin-bottom:8px">Data: <b style="color:#fff">${dataAlvo}</b> · Turno: <b style="color:#f0c14a">${labTurno}</b> · <b style="color:#fff">${lista.length}</b> entrega(s)</div>`;
+  let html = `<div style="margin-bottom:8px">Data: <b style="color:#fff">${formatarDataBR(dataAlvo)}</b> · Turno: <b style="color:#f0c14a">${labTurno}</b> · <b style="color:#fff">${lista.length}</b> entrega(s)</div>`;
   html += `<div style="color:#f0c14a;font-weight:800;margin-bottom:4px">Totais por valor</div>`;
   Object.keys(porValor).sort((a,b)=>Number(a)-Number(b)).forEach(v=>{
     html += `<div>R$ ${v} → <b style="color:#fff">${porValor[v]}</b></div>`;
@@ -2819,7 +3235,7 @@ function abrirRelatorioCustoTurno(turno){
 
   const meta = document.getElementById('relCustoMeta');
   if(meta){
-    meta.innerHTML = `<b style="color:#f0c14a">${nome}</b> · 📅 <b style="color:#fff">${_relCustoDataCache}</b> · ${lab} · <b style="color:#fff">${qtd}</b> entrega(s)` +
+    meta.innerHTML = `<b style="color:#f0c14a">${nome}</b> · 📅 <b style="color:#fff">${formatarDataBR(_relCustoDataCache)}</b> · ${lab} · <b style="color:#fff">${qtd}</b> entrega(s)` +
       (comValor < qtd ? ` · <span style="color:#ff6b6b">${qtd-comValor} sem valor</span>` : '');
   }
 
@@ -2880,7 +3296,7 @@ function _montarTextoRelatorioCusto(modo){
   const lines = [];
   lines.push('A BATATARIA - Relatório de custos' + (tipo === 'resumo' ? ' (RESUMO)' : ' (COMPLETO)'));
   lines.push('Entregador: ' + nome);
-  lines.push('Data: ' + (_relCustoDataCache || ''));
+  lines.push('Data: ' + formatarDataBR(_relCustoDataCache || ''));
   lines.push('Turno: ' + lab);
   lines.push('Entregas: ' + qtd);
   lines.push('');
@@ -2968,7 +3384,7 @@ function _gerarPdfRelatorioCustoSync(JsPDF, modo){
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   txt('Entregador: ' + nome, margem, y); y += 5;
-  txt('Data: ' + (_relCustoDataCache || '') + '  |  Turno: ' + lab, margem, y); y += 5;
+  txt('Data: ' + formatarDataBR(_relCustoDataCache || '') + '  |  Turno: ' + lab, margem, y); y += 5;
   txt('Entregas: ' + qtd + '  |  Total: R$ ' + total.toFixed(2), margem, y); y += 7;
   doc.setDrawColor(160);
   doc.setLineWidth(0.3);
@@ -3447,7 +3863,7 @@ function atualizarUIFiltroEntregador(){
   if(info){
     if(f==='hoje') info.textContent = '📅 Hoje · '+alvo;
     else if(f==='ontem') info.textContent = '📅 Ontem · '+alvo;
-    else info.textContent = '📅 '+alvo;
+    else info.textContent = '📅 '+formatarDataBR(alvo);
   }
   // Master: card compartilhado, sem "MEUS" e sem relatório (é do entregador)
   const tit = document.getElementById('tituloBuscaPedidos'); if(tit) tit.textContent = '🔍 PESQUISAR PEDIDOS';
@@ -4153,8 +4569,8 @@ function extrairEnderecoParaMapa(endereco){
   rua = rua.replace(/\s*,\s*$/,'').trim();
   if(!rua) rua = principal;
 
-  let out = numero ? (rua + ', ' + numero) : rua;
-  if(cidade) out += ' - ' + cidade;
+  // Maps: apenas rua + número (ex: "Rua Abc, 000") — sem bairro/cidade/complemento
+  const out = numero ? (rua + ', ' + numero) : rua;
   return out.trim();
 }
 
@@ -4537,6 +4953,23 @@ function abrirModalAddPedido(pedido){
   document.getElementById('addModalLoja').textContent = '🏪 '+(pedido.loja||'—');
   const loc = (pedido.localizador||'').toString().trim();
   document.getElementById('addModalLoc').textContent = loc ? ('🔑 Localizador: '+loc) : '';
+  // Aviso de grupo no modal de adicionar
+  try{
+    const locEl = document.getElementById('addModalLoc');
+    if(pedido.grupo_entrega && locEl){
+      const membros = membrosGrupoLocal(pedido.grupo_entrega);
+      const nums = membros.length ? membros.map(m=>'#'+(m.numero_pedido||'?')).join(', ') : '';
+      const extra = nums
+        ? ('\n🔗 Grupo ('+membros.length+' pedidos = 1 entrega): '+nums+'\nAo adicionar, todos vêm para a sua lista.')
+        : ('\n🔗 Este pedido faz parte de um grupo (1 entrega). Ao adicionar, os demais do grupo também serão reservados.');
+      locEl.textContent = (locEl.textContent||'') + extra;
+      locEl.style.whiteSpace = 'pre-wrap';
+      locEl.style.color = '#f0c14a';
+    } else if(locEl){
+      locEl.style.color = '';
+      locEl.style.whiteSpace = '';
+    }
+  }catch(e){}
   document.getElementById('modalAddStatus').textContent = '';
   const btn = document.getElementById('btnConfirmarAddPedido');
   if(btn){ btn.disabled=false; btn.textContent='➕ Adicionar'; }
@@ -4553,23 +4986,145 @@ async function confirmarAdicionar(pedido){
   }
   const reserva = await verificarReserva(pedido.id);
   if(ehEntregadorComum()){
-    if(reserva && reserva.entregador_nome && ehMesmoEntregador(reserva.entregador_nome)){
-      document.getElementById('addStatus').textContent='⚠️ Pedido #'+pedido.numero_pedido+' já está na sua lista (reservado no banco)';
-      document.getElementById('addStatus').style.color='#f0c14a';
-      if(!pedidosVisiveisIds.includes(pedido.id)) pedidosVisiveisIds.push(pedido.id);
-      mapaReservas[pedido.id]=nomeEntregadorAtual();
-      render();
-      return;
+    // Atualiza cache local da reserva consultada
+    if(reserva && reserva.entregador_nome){
+      mapaReservas[pedido.id] = reserva.entregador_nome;
     }
+
+    // 1) Já reservado por OUTRO entregador
     if(reserva && reserva.entregador_nome && !ehMesmoEntregador(reserva.entregador_nome)){
       document.getElementById('addStatus').textContent='❌ Pedido já reservado por '+reserva.entregador_nome;
       document.getElementById('addStatus').style.color='#ff6b6b';
+      mostrarAlerta('O pedido #'+(pedido.numero_pedido||'')+' já está reservado por\n🛵 '+reserva.entregador_nome, {
+        tipo:'erro', titulo:'Pedido indisponível', icone:'🚫'
+      });
       return;
     }
-    if(pedidosVisiveisIds.includes(pedido.id)){
+
+    // 2) Este pedido OU outro do mesmo grupo já está comigo
+    //    (ao adicionar 1 código do grupo, todos vêm juntos — não precisa digitar os outros)
+    const chk = pedidoOuGrupoJaComigo(pedido);
+    const jaMeuDireto = (reserva && reserva.entregador_nome && ehMesmoEntregador(reserva.entregador_nome))
+      || (pedidosVisiveisIds||[]).includes(pedido.id)
+      || chk.motivo==='mesmo';
+
+    if(jaMeuDireto){
+      if(!pedidosVisiveisIds.includes(pedido.id)) pedidosVisiveisIds.push(pedido.id);
+      mapaReservas[pedido.id]=nomeEntregadorAtual();
+      // Garante que o restante do grupo também está na lista (caso falhou antes)
+      if(pedido.grupo_entrega){
+        try{ await autoReservarGrupo(pedido); }catch(e){}
+      }
       document.getElementById('addStatus').textContent='⚠️ Pedido #'+pedido.numero_pedido+' já está na sua lista';
       document.getElementById('addStatus').style.color='#f0c14a';
+      render();
+      const numsGrupo = pedido.grupo_entrega
+        ? membrosGrupoLocal(pedido.grupo_entrega).map(m=>'#'+(m.numero_pedido||'?')).join(', ')
+        : '';
+      mostrarAlerta(
+        'O pedido #'+(pedido.numero_pedido||'')+' já está na sua lista.'+
+        (numsGrupo ? ('\n\n🔗 Grupo: '+numsGrupo+'\n(contam como 1 entrega — não é necessário adicionar de novo)') : ''),
+        { tipo:'aviso', titulo:'Já está na sua lista', icone:'🔗' }
+      );
       return;
+    }
+
+    if(chk.motivo==='grupo'){
+      // Outro código do mesmo grupo já foi adicionado → pega este também se faltar, mas avisa
+      if(pedido.grupo_entrega){
+        try{ await autoReservarGrupo(chk.membrosMeus[0] || pedido); }catch(e){}
+        // tenta reservar este se ainda livre
+        if(!(reserva && reserva.entregador_nome)){
+          try{
+            const ok = await criarReserva(pedido);
+            if(ok){
+              mapaReservas[pedido.id]=nomeEntregadorAtual();
+              salvarPedidoVisivel(pedido);
+            }
+          }catch(e){}
+        } else if(ehMesmoEntregador(reserva.entregador_nome)){
+          if(!pedidosVisiveisIds.includes(pedido.id)) pedidosVisiveisIds.push(pedido.id);
+          mapaReservas[pedido.id]=nomeEntregadorAtual();
+        }
+      }
+      const numsMeus = (chk.membrosMeus||[]).map(m=>'#'+(m.numero_pedido||'?')).join(', ');
+      const numsGrupo = membrosGrupoLocal(pedido.grupo_entrega).map(m=>'#'+(m.numero_pedido||'?')).join(', ');
+      document.getElementById('addStatus').textContent='⚠️ Este pedido faz parte de um grupo que você já adicionou';
+      document.getElementById('addStatus').style.color='#f0c14a';
+      render();
+      mostrarAlerta(
+        'O pedido #'+(pedido.numero_pedido||'')+' faz parte de um grupo que você já pegou.\n\n'+
+        'Já na sua lista: '+(numsMeus||'—')+'\n'+
+        'Grupo completo: '+(numsGrupo||'—')+'\n\n'+
+        '🔗 Pedidos agrupados contam como 1 entrega.\nNão é necessário adicionar outro código do mesmo grupo.',
+        { tipo:'aviso', titulo:'Pedido do mesmo grupo', icone:'🔗' }
+      );
+      return;
+    }
+
+    // 3) Grupo: se membros ainda não estão no cache, busca no banco antes de abrir modal
+    if(pedido.grupo_entrega){
+      try{
+        const client = getSb();
+        if(client){
+          const {data: membrosDb} = await client.from('pedidos_entrega_dia').select('*').eq('grupo_entrega', pedido.grupo_entrega);
+          (membrosDb||[]).forEach(m=>{
+            if(!m||!m.id) return;
+            const i = todosPedidos.findIndex(x=>x.id===m.id);
+            if(i>=0) todosPedidos[i]=Object.assign({}, todosPedidos[i], m);
+            else todosPedidos.push(m);
+          });
+          // Reconsulta reservas dos membros
+          for(const m of (membrosDb||[])){
+            if(!m||!m.id) continue;
+            const r = await verificarReserva(m.id);
+            if(r && r.entregador_nome) mapaReservas[m.id]=r.entregador_nome;
+          }
+          const chk2 = pedidoOuGrupoJaComigo(pedido);
+          if(chk2.ja){
+            if(chk2.motivo==='mesmo' || (pedidosVisiveisIds||[]).includes(pedido.id) ||
+               (mapaReservas[pedido.id] && ehMesmoEntregador(mapaReservas[pedido.id]))){
+              if(!pedidosVisiveisIds.includes(pedido.id)) pedidosVisiveisIds.push(pedido.id);
+              mapaReservas[pedido.id]=nomeEntregadorAtual();
+              try{ await autoReservarGrupo(pedido); }catch(e){}
+              document.getElementById('addStatus').textContent='⚠️ Pedido #'+pedido.numero_pedido+' já está na sua lista';
+              document.getElementById('addStatus').style.color='#f0c14a';
+              render();
+              const numsGrupo = membrosGrupoLocal(pedido.grupo_entrega).map(m=>'#'+(m.numero_pedido||'?')).join(', ');
+              mostrarAlerta(
+                'O pedido #'+(pedido.numero_pedido||'')+' já está na sua lista.'+
+                (numsGrupo ? ('\n\n🔗 Grupo: '+numsGrupo+'\n(contam como 1 entrega — não é necessário adicionar de novo)') : ''),
+                { tipo:'aviso', titulo:'Já está na sua lista', icone:'🔗' }
+              );
+              return;
+            }
+            if(chk2.motivo==='grupo'){
+              try{ await autoReservarGrupo(chk2.membrosMeus[0] || pedido); }catch(e){}
+              try{
+                if(!(mapaReservas[pedido.id] && ehMesmoEntregador(mapaReservas[pedido.id]))){
+                  const ok = await criarReserva(pedido);
+                  if(ok){ mapaReservas[pedido.id]=nomeEntregadorAtual(); salvarPedidoVisivel(pedido); }
+                } else {
+                  if(!pedidosVisiveisIds.includes(pedido.id)) pedidosVisiveisIds.push(pedido.id);
+                }
+              }catch(e){}
+              const numsMeus = (chk2.membrosMeus||[]).map(m=>'#'+(m.numero_pedido||'?')).join(', ');
+              const numsGrupo = membrosGrupoLocal(pedido.grupo_entrega).map(m=>'#'+(m.numero_pedido||'?')).join(', ');
+              document.getElementById('addStatus').textContent='⚠️ Este pedido faz parte de um grupo que você já adicionou';
+              document.getElementById('addStatus').style.color='#f0c14a';
+              render();
+              mostrarAlerta(
+                'O pedido #'+(pedido.numero_pedido||'')+' faz parte de um grupo que você já pegou.\n\n'+
+                'Já na sua lista: '+(numsMeus||'—')+'\n'+
+                'Grupo completo: '+(numsGrupo||'—')+'\n\n'+
+                '🔗 Pedidos agrupados contam como 1 entrega.\nNão é necessário adicionar outro código do mesmo grupo.',
+                { tipo:'aviso', titulo:'Pedido do mesmo grupo', icone:'🔗' }
+              );
+              return;
+            }
+          }
+        }
+      }catch(e){ console.warn('confirmarAdicionar grupo prefetch', e); }
     }
   }
   // Modal personalizado no lugar do confirm() do navegador
@@ -5593,6 +6148,36 @@ async function transferirGrupo(gid, novoNome){
   abrirModalConfirmarEnvioGrupo(gid, novoNome);
 }
 
+
+/** Retorna membros do grupo (cache local + opcionalmente já carregados). */
+function membrosGrupoLocal(gid){
+  if(!gid) return [];
+  return (todosPedidos||[]).filter(p=> p && p.grupo_entrega===gid);
+}
+/** True se o pedido (ou outro do mesmo grupo) já está com este entregador. */
+function pedidoOuGrupoJaComigo(pedido){
+  if(!pedido || !ehEntregadorComum()) return { ja:false };
+  const meu = (id)=>{
+    if(!id) return false;
+    if((pedidosVisiveisIds||[]).includes(id)) return true;
+    if(mapaReservas[id] && ehMesmoEntregador(mapaReservas[id])) return true;
+    const p = (todosPedidos||[]).find(x=>x.id===id);
+    if(p && ehMesmoEntregador(p.entregador_nome)) return true;
+    return false;
+  };
+  if(meu(pedido.id)){
+    return { ja:true, motivo:'mesmo', pedido };
+  }
+  const gid = pedido.grupo_entrega;
+  if(!gid) return { ja:false };
+  const membros = membrosGrupoLocal(gid);
+  const outrosMeus = membros.filter(m=> m.id!==pedido.id && meu(m.id));
+  if(outrosMeus.length){
+    return { ja:true, motivo:'grupo', pedido, membrosMeus: outrosMeus, membros };
+  }
+  return { ja:false, gid, membros };
+}
+
 // ===================== ENTREGADOR: acesso ao grupo a partir de 1 código =====================
 
 /** Quando o entregador adiciona um pedido que faz parte de um grupo, reserva automaticamente os demais pedidos do grupo para ele (se ainda livres). */
@@ -5936,19 +6521,18 @@ function cardPedido(p, idx, lista){
   let htmlAcoes = '';
   const custoBloq = isPedidoCustoBloqueado(p);
   if(isMasterUser){
-    let acoes = `<button class="btn blue" onclick="event.stopPropagation(); abrirMapaPorId('${p.id}')">📍 Mapa</button>`;
+    let acoes = `<button class="btn blue" onclick="event.stopPropagation(); abrirMapaPorId('${p.id}')"><span>📍</span><span>Mapa</span></button>`;
     if(custoBloq){
-      acoes += `<span class="badge" style="font-size:10px;padding:6px 8px;background:#2a2a1a;color:#f0c14a;border:1px solid #5a4a2a">🔒 Custo</span>`;
-      acoes += `<button class="btn" style="background:#3a2a1a;color:#f0c14a;border-color:#5a4a2a" onclick="event.stopPropagation(); reativarPedido('${p.id}')">↺ Reativar / Liberar</button>`;
-      acoes += `<button class="btn blue" onclick="event.stopPropagation(); abrirModalMasterPedido('${p.id}')">👁️ Ver</button>`;
+      acoes += `<button class="btn" style="background:#3a2a1a;color:#f0c14a;border-color:#5a4a2a" onclick="event.stopPropagation(); reativarPedido('${p.id}')"><span>↺</span><span>Liberar</span></button>`;
+      acoes += `<button class="btn blue pm-full" onclick="event.stopPropagation(); abrirModalMasterPedido('${p.id}')"><span>👁️</span><span>Ver</span></button>`;
     } else if(isCodigo){
-      acoes += `<button class="btn" style="background:#3a2a1a;color:#f0c14a;border-color:#5a4a2a" onclick="event.stopPropagation(); reativarPedido('${p.id}')">↺ Reativar</button>`;
-      acoes += `<button class="btn blue" onclick="event.stopPropagation(); abrirModalMasterPedido('${p.id}')">🔄 Mover</button>`;
-      acoes += `<button class="btn red" onclick="event.stopPropagation(); excluirPedidoDefinitivo('${p.id}')">🗑️ Excluir</button>`;
+      acoes += `<button class="btn" style="background:#3a2a1a;color:#f0c14a;border-color:#5a4a2a" onclick="event.stopPropagation(); reativarPedido('${p.id}')"><span>↺</span><span>Reativar</span></button>`;
+      acoes += `<button class="btn blue" onclick="event.stopPropagation(); abrirModalMasterPedido('${p.id}')"><span>🔄</span><span>Mover</span></button>`;
+      acoes += `<button class="btn red" onclick="event.stopPropagation(); excluirPedidoDefinitivo('${p.id}')"><span>🗑️</span><span>Excluir</span></button>`;
     } else {
-      acoes += `<button class="btn green" onclick="event.stopPropagation(); finalizarPedidoMaster('${p.id}')">✅ Finalizar</button>`;
-      acoes += `<button class="btn blue" onclick="event.stopPropagation(); abrirModalMasterPedido('${p.id}')">${nomeRes?'🔄 Transferir':'📤 Enviar'}</button>`;
-      acoes += `<button class="btn red" onclick="event.stopPropagation(); excluirPedidoDefinitivo('${p.id}')">🗑️ Excluir</button>`;
+      acoes += `<button class="btn green" onclick="event.stopPropagation(); finalizarPedidoMaster('${p.id}')"><span>✅</span><span>Finalizar</span></button>`;
+      acoes += `<button class="btn blue" onclick="event.stopPropagation(); abrirModalMasterPedido('${p.id}')"><span>${nomeRes?'🔄':'📤'}</span><span>${nomeRes?'Mover':'Enviar'}</span></button>`;
+      acoes += `<button class="btn red" onclick="event.stopPropagation(); excluirPedidoDefinitivo('${p.id}')"><span>🗑️</span><span>Excluir</span></button>`;
     }
     htmlAcoes = `<div class="pm-actions">${acoes}</div>`;
   } else {
@@ -5971,8 +6555,8 @@ function cardPedido(p, idx, lista){
     }
     const rota = showRota
       ? (custoBloq
-        ? `<div class="pm-rota" style="display:flex;gap:6px;margin-bottom:8px"><button class="btn small" style="flex:1;padding:8px;font-size:11px" onclick="moverCima('${p.id}')">↑ Subir</button><button class="btn small" style="flex:1;padding:8px;font-size:11px" onclick="moverBaixo('${p.id}')">↓ Descer</button><span style="flex:0 0 auto;padding:8px;font-size:10px;color:#f0c14a;font-weight:800">🔒</span></div>`
-        : `<div class="pm-rota" style="display:flex;gap:6px;margin-bottom:8px"><button class="btn small" style="flex:1;padding:8px;font-size:11px" onclick="moverCima('${p.id}')">↑ Subir</button><button class="btn small" style="flex:1;padding:8px;font-size:11px" onclick="moverBaixo('${p.id}')">↓ Descer</button><button class="btn small red" style="flex:0 0 48px;padding:8px" onclick="excluirPedido('${p.id}')">🗑️</button></div>`)
+        ? `<div class="pm-rota"><button class="btn small" onclick="moverCima('${p.id}')">↑ Subir</button><button class="btn small" onclick="moverBaixo('${p.id}')">↓ Descer</button><button class="btn small" style="color:#f0c14a;border-color:#5a4a2a;background:#1c1c12" disabled>🔒</button></div>`
+        : `<div class="pm-rota"><button class="btn small" onclick="moverCima('${p.id}')">↑ Subir</button><button class="btn small" onclick="moverBaixo('${p.id}')">↓ Descer</button><button class="btn small red" onclick="excluirPedido('${p.id}')">🗑️</button></div>`)
       : '';
     if(custoBloq){
       btnLocalizador = `<div style="width:100%;padding:12px;text-align:center;font-size:11px;font-weight:800;color:#f0c14a;background:#1c1c12;border:1px solid #5a4a2a;border-radius:10px">🔒 Custo enviado — bloqueado</div>`;
@@ -6025,9 +6609,9 @@ function cardGrupoPedidos(item){
     let acaoMembro;
     if(isMasterUser){
       acaoMembro = okP
-        ? `<button class="btn small" style="background:#3a2a1a;color:#f0c14a;border-color:#5a4a2a" onclick="event.stopPropagation();reativarPedido('${p.id}')">↺ Reativar</button>`
-        : `<button class="btn small green" onclick="event.stopPropagation();finalizarPedidoMaster('${p.id}')">✅ Finalizar</button>`;
-      acaoMembro += `<button class="btn small red" onclick="event.stopPropagation();removerPedidoDoGrupo('${p.id}')">🔓 Tirar do grupo</button>`;
+        ? `<button class="btn small" style="background:#3a2a1a;color:#f0c14a;border-color:#5a4a2a;flex:1" onclick="event.stopPropagation();reativarPedido('${p.id}')"><span>↺</span><span>Reativar</span></button>`
+        : `<button class="btn small green" style="flex:1" onclick="event.stopPropagation();finalizarPedidoMaster('${p.id}')"><span>✅</span><span>Finalizar</span></button>`;
+      acaoMembro += `<button class="btn small red" style="flex:1" onclick="event.stopPropagation();removerPedidoDoGrupo('${p.id}')"><span>🔓</span><span>Tirar</span></button>`;
     } else {
       const _externo = isPedidoExterno(p.numero_pedido);
       if(okP){
@@ -6054,14 +6638,14 @@ function cardGrupoPedidos(item){
 
   const acoesGrupo = isMasterUser
     ? `<div class="master-modal-actions" style="margin-top:8px">
-        <button class="btn blue small" onclick="event.stopPropagation();abrirMapa('${end.replace(/'/g,"\\'")}')">📍 Mapa</button>
-        <button class="btn blue small" onclick="event.stopPropagation();abrirModalMasterGrupo('${gid}')">${nomeRes?'🔄 Transferir grupo':'📤 Enviar grupo'}</button>
-        <button class="btn red small" onclick="event.stopPropagation();desfazerGrupo('${gid}')">🗑️ Desfazer grupo</button>
+        <button class="btn blue small" onclick="event.stopPropagation();abrirMapa('${end.replace(/'/g,"\'")}')"><span>📍</span><span>Mapa</span></button>
+        <button class="btn blue small" onclick="event.stopPropagation();abrirModalMasterGrupo('${gid}')"><span>${nomeRes?'🔄':'📤'}</span><span>${nomeRes?'Mover':'Enviar'}</span></button>
+        <button class="btn red small pm-full" onclick="event.stopPropagation();desfazerGrupo('${gid}')"><span>🗑️</span><span>Desfazer grupo</span></button>
       </div>`
-    : `<button class="btn blue btn-entregador-mapa" onclick="abrirMapa('${end.replace(/'/g,"\\'")}')">📍 ABRIR MAPA (grupo)</button>`;
+    : `<button class="btn blue btn-entregador-mapa" onclick="abrirMapa('${end.replace(/'/g,"\'")}')">📍 ABRIR MAPA</button>`;
 
   const rota = (!isMasterUser)
-    ? `<div class="pm-rota" style="display:flex;gap:6px;margin-bottom:8px"><button class="btn small" style="flex:1;padding:8px;font-size:11px" onclick="moverGrupoCima('${gid}')">↑ Subir</button><button class="btn small" style="flex:1;padding:8px;font-size:11px" onclick="moverGrupoBaixo('${gid}')">↓ Descer</button></div>`
+    ? `<div class="pm-rota" style="grid-template-columns:1fr 1fr"><button class="btn small" onclick="moverGrupoCima('${gid}')">↑ Subir</button><button class="btn small" onclick="moverGrupoBaixo('${gid}')">↓ Descer</button></div>`
     : '';
 
   return `<div class="pedido-mini${todosConfirmados?' ok':''}" style="border-color:#f0c14a;grid-column:span 2;min-width:260px">
