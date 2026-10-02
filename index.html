@@ -299,7 +299,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 011026.232234</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 021026.103737</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -3950,7 +3950,20 @@ async function fazerLogin(){
     erroEl.textContent = 'Erro: ' + (e.message || e);
   }
 }
-function logout(){
+/** Sair: pede confirmação em modal (mesmo estilo dos demais avisos do app) antes de encerrar a sessão. */
+async function logout(){
+  let msg = 'Deseja realmente sair da sua conta?';
+  try{
+    const nome = (usuarioLogado && usuarioLogado.nome) ? usuarioLogado.nome : '';
+    if(nome) msg = nome + ', deseja realmente sair da sua conta?';
+    const fila = (typeof getFilaConfirmacoes === 'function') ? getFilaConfirmacoes() : [];
+    if(fila && fila.length) msg += '\n\n⚠️ Há ' + fila.length + ' confirmação(ões) aguardando sincronização. Elas serão enviadas quando houver internet.';
+  }catch(e){}
+  const ok = await mostrarConfirmacao(msg, { titulo:'Sair', icone:'🚪', okTexto:'Sair', cancelarTexto:'Ficar' });
+  if(!ok) return;
+  _executarLogout();
+}
+function _executarLogout(){
   localStorage.removeItem('usuario_logado');
   localStorage.removeItem('master_origem');
   try{ fecharModalTrocarConta(); const bt=document.getElementById('btnTrocarConta'); if(bt) bt.style.display='none'; }catch(e){}
