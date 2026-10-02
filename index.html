@@ -296,7 +296,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 011026.222029</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 011026.224153</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -7645,7 +7645,7 @@ function abrirConfirmacaoEntregador(pedido){
     if(btn){
       btn.textContent = '✅ FINALIZAR';
       btn.style.background = '#16a34a';
-      btn.onclick = function(){ finalizarPedidoExterno(pedido.id); };
+      btn.onclick = function(){ finalizarPedidoExterno(pedido.id, true); };
     }
     if(fb){ fb.style.display='block'; fb.style.color='#15803D'; fb.textContent='Pedido '+_plat+' - clique FINALIZAR para gravar no sistema (não abre iFood)'; }
   }else{
@@ -8217,11 +8217,16 @@ async function gravarFinalizacaoExternaNoSupabase({pedido, nomeEntregador}){
     return false;
   }
 }
-async function finalizarPedidoExterno(id){
+async function finalizarPedidoExterno(id, viaModal){
   const pedido = todosPedidos.find(x=>x.id===id);
   if(!pedido){ alert('Pedido não encontrado'); return; }
   const plataforma = getLabelPlataformaExterna(pedido.numero_pedido);
-  if(!(await mostrarConfirmacao('Finalizar pedido #'+pedido.numero_pedido+' - '+(pedido.cliente_nome||'')+' ?\n\nPlataforma: '+plataforma+'\nNão vai abrir iFood, só grava no sistema.', { titulo:'Finalizar pedido', okTexto:'Finalizar', cancelarTexto:'Cancelar' }))) return;
+  if(!viaModal){
+    // Pedidos externos (WA, AIQFOME...) também passam pelo modal de confirmação, onde aparecem
+    // os alertas de refrigerante e de pagamento na entrega. O botão FINALIZAR do modal chama de novo com viaModal=true.
+    abrirConfirmacaoEntregador(pedido);
+    return;
+  }
   const nomeEntregador = _nomeFinalizacao(pedido);
   let statusGravacao = '';
   if(!navigator.onLine){
