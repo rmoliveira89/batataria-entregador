@@ -296,7 +296,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 011026.224153</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 011026.225545</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -7703,16 +7703,31 @@ async function carregarAlertasConfirmacao(pedido){
     if(!client || !navigator.onLine) throw new Error('offline');
     const num = String(pedido.numero_pedido||'').replace(/^#/,'').trim();
     if(!num) throw new Error('sem número');
-    const {data, error} = await client.from('refri_pedidos').select('num_pedido,qtd,descricao,valor,data').eq('num_pedido', num);
+    // Normaliza para comparar: maiúsculo, sem símbolos, sem prefixo WA e sem zeros à esquerda (WA015055 = 015055 = 15055)
+    const norm = v => String(v==null?'':v).toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^WA/,'').replace(/^0+/,'');
+    const alvo = norm(num);
+    const dig = num.replace(/\D/g,'');
+    const variantes = Array.from(new Set([num, num.toUpperCase(), num.toLowerCase(), dig, dig.replace(/^0+/,''), 'WA'+dig, 'wa'+dig].filter(Boolean)));
+    const {data, error} = await client.from('refri_pedidos').select('num_pedido,qtd,descricao,valor,data').in('num_pedido', variantes);
     if(error) throw error;
-    // mesmo pedido = mesmo número e mesma data (ou linha sem data)
-    const itens = (data||[]).filter(r => (!r.data || !pedido.data || String(r.data).slice(0,10) === String(pedido.data).slice(0,10)) && Number(r.qtd||0) > 0);
+    const mesmoPedido = (data||[]).filter(r => norm(r.num_pedido) === alvo);
+    const dPed = String(pedido.data||'').slice(0,10);
+    const externo = (typeof isPedidoExterno==='function') && isPedidoExterno(pedido.numero_pedido);
+    // data: igual à do pedido; pedidos externos (número único, ex.: WA015055) aceitam qualquer data
+    const doDia = mesmoPedido.filter(r => !r.data || !dPed || String(r.data).slice(0,10) === dPed || externo);
+    const itens = doDia.filter(r => Number(r.qtd||0) > 0);
+    console.log('[refri] pedido', num, '| variantes', variantes, '| linhas', (data||[]).length, '| mesmo pedido', mesmoPedido.length, '| aceitas', itens.length);
     if(itens.length){
       const linhas = itens.map(r=>{
         const v = (r.valor != null && r.valor !== '') ? ' — ' + _fmtBRL(r.valor) : '';
         return `<div class="ca-item">${_escAttrTxt(r.qtd)}x ${_escAttrTxt(r.descricao||'Refrigerante')}${v}</div>`;
       }).join('');
       htmlRefri = `<div class="conf-alerta"><div class="ca-tit">🥤 ATENÇÃO — PEDIDO COM REFRIGERANTE</div>${linhas}</div>`;
+    } else if(mesmoPedido.length){
+      const datas = Array.from(new Set(mesmoPedido.map(r=>String(r.data||'').slice(0,10)))).join(', ');
+      htmlRefri = `<div class="conf-alerta-info">🥤 Há refrigerante registrado para este número, mas não foi aceito (data ${_escAttrTxt(datas||'—')} ≠ ${_escAttrTxt(dPed||'—')} ou quantidade 0). Confira com o Master.</div>`;
+    } else {
+      htmlRefri = '<div class="conf-alerta-info">🥤 Nenhum refrigerante registrado para este pedido.</div>';
     }
   }catch(e){
     console.warn('refri_pedidos', e);
