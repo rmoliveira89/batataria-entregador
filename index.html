@@ -244,6 +244,11 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 @media (min-width:900px){
   .pedidos-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
 }
+@keyframes alertaConfPulse{0%,100%{background:#b91c1c;box-shadow:0 0 0 0 rgba(239,68,68,.75)}50%{background:#ef4444;box-shadow:0 0 0 10px rgba(239,68,68,0)}}
+.conf-alerta{animation:alertaConfPulse 1.1s infinite;color:#fff;border-radius:14px;padding:11px 14px;margin-bottom:8px;font-weight:800;font-size:13px;line-height:1.35}
+.conf-alerta .ca-tit{font-size:11px;letter-spacing:.08em;opacity:.95;margin-bottom:4px}
+.conf-alerta .ca-item{font-size:14px;font-weight:900}
+.conf-alerta-info{background:#f4f4f5;color:#71717a;border-radius:12px;padding:8px 12px;margin-bottom:8px;font-size:11px;font-weight:700}
 @keyframes dinPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,107,107,.55)}50%{box-shadow:0 0 0 7px rgba(255,107,107,0)}}
 #btnDinheiro.din-alerta{animation:dinPulse 1.6s infinite;background:#2a1414 !important}
 
@@ -291,7 +296,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 011026.200805</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 011026.222029</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -677,6 +682,8 @@ select '06:00','15:59','16:00','05:59','07:00','23:30',5,false where not exists 
 <div style="font-size:11px;color:#713f12;margin-top:4px" id="confEndereco"></div>
 <div style="font-size:10px;color:#854d0e;margin-top:6px">🔑 Localizador: <b id="confLocHeader"></b></div>
 </div>
+
+<div id="confAlertasPedido" style="display:none;margin-bottom:12px"></div>
 
 <label style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:#3f3f46;display:block;margin-bottom:6px">LOCALIZADOR (COPIAR → GRAVA + ABRE IFOOD)</label>
 <div style="display:flex;gap:8px;margin-bottom:12px">
@@ -4067,8 +4074,8 @@ function salvarPedidoVisivel(pedido){
   // Mantém ordem da rota no aparelho
   const data=pedido.data; const keyOrdem=getKeyOrdem(data);
   let ordem=[]; try{ ordem=JSON.parse(localStorage.getItem(keyOrdem)||'[]'); }catch(e){ ordem=[]; }
-  if(!ordem.includes(pedido.id)) ordem.push(pedido.id);
-  localStorage.setItem(keyOrdem, JSON.stringify(ordem));
+  // Ordem automática por prazo: ao adicionar, descarta a ordem manual da data para re-ordenar por tempo
+  try{ localStorage.removeItem(keyOrdem); }catch(e){}
   // Espelho opcional no localStorage (cache offline) — não é mais a fonte da verdade
   try{
     const key=getKeyPedidos(data);
@@ -5000,6 +5007,17 @@ function podeAdicionarData(dataPedido){
   return false;
 }
 /** Nome do entregador logado (mesmo sistema para todos os cadastrados). */
+/** Nome gravado em entregador_nome ao finalizar: entregador logado, ou (Master) o entregador responsável pelo pedido. */
+function _nomeFinalizacao(pedido){
+  if(usuarioLogado && usuarioLogado.isMaster && pedido){
+    let n = '';
+    try{ n = getNomeReserva(pedido) || ''; }catch(e){}
+    n = n || pedido.entregador_nome || '';
+    if(n && String(n).trim()) return String(n).trim();
+    return nomeEntregadorAtual() || 'Master';
+  }
+  return nomeEntregadorAtual() || 'Entregador';
+}
 function nomeEntregadorAtual(){
   if(!usuarioLogado) return localStorage.getItem('entregador_nome') || '';
   return usuarioLogado.nome || '';
@@ -5534,6 +5552,46 @@ async function excluirPedido(id){
     pedidosVisiveisIds = pedidosVisiveisIds.filter(x=>x!==id);
     render();
   }
+}
+/** Prazo de entrega (previsão) do item: pedido único ou grupo (menor prazo do grupo). Sem prazo → vai para o fim. */
+function _prazoItemEntrega(it){
+  const peds = it.tipo==='grupo' ? (it.pedidos||[]) : [it.pedido];
+  let min = Infinity;
+  peds.forEach(p=>{
+    try{
+      const d = parsePrevEntrega(p);
+      if(d && d.getTime() < min) min = d.getTime();
+    }catch(e){}
+  });
+  return min;
+}
+function _criadoItemEntrega(it){
+  const peds = it.tipo==='grupo' ? (it.pedidos||[]) : [it.pedido];
+  let min = Infinity;
+  peds.forEach(p=>{ const t = new Date(p.created_at).getTime(); if(!isNaN(t) && t < min) min = t; });
+  return min;
+}
+/** Momento em que o item foi finalizado (grupo: o último pedido finalizado). */
+function _finalizadoItemEntrega(it){
+  const peds = it.tipo==='grupo' ? (it.pedidos||[]) : [it.pedido];
+  let max = 0;
+  peds.forEach(p=>{
+    const t = new Date(p.codigo_informado_em || p.updated_at || p.created_at).getTime();
+    if(!isNaN(t) && t > max) max = t;
+  });
+  return max;
+}
+/** A entregar: mais atrasados (menor prazo) primeiro. */
+function ordenarItensPendentesEntregador(itens){
+  return (itens||[]).slice().sort((a,b)=>{
+    const pa = _prazoItemEntrega(a), pb = _prazoItemEntrega(b);
+    if(pa !== pb) return pa < pb ? -1 : 1;   // Infinity (sem prazo) fica por último
+    return _criadoItemEntrega(a) - _criadoItemEntrega(b);
+  });
+}
+/** Finalizados: o último finalizado fica no topo. */
+function ordenarItensFinalizadosEntregador(itens){
+  return (itens||[]).slice().sort((a,b)=> _finalizadoItemEntrega(b) - _finalizadoItemEntrega(a));
 }
 function ordenarPorRota(lista, data){
   if(usuarioLogado?.isMaster){ return lista.sort((a,b)=> new Date(a.created_at)-new Date(b.created_at)); }
@@ -6224,8 +6282,26 @@ function abrirModalFinalizarPedido(pedidoId){
   setTimeout(()=>{ try{ document.getElementById('finalizarModalCodigo').focus(); }catch(e){} }, 100);
 }
 
+/** Master finaliza usando o MESMO modal e regras do entregador, conforme o modo configurado (automático = código de 4 dígitos | entregador = copiar localizador + iFood). */
 function finalizarPedidoMaster(pedidoId){
-  abrirModalFinalizarPedido(pedidoId);
+  if(!usuarioLogado || !usuarioLogado.isMaster) return;
+  const pedido = (todosPedidos||[]).find(x=>x.id===pedidoId);
+  if(!pedido){ alert('Pedido não encontrado'); return; }
+  if(isPedidoCustoBloqueado(pedido)){
+    alert(msgCustoBloqueado(pedido));
+    return;
+  }
+  // Fecha o modal do Master (se estiver aberto) para o modal de confirmação ficar visível
+  try{ fecharModalMasterPedido(); }catch(e){}
+  if(isPedidoExterno(pedido.numero_pedido)){
+    return finalizarPedidoExterno(pedidoId);
+  }
+  const modo = getModoConfirmacao();
+  if(modo === 'entregador'){
+    abrirConfirmacaoEntregador(pedido);
+  } else {
+    abrirConfirmacaoAutomatico(pedido);
+  }
 }
 
 async function executarFinalizarPedidoConfirmado(){
@@ -6929,10 +7005,14 @@ function render(){
    const subs = document.querySelectorAll('#viewTurnos .sub-header');
    subs.forEach(el=> el.style.display='flex');
    const cardItens = (itens, listaRef) => itens.map((it,i)=> it.tipo==='grupo' ? cardGrupoPedidos(it) : cardPedido(it.pedido,i,listaRef)).join('');
-   document.getElementById('listaJantarPendente').innerHTML = jantarPendItens.length ? wrapPedidosGrid(cardItens(jantarPendItens, jantarPend)) : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
-   document.getElementById('listaJantarConfirmado').innerHTML = jantarConfItens.length ? wrapPedidosGrid(cardItens(jantarConfItens, jantarConf)) : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
-   document.getElementById('listaAlmocoPendente').innerHTML = almocoPendItens.length ? wrapPedidosGrid(cardItens(almocoPendItens, almocoPend)) : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
-   document.getElementById('listaAlmocoConfirmado').innerHTML = almocoConfItens.length ? wrapPedidosGrid(cardItens(almocoConfItens, almocoConf)) : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
+   // Ordem automática: A ENTREGAR = mais atrasados primeiro; CONFIRMADOS = último finalizado primeiro
+   const _ordPend = ordenarItensPendentesEntregador, _ordConf = ordenarItensFinalizadosEntregador;
+   const jantarPendOrd = _ordPend(jantarPendItens), almocoPendOrd = _ordPend(almocoPendItens);
+   const jantarConfOrd = _ordConf(jantarConfItens), almocoConfOrd = _ordConf(almocoConfItens);
+   document.getElementById('listaJantarPendente').innerHTML = jantarPendItens.length ? wrapPedidosGrid(cardItens(jantarPendOrd, jantarPend)) : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
+   document.getElementById('listaJantarConfirmado').innerHTML = jantarConfItens.length ? wrapPedidosGrid(cardItens(jantarConfOrd, jantarConf)) : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
+   document.getElementById('listaAlmocoPendente').innerHTML = almocoPendItens.length ? wrapPedidosGrid(cardItens(almocoPendOrd, almocoPend)) : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
+   document.getElementById('listaAlmocoConfirmado').innerHTML = almocoConfItens.length ? wrapPedidosGrid(cardItens(almocoConfOrd, almocoConf)) : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
 
    if(headerJ) headerJ.style.display = 'flex';
    if(headerA) headerA.style.display = 'flex';
@@ -7579,11 +7659,76 @@ function abrirConfirmacaoEntregador(pedido){
     if(fb){ fb.style.display='none'; }
   }
   document.getElementById('modalConfirmEntregador').style.display='flex';
+  try{ carregarAlertasConfirmacao(pedido); }catch(e){ console.warn('alertas confirmação', e); }
+}
+
+// ---- Alertas no modal do entregador: refrigerantes + pagamento na entrega ----
+let _tokenAlertasConf = 0;
+
+/** Retorna 'DINHEIRO' / 'CARTÃO' / texto da forma quando o pagamento é na entrega; '' se já está pago. */
+function _pagamentoNaEntrega(p){
+  const raw = ((p && p.forma_pagamento) || '').toString().trim();
+  if(!raw) return '';
+  const n = raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const isPago = /^(pago|pago online|online|pix online|ja pago|pre pago|creditado)$/.test(n)
+    || (/\bpago\b/.test(n) && !/na\s*entrega|receber|cartao|dinheiro/.test(n));
+  if(isPago) return '';
+  const isReceber = /cartao|dinheiro|especie|maquina|debito|credito|na\s*entrega|cobrar|receber|cash|card/.test(n);
+  return isReceber ? raw.toUpperCase() : '';
+}
+
+function _fmtBRL(v){
+  const n = Number(v);
+  return isNaN(n) ? '' : 'R$ ' + n.toFixed(2).replace('.',',');
+}
+
+async function carregarAlertasConfirmacao(pedido){
+  const box = document.getElementById('confAlertasPedido');
+  if(!box || !pedido) return;
+  const token = ++_tokenAlertasConf;
+  const aindaAtual = () => token === _tokenAlertasConf && pedidoConfirmAtual && pedidoConfirmAtual.id === pedido.id;
+
+  let htmlPag = '';
+  const fp = _pagamentoNaEntrega(pedido);
+  if(fp){
+    const val = (pedido.valor != null && pedido.valor !== '') ? ' — ' + (String(pedido.valor).startsWith('R$') ? _escAttrTxt(pedido.valor) : _escAttrTxt(_fmtBRL(pedido.valor) || pedido.valor)) : '';
+    htmlPag = `<div class="conf-alerta"><div class="ca-tit">💰 COBRAR NA ENTREGA</div><div class="ca-item">🔴 PAGAMENTO NA ENTREGA: ${_escAttrTxt(fp)}${val}</div></div>`;
+  }
+  box.innerHTML = htmlPag + '<div class="conf-alerta-info">🥤 Verificando refrigerantes do pedido…</div>';
+  box.style.display = 'block';
+
+  let htmlRefri = '';
+  try{
+    const client = getSb();
+    if(!client || !navigator.onLine) throw new Error('offline');
+    const num = String(pedido.numero_pedido||'').replace(/^#/,'').trim();
+    if(!num) throw new Error('sem número');
+    const {data, error} = await client.from('refri_pedidos').select('num_pedido,qtd,descricao,valor,data').eq('num_pedido', num);
+    if(error) throw error;
+    // mesmo pedido = mesmo número e mesma data (ou linha sem data)
+    const itens = (data||[]).filter(r => (!r.data || !pedido.data || String(r.data).slice(0,10) === String(pedido.data).slice(0,10)) && Number(r.qtd||0) > 0);
+    if(itens.length){
+      const linhas = itens.map(r=>{
+        const v = (r.valor != null && r.valor !== '') ? ' — ' + _fmtBRL(r.valor) : '';
+        return `<div class="ca-item">${_escAttrTxt(r.qtd)}x ${_escAttrTxt(r.descricao||'Refrigerante')}${v}</div>`;
+      }).join('');
+      htmlRefri = `<div class="conf-alerta"><div class="ca-tit">🥤 ATENÇÃO — PEDIDO COM REFRIGERANTE</div>${linhas}</div>`;
+    }
+  }catch(e){
+    console.warn('refri_pedidos', e);
+    htmlRefri = '<div class="conf-alerta-info">⚠️ Não foi possível verificar refrigerantes agora (sem conexão ou tabela indisponível).</div>';
+  }
+  if(!aindaAtual()) return;
+  const conteudo = htmlPag + htmlRefri;
+  box.innerHTML = conteudo;
+  box.style.display = conteudo ? 'block' : 'none';
 }
 
 function fecharConfirmEntregador(){
   document.getElementById('modalConfirmEntregador').style.display='none';
   pedidoConfirmAtual=null;
+  _tokenAlertasConf++;
+  const _bx = document.getElementById('confAlertasPedido'); if(_bx){ _bx.innerHTML=''; _bx.style.display='none'; }
 }
 
 const FILA_CONF_KEY = 'fila_confirmacoes_offline';
@@ -8077,7 +8222,7 @@ async function finalizarPedidoExterno(id){
   if(!pedido){ alert('Pedido não encontrado'); return; }
   const plataforma = getLabelPlataformaExterna(pedido.numero_pedido);
   if(!(await mostrarConfirmacao('Finalizar pedido #'+pedido.numero_pedido+' - '+(pedido.cliente_nome||'')+' ?\n\nPlataforma: '+plataforma+'\nNão vai abrir iFood, só grava no sistema.', { titulo:'Finalizar pedido', okTexto:'Finalizar', cancelarTexto:'Cancelar' }))) return;
-  const nomeEntregador = nomeEntregadorAtual() || 'Entregador';
+  const nomeEntregador = _nomeFinalizacao(pedido);
   let statusGravacao = '';
   if(!navigator.onLine){
     enfileirarConfirmacaoOffline({
@@ -8140,7 +8285,7 @@ async function copiarLocalizador(){
   }
 
   const pedido = pedidoConfirmAtual;
-  const nomeEntregador = nomeEntregadorAtual() || 'Entregador';
+  const nomeEntregador = _nomeFinalizacao(pedido);
   const numeroPedido = pedido ? String(pedido.numero_pedido||'') : '';
 
   // 2) Gravar (online) ou enfileirar (offline) — no máximo 1x por pedido
@@ -8353,7 +8498,7 @@ async function confirmarCodigoAutomatico(){
   if(inp) inp.disabled = true;
   if(st){ st.textContent = 'Gravando confirmação...'; st.style.color = '#8b93a7'; }
 
-  const nome = nomeEntregadorAtual() || 'Entregador';
+  const nome = _nomeFinalizacao(pedido);
 
   // 1) Atualização otimista LOCAL imediatamente (antes da rede) — se o usuário apertar voltar, o pedido já aparece finalizado
   const idxLocal = todosPedidos.findIndex(x=>x.id===id);
