@@ -303,7 +303,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 021026.232326</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 031026.132531</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -392,6 +392,7 @@ Pedidos <b>finalizados</b> em <b style="color:#ff6b6b">DINHEIRO</b> que ainda n�
 <button class="tab" id="tabBtnModo" onclick="trocarAba('modo')">Alternar Modo</button>
 <button class="tab" id="tabBtnCusto" onclick="trocarAba('custo')">Custo de Entregas</button>
 <button class="tab" id="tabBtnHorarios" onclick="trocarAba('horarios')">⏰ Horários</button>
+<button class="tab" id="tabBtnFuncoes" onclick="trocarAba('funcoes')">👁️ Mostrar funções</button>
 </div>
 <div id="abaSupabase">
 <label>Supabase URL</label><input id="cfgUrl" style="margin:6px 0 10px"/>
@@ -501,6 +502,7 @@ alter table config_horarios enable row level security;
 create policy "libera tudo anon horarios" on config_horarios for all using (true) with check (true);
 alter table config_horarios add column if not exists horas_bloqueio_edicao integer not null default 5;
 alter table config_horarios add column if not exists auto_finalizar_apos_horas boolean not null default false;
+alter table config_horarios add column if not exists ocultar_faturamento boolean not null default false;
 insert into config_horarios (almoco_inicio, almoco_fim, jantar_inicio, jantar_fim, libera_proximo_dia_apos, pedidos_ate, horas_bloqueio_edicao, auto_finalizar_apos_horas)
 select '06:00','15:59','16:00','05:59','07:00','23:30',5,false where not exists (select 1 from config_horarios);
 
@@ -517,7 +519,20 @@ create table if not exists calc_entregas (
 );
 create index if not exists idx_calc_entregas_dia_ent on calc_entregas (dia, id_entregador);
 alter table calc_entregas enable row level security;
-create policy "libera tudo anon calc entregas" on calc_entregas for all using (true) with check (true);</code>
+create policy "libera tudo anon calc entregas" on calc_entregas for all using (true) with check (true);
+
+-- Repasse semanal (gravado por outro sistema; o site só lê e exibe)
+create table if not exists repasse_entregador (
+  id uuid primary key default gen_random_uuid(),
+  nome text not null,
+  semana date not null, -- SEGUNDA-FEIRA da semana (segunda a domingo)
+  valor_bruto numeric(10,2) not null default 0,
+  valor_liquido numeric(10,2) not null default 0,
+  data date -- data do pagamento
+);
+create index if not exists idx_repasse_entregador_nome_semana on repasse_entregador (nome, semana);
+alter table repasse_entregador enable row level security;
+create policy "libera tudo anon repasse entregador" on repasse_entregador for all using (true) with check (true);</code>
 </div>
 </div>
 <div id="abaEntregadores" style="display:none">
@@ -588,6 +603,20 @@ alter table config_custo_entregas enable row level security;
 create policy "libera tudo anon custo entregas" on config_custo_entregas for all using (true) with check (true);</code>
 </div>
 </div>
+<div id="abaFuncoes" style="display:none">
+<div style="font-size:11px;color:#8b93a7;margin-bottom:12px;line-height:1.4">
+Escolha quais funções os entregadores veem. Salvo na tabela <b style="color:#f0c14a">config_horarios</b> e vale para todos.
+</div>
+<label style="display:flex;align-items:center;gap:10px;padding:12px;background:#0e1118;border:1px solid #2c3340;border-radius:10px;font-size:13px;color:#e6e8ef;cursor:pointer">
+<input type="checkbox" id="cfgOcultarFaturamento" style="width:auto" onchange="salvarMostrarFuncoes()"/> 🙈 Ocultar faturamento
+</label>
+<div style="font-size:10px;color:#8b93a7;margin-top:6px;line-height:1.4">Marcado: o quadro "Faturamento estimado da semana" não aparece em Custo dos entregadores.</div>
+<div id="funcoesStatus" style="font-size:11px;color:#8b93a7;text-align:center;margin:10px 0;min-height:16px"></div>
+<div style="margin-top:10px;padding:10px;background:#0e1118;border:1px solid #2c3340;border-radius:8px;font-size:10px;color:#8b93a7">
+<b style="color:#f0c14a">SQL - rode uma vez no Supabase:</b><br/>
+<code style="color:#fff;display:block;margin-top:6px;white-space:pre-wrap">alter table config_horarios add column if not exists ocultar_faturamento boolean not null default false;</code>
+</div>
+</div>
 <div id="abaHorarios" style="display:none">
 <div style="font-size:11px;color:#8b93a7;margin-bottom:12px;line-height:1.4">
 Configure os <b style="color:#f0c14a">horários de turno e bloqueio</b>. Salvo na tabela <b style="color:#f0c14a">config_horarios</b>.
@@ -625,6 +654,7 @@ alter table config_horarios enable row level security;
 create policy "libera tudo anon horarios" on config_horarios for all using (true) with check (true);
 alter table config_horarios add column if not exists horas_bloqueio_edicao integer not null default 5;
 alter table config_horarios add column if not exists auto_finalizar_apos_horas boolean not null default false;
+alter table config_horarios add column if not exists ocultar_faturamento boolean not null default false;
 insert into config_horarios (almoco_inicio, almoco_fim, jantar_inicio, jantar_fim, libera_proximo_dia_apos, pedidos_ate, horas_bloqueio_edicao, auto_finalizar_apos_horas)
 select '06:00','15:59','16:00','05:59','07:00','23:30',5,false where not exists (select 1 from config_horarios);
 </code>
@@ -1134,6 +1164,7 @@ Após confirmar, os valores das entregas serão gravados e <b style="color:#ff6b
 
 <!-- ABA CUSTO (entregador) -->
 <div id="viewCustoEntregador" style="display:none">
+<div id="quadroFaturamentoSemana" style="display:none"></div>
 <div class="card" style="margin:10px 12px">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
 <div id="tituloAbaCusto" style="font-size:13px;color:#3dcc8a;font-weight:900">💵 CUSTO DAS ENTREGAS</div>
@@ -1565,6 +1596,7 @@ async function carregarHorarios(){
       configHorarios.pedidos_ate = (data.pedidos_ate||'23:30').toString().slice(0,5);
       configHorarios.horas_bloqueio_edicao = data.horas_bloqueio_edicao!=null ? parseInt(data.horas_bloqueio_edicao,10) : 5;
       configHorarios.auto_finalizar_apos_horas = !!data.auto_finalizar_apos_horas;
+      configHorarios.ocultar_faturamento = !!data.ocultar_faturamento;
     }
     const setVal=(id,val)=>{ const el=document.getElementById(id); if(el) el.value=val; };
     setVal('cfgAlmocoInicio', configHorarios.almoco_inicio);
@@ -1575,12 +1607,39 @@ async function carregarHorarios(){
     setVal('cfgPedidosAte', configHorarios.pedidos_ate);
     setVal('cfgHorasBloqueio', configHorarios.horas_bloqueio_edicao);
     const chk=document.getElementById('cfgAutoFinalizar'); if(chk) chk.checked=!!configHorarios.auto_finalizar_apos_horas;
+    const chkF=document.getElementById('cfgOcultarFaturamento'); if(chkF) chkF.checked=!!configHorarios.ocultar_faturamento;
+    try{ if(typeof abaEntregadorAtual!=='undefined' && abaEntregadorAtual==='custo') renderQuadroFaturamentoSemana(); }catch(e){}
     if(st){ st.textContent='✅ Carregado'; st.style.color='#3dcc8a'; setTimeout(()=>{if(st) st.textContent='';},2000); }
     atualizarInfoRegra();
   }catch(e){
     console.warn('carregarHorarios',e);
     if(st){ st.textContent='Erro: '+(e.message||e)+' (usando padrão)'; st.style.color='#f0c14a'; }
     atualizarInfoRegra();
+  }
+}
+async function salvarMostrarFuncoes(){
+  const st=document.getElementById('funcoesStatus');
+  const chk=document.getElementById('cfgOcultarFaturamento');
+  const client=getSb();
+  if(!client){ if(st){ st.textContent='Supabase não configurado'; st.style.color='#ff6b6b'; } return; }
+  if(!usuarioLogado?.isMaster){ alert('Apenas Master'); return; }
+  const valor = !!(chk && chk.checked);
+  if(!configHorariosId){
+    if(chk) chk.checked = !valor;
+    if(st){ st.textContent='Salve os Horários uma vez antes (cria a linha de configuração).'; st.style.color='#f0c14a'; }
+    return;
+  }
+  if(st){ st.textContent='Salvando...'; st.style.color='#8b93a7'; }
+  try{
+    const {error} = await client.from('config_horarios').update({ ocultar_faturamento: valor, updated_at: new Date().toISOString() }).eq('id', configHorariosId);
+    if(error) throw error;
+    configHorarios.ocultar_faturamento = valor;
+    if(st){ st.textContent = valor ? '✅ Faturamento oculto para os entregadores' : '✅ Faturamento visível para os entregadores'; st.style.color='#3dcc8a'; }
+  }catch(e){
+    console.warn('salvarMostrarFuncoes', e);
+    if(chk) chk.checked = !valor;
+    const msg = String(e.message||e);
+    if(st){ st.textContent = /ocultar_faturamento|column/i.test(msg) ? 'Rode o SQL abaixo no Supabase (coluna ainda não existe).' : 'Erro: '+msg; st.style.color='#ff6b6b'; }
   }
 }
 async function salvarHorarios(){
@@ -1618,7 +1677,7 @@ async function salvarHorarios(){
       }
     }
     if(error) throw error;
-    configHorarios = {...payload};
+    configHorarios = {...payload, ocultar_faturamento: !!configHorarios.ocultar_faturamento};
     if(st){ st.textContent='✅ Horários salvos!'; st.style.color='#3dcc8a'; }
     atualizarInfoRegra();
     try{ carregar(); }catch(e){}
@@ -1884,7 +1943,7 @@ function abrirCfg(){
 function abrirCfgProtegida(){ abrirCfg(); }
 function verificarSenhaCfg(){ /* senha removida - acesso direto para master */ abrirCfg(); }
 function trocarAba(aba){
-  const abas=['supabase','entregadores','modo','custo','horarios'];
+  const abas=['supabase','entregadores','modo','custo','horarios','funcoes'];
   abas.forEach(a=>{
     const cap = a.charAt(0).toUpperCase()+a.slice(1);
     const el=document.getElementById('aba'+cap);
@@ -1894,7 +1953,7 @@ function trocarAba(aba){
   });
   if(aba==='modo'){ carregarModoGlobal(); }
   if(aba==='custo'){ carregarCustosEntrega(); }
-  if(aba==='horarios'){ carregarHorarios(); }
+  if(aba==='horarios' || aba==='funcoes'){ carregarHorarios(); }
 }
 
 // ===================== CUSTO DE ENTREGAS (Master) =====================
@@ -1998,6 +2057,122 @@ async function removerCustoEntrega(id){
   }catch(e){
     if(st){ st.textContent = 'Erro: '+(e.message||e); st.style.color = '#ff6b6b'; }
   }
+}
+
+
+// ===================== QUADRO: FATURAMENTO ESTIMADO DA SEMANA (aba Custo do entregador) =====================
+// Semana = segunda a domingo. Bruto / líquido / data do pagamento vêm da tabela repasse_entregador
+// (gravada por outro sistema) — aqui NADA é calculado. As quantidades por valor vêm de calc_entregas.
+function _semanaSegDom(dataStr){
+  const m = String(dataStr||'').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const base = m ? new Date(Date.UTC(+m[1], +m[2]-1, +m[3])) : new Date();
+  const dow = base.getUTCDay();
+  const voltaSeg = (dow + 6) % 7;
+  const seg = new Date(base.getTime() - voltaSeg*86400000);
+  const dom = new Date(seg.getTime() + 6*86400000);
+  const f = d => d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
+  return { seg: f(seg), dom: f(dom) };
+}
+function _fmtMoedaBR(v){
+  const n = Number(v);
+  if(v === null || v === undefined || v === '' || isNaN(n)) return '—';
+  return n.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+}
+function _fmtValorCurto(n){
+  const x = Number(n);
+  if(isNaN(x)) return '?';
+  return Number.isInteger(x) ? String(x) : x.toFixed(2).replace('.',',');
+}
+let _quadroSemanaSeq = 0;
+async function renderQuadroFaturamentoSemana(){
+  const el = document.getElementById('quadroFaturamentoSemana');
+  if(!el) return;
+  if(!usuarioLogado || usuarioLogado.isMaster){ el.style.display='none'; el.innerHTML=''; return; }
+  if(configHorarios && configHorarios.ocultar_faturamento){ _quadroSemanaSeq++; el.style.display='none'; el.innerHTML=''; return; }
+  const client = getSb();
+  if(!client){ el.style.display='none'; return; }
+  const seq = ++_quadroSemanaSeq;
+  const { seg, dom } = _semanaSegDom(getDataFiltroCustoEnt());
+  const nome = nomeEntregadorAtual();
+  const idEnt = String(usuarioLogado.id || usuarioLogado.nome || '');
+
+  let rep = null, repErro = null;
+  try{
+    const r = await client.from('repasse_entregador').select('*').ilike('nome', nome).eq('semana', seg).order('data',{ascending:false}).limit(1);
+    if(r.error) repErro = r.error; else rep = (r.data && r.data[0]) || null;
+  }catch(e){ repErro = e; }
+
+  let porValor = {};
+  const porDia = {};   // dia -> { valor -> qtd }
+  try{
+    if(!cacheOpcoesCusto.length) await carregarOpcoesCusto();
+    const ids = [...new Set([idEnt, nome].filter(Boolean))];
+    const r2 = await client.from('calc_entregas').select('id_entrega,quant,dia,turno,created_at,updated_at').gte('dia', seg).lte('dia', dom).in('id_entregador', ids).limit(5000);
+    // Um envio gera 1 linha por (dia, turno, valor). Se houver linhas repetidas (reabertura/reenvio,
+    // ou gravadas com id e com nome), vale só a MAIS RECENTE — senão a semana soma em dobro.
+    const unicas = {};
+    (r2.data||[]).forEach(row=>{
+      let valor = null;
+      const op = (cacheOpcoesCusto||[]).find(o => String(o.id) === String(row.id_entrega));
+      if(op) valor = Number(op.custo);
+      else if(/^valor_/.test(String(row.id_entrega))) valor = Number(String(row.id_entrega).replace('valor_',''));
+      const k = valor === null || isNaN(valor) ? ('?'+row.id_entrega) : String(valor);
+      const chave = row.dia+'|'+row.turno+'|'+k;
+      const ts = new Date(row.updated_at || row.created_at || 0).getTime() || 0;
+      if(!unicas[chave] || ts >= unicas[chave].ts) unicas[chave] = { dia: String(row.dia).slice(0,10), k: k.charAt(0)==='?' ? '?' : k, q: Number(row.quant||0), ts };
+    });
+    Object.values(unicas).forEach(u=>{
+      porValor[u.k] = (porValor[u.k]||0) + u.q;
+      (porDia[u.dia] = porDia[u.dia] || {})[u.k] = ((porDia[u.dia]||{})[u.k]||0) + u.q;
+    });
+  }catch(e){ console.warn('quadro semana calc_entregas', e); }
+
+  if(seq !== _quadroSemanaSeq) return;
+  const ordenaChaves = o => { const ks = Object.keys(o).filter(k=>k!=='?').sort((a,b)=>Number(a)-Number(b)); if(o['?']) ks.push('?'); return ks; };
+  const chaves = ordenaChaves(porValor);
+  const chips = chaves.filter(k=>porValor[k]>0).map(k =>
+    `<span style="display:inline-block;background:#0e1118;border:1px solid #2c3340;border-radius:8px;padding:5px 9px;font-size:13px;font-weight:900;color:#e6e8ef">${porValor[k]}x${k==='?'?'?':_fmtValorCurto(k)}</span>`
+  ).join(' ');
+  // Detalhe por dia (segunda → domingo) para conferência
+  const NOMES_DIA = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+  let linhasDia = '';
+  for(let i=0;i<7;i++){
+    const d = new Date(Date.UTC(+seg.slice(0,4), +seg.slice(5,7)-1, +seg.slice(8,10)+i));
+    const iso = d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
+    const o = porDia[iso] || {};
+    const txt = ordenaChaves(o).filter(k=>o[k]>0).map(k=>o[k]+'x'+(k==='?'?'?':_fmtValorCurto(k))).join('  ') || '—';
+    linhasDia += `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:3px 0;border-bottom:1px solid #20262f"><span style="color:#8b93a7">${NOMES_DIA[i]} ${formatarDataBR(iso)}</span><b style="color:#e6e8ef">${txt}</b></div>`;
+  }
+  const detalheDias = `<details style="margin-top:8px"><summary style="font-size:11px;color:#6ab7ff;cursor:pointer;font-weight:700">Ver por dia</summary><div style="margin-top:6px">${linhasDia}</div></details>`;
+
+  const dataPag = rep && rep.data ? formatarDataBR(String(rep.data).slice(0,10), true) : '—';
+  const semTxt = formatarDataBR(seg) + ' a ' + formatarDataBR(dom);
+  const aviso = repErro
+    ? `<div style="font-size:10px;color:#ff6b6b;margin-top:8px">Tabela repasse_entregador indisponível. Rode o SQL no Supabase.</div>`
+    : (!rep ? `<div style="font-size:10px;color:#8b93a7;margin-top:8px">Repasse desta semana ainda não lançado.</div>` : '');
+
+  el.innerHTML = `<div class="card" style="margin:10px 12px;border-color:#2a5a3a;background:linear-gradient(180deg,#14201a,#161a22)">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <div style="font-size:13px;color:#3dcc8a;font-weight:900">💰 FATURAMENTO ESTIMADO DA SEMANA</div>
+      <span style="font-size:10px;color:#8b93a7">📅 ${semTxt} (seg–dom)</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <div style="flex:1;background:#0e1118;border:1px solid #2c3340;border-radius:10px;padding:10px;text-align:center">
+        <div style="font-size:10px;color:#8b93a7;font-weight:700">BRUTO</div>
+        <div style="font-size:17px;font-weight:900;color:#e6e8ef;margin-top:2px">${rep ? _fmtMoedaBR(rep.valor_bruto) : '—'}</div>
+      </div>
+      <div style="flex:1;background:#0e1118;border:1px solid #2a5a3a;border-radius:10px;padding:10px;text-align:center">
+        <div style="font-size:10px;color:#8b93a7;font-weight:700">LÍQUIDO</div>
+        <div style="font-size:17px;font-weight:900;color:#3dcc8a;margin-top:2px">${rep ? _fmtMoedaBR(rep.valor_liquido) : '—'}</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:#8b93a7;margin-bottom:8px">🗓️ Pagamento: <b style="color:#f0c14a">${dataPag}</b></div>
+    <div style="font-size:10px;color:#8b93a7;font-weight:700;margin-bottom:5px">ENTREGAS ACUMULADAS NA SEMANA</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">${chips || '<span style="font-size:12px;color:#5a657a">Nenhuma entrega enviada nesta semana</span>'}</div>
+    ${detalheDias}
+    ${aviso}
+  </div>`;
+  el.style.display = 'block';
 }
 
 // =================== FIM CUSTO DE ENTREGAS ===================
@@ -2440,12 +2615,14 @@ async function executarReabrirCustoDia(){
     let q = client.from('calc_entregas').delete().eq('dia', dataAlvo).eq('id_entregador', idEntregador);
     if(turnoAlvo) q = q.eq('turno', turnoAlvo);
     const {error: errDel} = await q;
-    if(errDel){
+    // Também apaga o que foi gravado com o NOME (antes só apagava se o 1º delete desse erro → sobrava registro e o reenvio somava em dobro)
+    let errDel2 = null;
+    if(nomeEnt && nomeEnt !== idEntregador){
       let q2 = client.from('calc_entregas').delete().eq('dia', dataAlvo).eq('id_entregador', nomeEnt);
       if(turnoAlvo) q2 = q2.eq('turno', turnoAlvo);
-      const {error: errDel2} = await q2;
-      if(errDel2) throw errDel;
+      errDel2 = (await q2).error;
     }
+    if(errDel && (errDel2 || !(nomeEnt && nomeEnt !== idEntregador))) throw errDel;
 
     // 2) Desbloqueia só pedidos do turno (ou todos se null)
     let lista;
@@ -2933,6 +3110,7 @@ async function renderAbaCusto(){
   if(!usuarioLogado || usuarioLogado.isMaster) return;
   if(abaEntregadorAtual !== 'custo') return;
   atualizarUIFiltroCustoEnt();
+  try{ renderQuadroFaturamentoSemana(); }catch(e){ console.warn('quadro faturamento', e); }
   const listaEl = document.getElementById('listaCustoEntregador');
   const vazioEl = document.getElementById('custoEntVazio');
   const footer = document.getElementById('custoEntFooter');
@@ -3321,6 +3499,54 @@ function enviarCalcEntregas(turno){
 
 /** Executa após confirmação no modal: grava valor_entrega + calc_entregas e bloqueia SÓ o turno. */
 async function executarEnvioCalcEntregas(){
+  // Abre a aba do WhatsApp já no clique (evita bloqueio de pop-up); o texto entra quando o envio der certo
+  let waWin = null;
+  try{ if(usuarioLogado && !usuarioLogado.isMaster) waWin = window.open('about:blank', '_blank'); }catch(e){}
+  window.__waEnvioWin = waWin;
+  window.__waEnvioOk = false;
+  try{ await _executarEnvioCalcEntregasInterno(); }
+  finally{
+    if(!window.__waEnvioOk && waWin){ try{ waWin.close(); }catch(e){} }
+    window.__waEnvioWin = null;
+  }
+}
+function _montarTextoWhatsEnvioCusto(turno, dia, rows){
+  const lab = turno === 'almoco' ? 'Almoço' : 'Jantar';
+  const nome = nomeEntregadorAtual() || (usuarioLogado && usuarioLogado.nome) || 'Entregador';
+  const ord = (rows||[]).slice().sort((a,b)=>Number(a.custo)-Number(b.custo));
+  const qtd = ord.reduce((s,r)=>s+Number(r.quant||0),0);
+  const total = ord.reduce((s,r)=>s+Number(r.custo||0)*Number(r.quant||0),0);
+  const lines = [];
+  lines.push('A BATATARIA - Relatório de custos (RESUMO)');
+  lines.push('Entregador: ' + nome);
+  lines.push('Data: ' + formatarDataBR(dia || ''));
+  lines.push('Turno: ' + lab);
+  lines.push('Entregas: ' + qtd);
+  lines.push('');
+  lines.push('=== QUANTIDADES POR VALOR ===');
+  ord.forEach(r=>{
+    const v = Number(r.custo);
+    const vLabel = (Math.abs(v - Math.round(v)) < 0.001) ? String(Math.round(v)) : v.toFixed(2);
+    lines.push(r.quant + 'x' + vLabel + ' = R$ ' + (r.quant*v).toFixed(2));
+  });
+  lines.push('');
+  lines.push('TOTAL: R$ ' + total.toFixed(2));
+  return lines.join('\n');
+}
+function _abrirWhatsEnvioCusto(texto){
+  const url = 'https://wa.me/?text=' + encodeURIComponent(texto);
+  const w = window.__waEnvioWin;
+  if(w && !w.closed){
+    try{ w.location.href = url; window.__waEnvioOk = true; window.__waEnvioWin = null; return true; }catch(e){}
+  }
+  // Pop-up bloqueado: deixa um botão (toque do usuário nunca é bloqueado)
+  const st = document.getElementById('custoEnvioStatus');
+  if(st){
+    st.innerHTML += ' <a href="'+url+'" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;background:#25d366;color:#04210f;font-weight:900;padding:8px 12px;border-radius:8px;text-decoration:none">💬 Enviar relatório no WhatsApp</a>';
+  }
+  return false;
+}
+async function _executarEnvioCalcEntregasInterno(){
   if(!usuarioLogado || usuarioLogado.isMaster) return;
   const t = _envioCustoTurno || 'jantar';
   if(isCustoTurnoBloqueado(t)){
@@ -3364,7 +3590,7 @@ async function executarEnvioCalcEntregas(){
   // Já enviado este turno?
   try{
     const {data: ja} = await client.from('calc_entregas')
-      .select('id').eq('dia', dataAlvo).eq('id_entregador', idEntregador).eq('turno', t).limit(1);
+      .select('id').eq('dia', dataAlvo).in('id_entregador', [...new Set([idEntregador, String(usuarioLogado.nome||'')].filter(Boolean))]).eq('turno', t).limit(1);
     if(ja && ja.length){
       custoTurnoBloqueado[t] = true;
       if(stModal){ stModal.textContent = 'Este turno já foi enviado'; stModal.style.color = '#ff6b6b'; }
@@ -3449,6 +3675,9 @@ async function executarEnvioCalcEntregas(){
 
     if(stModal){ stModal.textContent = '✓ '+labT+' enviado e bloqueado'; stModal.style.color = '#3dcc8a'; }
     if(st){ st.textContent = '✓ '+labT+' enviado! '+resumo; st.style.color = '#3dcc8a'; }
+
+    // Abre o WhatsApp com o relatório resumido
+    try{ _abrirWhatsEnvioCusto(_montarTextoWhatsEnvioCusto(t, dataAlvo, rows)); }catch(e){ console.warn('whatsapp envio custo', e); }
 
     setTimeout(()=>{
       fecharModalConfirmarEnvioCusto();
