@@ -303,7 +303,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 031026.132531</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 031026.133844</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -2107,7 +2107,7 @@ async function renderQuadroFaturamentoSemana(){
   try{
     if(!cacheOpcoesCusto.length) await carregarOpcoesCusto();
     const ids = [...new Set([idEnt, nome].filter(Boolean))];
-    const r2 = await client.from('calc_entregas').select('id_entrega,quant,dia,turno,created_at,updated_at').gte('dia', seg).lte('dia', dom).in('id_entregador', ids).limit(5000);
+    const r2 = await client.from('calc_entregas').select('*').gte('dia', seg).lte('dia', dom).in('id_entregador', ids).limit(5000);
     // Um envio gera 1 linha por (dia, turno, valor). Se houver linhas repetidas (reabertura/reenvio,
     // ou gravadas com id e com nome), vale só a MAIS RECENTE — senão a semana soma em dobro.
     const unicas = {};
@@ -2497,23 +2497,14 @@ async function verificarCustoDiaBloqueado(){
   const nomeEnt = nomeEntregadorAtual() || (usuarioLogado && usuarioLogado.nome) || '';
   if(!idEntregador) return false;
   try{
-    let data = null;
-    let error = null;
+    // Procura pelo ID *e* pelo NOME juntos: um turno pode ter sido gravado com o ID e outro com o nome.
+    // (Antes só caía no nome se o ID não achasse nada → o turno gravado pelo nome aparecia como "Enviar".)
+    const candidatos = [...new Set([idEntregador, nomeEnt, String(usuarioLogado.nome||'')].map(x=>String(x||'').trim()).filter(Boolean))];
     const res1 = await client.from('calc_entregas')
       .select('id,turno')
       .eq('dia', dataAlvo)
-      .eq('id_entregador', idEntregador);
-    data = res1.data; error = res1.error;
-    if(error || !(data && data.length)){
-      // fallback por nome
-      const res2 = await client.from('calc_entregas')
-        .select('id,turno')
-        .eq('dia', dataAlvo)
-        .eq('id_entregador', nomeEnt);
-      if(!res2.error && res2.data && res2.data.length){
-        data = res2.data; error = null;
-      }
-    }
+      .in('id_entregador', candidatos);
+    const data = res1.data; const error = res1.error;
     if(error){
       console.warn('verificarCustoDiaBloqueado', error.message);
       return false;
@@ -3146,6 +3137,14 @@ async function renderAbaCusto(){
   await verificarCustoDiaBloqueado();
 
   let lista = getPedidosAbaCusto();
+  // Reforço: turno cujos pedidos já estão TODOS com custo bloqueado (enviado) conta como enviado
+  try{
+    ['almoco','jantar'].forEach(tt=>{
+      const ped = lista.filter(p => getTurno(p) === tt);
+      if(ped.length && ped.every(isPedidoCustoBloqueado)) custoTurnoBloqueado[tt] = true;
+    });
+    custoDiaBloqueado = !!(custoTurnoBloqueado.jantar && custoTurnoBloqueado.almoco);
+  }catch(e){}
   // Pesquisa de pedidos na aba Custo (quando o entregador digita na busca)
   try{
     const buscaEl = document.getElementById('buscaEntregador');
@@ -3499,16 +3498,7 @@ function enviarCalcEntregas(turno){
 
 /** Executa após confirmação no modal: grava valor_entrega + calc_entregas e bloqueia SÓ o turno. */
 async function executarEnvioCalcEntregas(){
-  // Abre a aba do WhatsApp já no clique (evita bloqueio de pop-up); o texto entra quando o envio der certo
-  let waWin = null;
-  try{ if(usuarioLogado && !usuarioLogado.isMaster) waWin = window.open('about:blank', '_blank'); }catch(e){}
-  window.__waEnvioWin = waWin;
-  window.__waEnvioOk = false;
-  try{ await _executarEnvioCalcEntregasInterno(); }
-  finally{
-    if(!window.__waEnvioOk && waWin){ try{ waWin.close(); }catch(e){} }
-    window.__waEnvioWin = null;
-  }
+  await _executarEnvioCalcEntregasInterno();
 }
 function _montarTextoWhatsEnvioCusto(turno, dia, rows){
   const lab = turno === 'almoco' ? 'Almoço' : 'Jantar';
@@ -3535,16 +3525,16 @@ function _montarTextoWhatsEnvioCusto(turno, dia, rows){
 }
 function _abrirWhatsEnvioCusto(texto){
   const url = 'https://wa.me/?text=' + encodeURIComponent(texto);
-  const w = window.__waEnvioWin;
-  if(w && !w.closed){
-    try{ w.location.href = url; window.__waEnvioOk = true; window.__waEnvioWin = null; return true; }catch(e){}
-  }
-  // Pop-up bloqueado: deixa um botão (toque do usuário nunca é bloqueado)
+  // Botão sempre disponível (toque do usuário nunca é bloqueado pelo navegador)
   const st = document.getElementById('custoEnvioStatus');
   if(st){
     st.innerHTML += ' <a href="'+url+'" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;background:#25d366;color:#04210f;font-weight:900;padding:8px 12px;border-radius:8px;text-decoration:none">💬 Enviar relatório no WhatsApp</a>';
   }
-  return false;
+  // Tentativa automática (só após o envio estar gravado)
+  try{
+    const w = window.open(url, '_blank');
+    return !!w;
+  }catch(e){ return false; }
 }
 async function _executarEnvioCalcEntregasInterno(){
   if(!usuarioLogado || usuarioLogado.isMaster) return;
