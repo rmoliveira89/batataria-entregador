@@ -299,7 +299,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 021026.103737</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 021026.231757</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -1015,7 +1015,8 @@ Remove a finalização e a reserva. O pedido volta para <b style="color:#f0c14a"
 
 <!-- Abas do entregador: Pedidos | Custo -->
 <div id="entregadorAbas">
-<button class="tab active" id="btnAbaPedidos" onclick="setAbaEntregador('pedidos')">📋 Pedidos</button>
+<button class="tab active" id="btnAbaRota" onclick="setAbaEntregador('rota')">🛵 Em rota</button>
+<button class="tab" id="btnAbaPedidos" onclick="setAbaEntregador('pedidos')">📋 Pedidos</button>
 <button class="tab" id="btnAbaCusto" onclick="setAbaEntregador('custo')">💵 Custo</button>
 </div>
 
@@ -1998,7 +1999,8 @@ async function removerCustoEntrega(id){
 // =================== FIM CUSTO DE ENTREGAS ===================
 
 // ===================== ABAS ENTREGADOR: Pedidos | Custo =====================
-let abaEntregadorAtual = 'pedidos'; // 'pedidos' | 'custo'
+let abaEntregadorAtual = 'rota'; // 'rota' (padrão do entregador) | 'pedidos' | 'custo'
+let turnosRota = {jantar:true, almoco:true}; // turnos abertos na aba Em rota
 let filtroCustoEnt = 'hoje';
 let dataSelCustoEnt = null;
 let cacheOpcoesCusto = []; // valores de config_custo_entregas
@@ -2046,9 +2048,13 @@ function atualizarUIFiltroCustoEnt(){
 
 function setAbaEntregador(aba){
   const isMasterCheck = !!(usuarioLogado && usuarioLogado.isMaster);
-  abaEntregadorAtual = aba || 'pedidos';
+  abaEntregadorAtual = aba || 'rota';
+  // Master não tem a aba "Em rota" (ele não adiciona pedidos para si)
+  if(isMasterCheck && abaEntregadorAtual === 'rota') abaEntregadorAtual = 'pedidos';
+  const btnR = document.getElementById('btnAbaRota');
   const btnP = document.getElementById('btnAbaPedidos');
   const btnC = document.getElementById('btnAbaCusto');
+  if(btnR) btnR.className = 'tab'+(abaEntregadorAtual==='rota'?' active':'');
   if(btnP) btnP.className = 'tab'+(abaEntregadorAtual==='pedidos'?' active':'');
   if(btnC) btnC.className = 'tab'+(abaEntregadorAtual==='custo'?' active':'');
 
@@ -2113,20 +2119,21 @@ function setAbaEntregador(aba){
     atualizarUIFiltroCustoEnt();
     renderAbaCusto();
   } else {
-    if(gridStats) gridStats.style.display = '';
+    // Entregador: "Em rota" (padrão) = adicionar + pedidos em rota | "Pedidos" = só finalizados
+    const naRota = abaEntregadorAtual === 'rota';
+    if(gridStats) gridStats.style.display = naRota ? 'none' : '';
     if(viewTurnos) viewTurnos.style.display = 'block';
     if(viewCusto) viewCusto.style.display = 'none';
-    // Aba Pedidos: remove todos os filtros de entrega e pesquisa
     if(filtroDia) filtroDia.style.display = 'none';
     if(toggleBar) toggleBar.style.display = 'none';
     if(topRow){
-      topRow.style.display = 'grid';
+      topRow.style.display = naRota ? 'grid' : 'none';
       topRow.classList.add('uma-barra');
       topRow.classList.remove('master-oculto');
     }
     if(cardAdd){
-      cardAdd.classList.remove('barra-oculta');
-      cardAdd.style.display = '';
+      if(naRota){ cardAdd.classList.remove('barra-oculta'); cardAdd.style.display = ''; }
+      else { cardAdd.classList.add('barra-oculta'); cardAdd.style.display = 'none'; }
     }
     if(cardBusca){
       cardBusca.classList.add('barra-oculta');
@@ -2144,8 +2151,10 @@ function atualizarVisibilidadeAbasEntregador(){
   bar.style.display = logado ? 'flex' : 'none';
   const btnC = document.getElementById('btnAbaCusto');
   if(btnC) btnC.textContent = isMaster ? '💵 Conferir custos' : '💵 Custo';
+  const btnR = document.getElementById('btnAbaRota');
+  if(btnR) btnR.style.display = isMaster ? 'none' : '';
   if(logado){
-    setAbaEntregador(abaEntregadorAtual || 'pedidos');
+    setAbaEntregador(abaEntregadorAtual || 'rota');
   }
 }
 
@@ -3991,7 +4000,7 @@ function _executarLogout(){
     if(viewCusto) viewCusto.style.display = 'none';
     const filtroDia = document.getElementById('filtroDiaPedidos');
     if(filtroDia) filtroDia.style.display = 'none';
-    abaEntregadorAtual = 'pedidos';
+    abaEntregadorAtual = 'rota';
   }catch(e){}
 }
 function checkLoginPersistido(){
@@ -4706,10 +4715,16 @@ function pedidoForaDoTurnoAtual(pedido){
 function getHoraMinSP(s){ if(!s) return {h:null,str:'--:--'}; try{ const d=new Date(s); const str=d.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit',hour12:false}); const h=parseInt(str.split(':')[0],10); return {h:isNaN(h)?null:h,str}; }catch(e){ return {h:null,str:'--:--'}; } }
 
 /** Previsão de entrega (coluna prev_entrega) → Date ou null */
+const PRAZO_PADRAO_MIN = 60; // pedidos sem previsão (Aiqfome / WhatsApp): 60 min a partir da entrada no sistema
 function parsePrevEntrega(p){
   if(!p) return null;
   const raw = p.prev_entrega;
-  if(raw === null || raw === undefined || raw === '') return null;
+  if(raw === null || raw === undefined || raw === ''){
+    // Sem previsão informada → created_at + 60 min
+    const c = p.created_at ? new Date(p.created_at) : null;
+    if(c && !isNaN(c.getTime())) return new Date(c.getTime() + PRAZO_PADRAO_MIN*60000);
+    return null;
+  }
   // epoch ms / s
   if(typeof raw === 'number' && isFinite(raw)){
     const ms = raw < 1e12 ? raw * 1000 : raw;
@@ -4762,7 +4777,10 @@ function getHtmlTempoEntrega(p){
   if(!deadline) return '';
   const diffMs = deadline.getTime() - Date.now();
   if(diffMs <= 0){
-    return '<div class="pm-tempo late">🔴 ATRASADO</div>';
+    const atrasoMin = Math.max(1, Math.floor(-diffMs / 60000));
+    const ah = Math.floor(atrasoMin / 60), am = atrasoMin % 60;
+    const atrasoTxt = ah > 0 ? (ah + 'h ' + String(am).padStart(2,'0') + 'min') : (am + ' min');
+    return `<div class="pm-tempo late" title="Previsão: ${deadline.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})}">🔴 ATRASADO · ${atrasoTxt}</div>`;
   }
   const totalMin = Math.floor(diffMs / 60000);
   const h = Math.floor(totalMin / 60);
@@ -4804,7 +4822,7 @@ function getTurno(p){
   }
   return 'jantar';
 }
-function toggleTurno(t){ turnosVisiveis[t]=!turnosVisiveis[t]; document.getElementById(t==='jantar'?'wrapJantar':'wrapAlmoco').style.display=turnosVisiveis[t]?'block':'none'; document.getElementById(t==='jantar'?'iconJantar':'iconAlmoco').textContent=turnosVisiveis[t]?'👁️ Ocultar':'🙈 Mostrar'; }
+function toggleTurno(t){ const _est = (abaEntregadorAtual==='rota' && usuarioLogado && !usuarioLogado.isMaster) ? turnosRota : turnosVisiveis; _est[t]=!_est[t]; document.getElementById(t==='jantar'?'wrapJantar':'wrapAlmoco').style.display=_est[t]?'block':'none'; document.getElementById(t==='jantar'?'iconJantar':'iconAlmoco').textContent=_est[t]?'👁️ Ocultar':'🙈 Mostrar'; }
 function toggleSub(k){ subsVisiveis[k]=!subsVisiveis[k]; document.getElementById('lista'+k.charAt(0).toUpperCase()+k.slice(1)).style.display=subsVisiveis[k]?'block':'none'; document.getElementById('icon'+k.charAt(0).toUpperCase()+k.slice(1)).textContent=subsVisiveis[k]?'👁️ Ocultar':'🙈 Mostrar'; }
 /**
  * Limpa o endereço para o Maps: só RUA + NÚMERO (+ cidade se houver).
@@ -6841,6 +6859,11 @@ function aplicarVisibilidadeBarras(){
     if(toggleBar) toggleBar.style.display = 'none';
     return;
   }
+  // Entregador: o cartão de adicionar fica na aba "Em rota" (controlado por setAbaEntregador)
+  if(!usuarioLogado.isMaster){
+    if(toggleBar) toggleBar.style.display = 'none';
+    return;
+  }
   const def = defaultsBarrasUI();
   const addVis = _prefBarra(_lsBarraAdd(), def.add);
   const buscaVis = _prefBarra(_lsBarraBusca(), def.busca);
@@ -6993,7 +7016,7 @@ function render(){
  }
  if(!filtrados.length){
    if(base.length===0 && !busca){
-     document.getElementById('listaVazia').innerHTML='<div style="text-align:center;color:#8b93a7;padding:10px">Nenhum pedido'+(isMaster?' para esta data.':'.<br>Use o campo Pedido acima para adicionar.')+'</div>';
+     document.getElementById('listaVazia').innerHTML='<div style="text-align:center;color:#8b93a7;padding:10px">Nenhum pedido'+(isMaster?' para esta data.':(abaEntregadorAtual==='rota'?' em rota.<br>Use o campo acima para adicionar.':' finalizado.'))+'</div>';
      document.getElementById('listaVazia').style.display='block';
    } else {
      document.getElementById('listaVazia').innerHTML='<div style="text-align:center;color:#8b93a7;padding:10px">Nenhum pedido encontrado</div>';
@@ -7008,6 +7031,11 @@ function render(){
    document.getElementById('stCodigo').textContent=0;
    if(statEspera){ document.getElementById('stEspera').textContent='0'; }
    try{ atualizarAlertaAltaDemanda(); }catch(e){}
+   if(!isMaster){
+     // Entregador sem nada para mostrar: esconde os cabeçalhos de turno
+     ['.turno-header.jantar','.turno-header.almoco'].forEach(s=>{ const el=document.querySelector(s); if(el) el.style.display='none'; });
+     ['wrapJantar','wrapAlmoco'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
+   }
    return;
  }
  document.getElementById('listaVazia').style.display='none';
@@ -7082,7 +7110,7 @@ function render(){
  } else {
    // Entregador: ambos os turnos visíveis (sem filtro por horário)
    const subs = document.querySelectorAll('#viewTurnos .sub-header');
-   subs.forEach(el=> el.style.display='flex');
+   subs.forEach(el=> el.style.display='none'); // A ENTREGAR / CONFIRMADOS agora são as abas Em rota / Pedidos
    const cardItens = (itens, listaRef) => itens.map((it,i)=> it.tipo==='grupo' ? cardGrupoPedidos(it) : cardPedido(it.pedido,i,listaRef)).join('');
    // Ordem automática: A ENTREGAR = mais atrasados primeiro; CONFIRMADOS = último finalizado primeiro
    const _ordPend = ordenarItensPendentesEntregador, _ordConf = ordenarItensFinalizadosEntregador;
@@ -7093,10 +7121,42 @@ function render(){
    document.getElementById('listaAlmocoPendente').innerHTML = almocoPendItens.length ? wrapPedidosGrid(cardItens(almocoPendOrd, almocoPend)) : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
    document.getElementById('listaAlmocoConfirmado').innerHTML = almocoConfItens.length ? wrapPedidosGrid(cardItens(almocoConfOrd, almocoConf)) : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
 
-   if(headerJ) headerJ.style.display = 'flex';
-   if(headerA) headerA.style.display = 'flex';
-   if(wrapJ) wrapJ.style.display = turnosVisiveis.jantar ? 'block' : 'none';
-   if(wrapA) wrapA.style.display = turnosVisiveis.almoco ? 'block' : 'none';
+   // Aba "Em rota" = só A ENTREGAR | aba "Pedidos" = só FINALIZADOS
+   const naRota = abaEntregadorAtual === 'rota';
+   const _setLista = (id, show)=>{ const el=document.getElementById(id); if(el) el.style.display = show ? 'block' : 'none'; };
+   _setLista('listaJantarPendente', naRota);    _setLista('listaAlmocoPendente', naRota);
+   _setLista('listaJantarConfirmado', !naRota); _setLista('listaAlmocoConfirmado', !naRota);
+   if(naRota){
+     // Em rota: lista única (sem separar por turno), mais atrasados primeiro
+     const itensRota = _ordPend(jantarPendItens.concat(almocoPendItens));
+     const pedidosRota = jantarPend.concat(almocoPend);
+     document.getElementById('listaJantarPendente').innerHTML = itensRota.length ? wrapPedidosGrid(cardItens(itensRota, pedidosRota)) : '';
+     document.getElementById('listaAlmocoPendente').innerHTML = '';
+   }
+   const nJ = naRota ? (jantarPendItens.length + almocoPendItens.length) : jantarConfItens.length;
+   const nA = naRota ? 0 : almocoConfItens.length;
+   const estJ = naRota ? turnosRota.jantar : turnosVisiveis.jantar;
+   const estA = naRota ? turnosRota.almoco : turnosVisiveis.almoco;
+   document.getElementById('countJantar').textContent = nJ;
+   document.getElementById('countAlmoco').textContent = nA;
+   document.getElementById('countJantarPendente').textContent = naRota ? nJ : jantarPendItens.length;
+   document.getElementById('countAlmocoPendente').textContent = naRota ? 0 : almocoPendItens.length;
+   // Em rota não mostra o turno (sem cabeçalho Almoço/Jantar)
+   if(headerJ) headerJ.style.display = (!naRota && nJ) ? 'flex' : 'none';
+   if(headerA) headerA.style.display = (!naRota && nA) ? 'flex' : 'none';
+   if(wrapJ) wrapJ.style.display = (nJ && (naRota || estJ)) ? 'block' : 'none';
+   if(wrapA) wrapA.style.display = (nA && estA) ? 'block' : 'none';
+   const _icJ = document.getElementById('iconJantar'); if(_icJ) _icJ.textContent = estJ ? '👁️ Ocultar' : '🙈 Mostrar';
+   const _icA = document.getElementById('iconAlmoco'); if(_icA) _icA.textContent = estA ? '👁️ Ocultar' : '🙈 Mostrar';
+   const _stP = document.getElementById('stPendente');
+   if(_stP && _stP.parentElement) _stP.parentElement.style.display = naRota ? '' : 'none';
+   if(!nJ && !nA){
+     const _lv2 = document.getElementById('listaVazia');
+     if(_lv2){
+       _lv2.innerHTML = '<div style="text-align:center;color:#8b93a7;padding:10px">' + (naRota ? 'Nenhum pedido em rota.<br>Use o campo acima para adicionar.' : 'Nenhum pedido finalizado neste dia.') + '</div>';
+       _lv2.style.display = 'block';
+     }
+   }
  }
 }
 
@@ -8806,7 +8866,7 @@ ajustarAlturaHeader();
       if(typeof abaEntregadorAtual !== 'undefined' && abaEntregadorAtual === 'custo' && !usuarioLogado.isMaster) return;
       if(document.getElementById('loginScreen')?.style.display !== 'none' && document.getElementById('loginScreen')?.style.display !== '') return;
       // só re-render se houver pedido pendente com previsão
-      const precisa = (todosPedidos||[]).some(p => p && p.status !== 'codigo_informado' && p.prev_entrega);
+      const precisa = (todosPedidos||[]).some(p => p && p.status !== 'codigo_informado');
       if(precisa) render();
     }catch(e){}
   }, 30000);
