@@ -303,7 +303,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 041026.103839</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 041026.231500</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -793,24 +793,60 @@ select '06:00','15:59','16:00','05:59','07:00','23:30',5,false where not exists 
 </div>
 </div>
 
-<!-- MODAL MASTER - EDITAR ENDEREÇO DO PEDIDO -->
+<!-- MODAL MASTER - EDITAR PEDIDO (endereço + valor dinheiro + alertas) -->
 <div id="modalEditarEndereco" class="overlay" style="display:none;z-index:270">
-<div class="card" style="width:100%;max-width:460px;max-height:90vh;overflow:auto">
+<div class="card" style="width:100%;max-width:480px;max-height:90vh;overflow:auto">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-<h3 style="margin:0;color:#f0c14a">✏️ Editar endereço</h3>
+<h3 style="margin:0;color:#f0c14a">✏️ Editar pedido</h3>
 <button class="btn" onclick="fecharModalEditarEndereco()">✕</button>
 </div>
-<div id="editEndInfo" style="background:#0e1118;border:1px solid #2c3340;border-radius:10px;padding:10px;font-size:11px;color:#8b93a7;margin-bottom:10px"></div>
-<label style="font-size:11px;color:#8b93a7">Endereço</label>
-<textarea id="editEndTexto" rows="3" placeholder="Rua, número, bairro, cidade" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;background:#0e1118;color:#fff;font-family:inherit;font-size:13px;resize:vertical"></textarea>
-<label id="editEndGrupoWrap" style="display:none;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:#e6e8ef">
+<div id="editEndInfo" style="background:#0e1118;border:1px solid #2c3340;border-radius:10px;padding:10px;font-size:11px;color:#8b93a7;margin-bottom:12px"></div>
+
+<label style="font-size:11px;color:#8b93a7;font-weight:700">📍 Endereço</label>
+<textarea id="editEndTexto" rows="3" placeholder="Rua, número, bairro, cidade" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;background:#0e1118;color:#fff;font-family:inherit;font-size:13px;resize:vertical;margin-top:6px"></textarea>
+
+<label style="font-size:11px;color:#8b93a7;font-weight:700;display:block;margin-top:12px">💵 Valor a receber em dinheiro (R$)</label>
+<input id="editEndValorDinheiro" type="text" inputmode="decimal" placeholder="Ex: 45,00 ou vazio para limpar" style="margin-top:6px;width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;background:#0e1118;color:#fff;font-weight:800;font-size:15px"/>
+<div style="font-size:10px;color:#5a657a;margin-top:4px;line-height:1.35">Atualiza o valor do pedido. Use para cobrança em dinheiro na entrega.</div>
+
+<div style="margin-top:14px;padding:12px;background:#1a1212;border:1px solid #5a2a2a;border-radius:12px">
+  <div style="font-size:12px;font-weight:900;color:#ff6b6b;margin-bottom:10px">🚨 Alertas na finalização</div>
+
+  <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#e6e8ef;cursor:pointer;margin-bottom:12px">
+    <input type="checkbox" id="editAlertaBebida" style="width:auto;margin-top:3px"/>
+    <span>
+      <b style="color:#fff">🥤 Alerta de bebida</b><br>
+      <span style="font-size:11px;color:#8b93a7">Exibe <b style="color:#ff6b6b">ATENÇÃO BEBIDA</b> no card e no modal de confirmação do entregador.</span>
+    </span>
+  </label>
+
+  <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#e6e8ef;cursor:pointer;margin-bottom:8px">
+    <input type="checkbox" id="editAlertaReceber" style="width:auto;margin-top:3px" onchange="toggleEditAlertaReceberUI()"/>
+    <span>
+      <b style="color:#fff">💰 Alerta receber na entrega</b><br>
+      <span style="font-size:11px;color:#8b93a7">Destaca na finalização o valor a cobrar do cliente.</span>
+    </span>
+  </label>
+  <div id="editAlertaReceberWrap" style="display:none;margin-left:28px">
+    <label style="font-size:11px;color:#8b93a7">Valor a destacar (R$)</label>
+    <input id="editAlertaReceberValor" type="text" inputmode="decimal" placeholder="Ex: 32,50" style="margin-top:6px;width:100%;padding:10px 12px;border-radius:10px;border:1px solid #5a2a2a;background:#0e1118;color:#ff6b6b;font-weight:900;font-size:16px"/>
+  </div>
+</div>
+
+<label id="editEndGrupoWrap" style="display:none;align-items:center;gap:8px;margin-top:12px;font-size:12px;color:#e6e8ef">
 <input type="checkbox" id="editEndGrupo" checked style="width:auto"/> <span id="editEndGrupoLabel">Aplicar a todos os pedidos do grupo</span>
 </label>
+
 <div style="display:flex;gap:8px;margin-top:14px">
 <button class="btn" style="flex:1" onclick="fecharModalEditarEndereco()">Cancelar</button>
 <button class="btn primary" id="btnSalvarEndereco" style="flex:1" onclick="salvarEnderecoMaster()">💾 Salvar</button>
 </div>
 <div id="editEndStatus" style="font-size:11px;color:#8b93a7;margin-top:8px;text-align:center"></div>
+<div style="margin-top:10px;padding:8px 10px;background:#0e1118;border:1px solid #2c3340;border-radius:8px;font-size:10px;color:#5a657a;line-height:1.4">
+  <b style="color:#f0c14a">SQL (rode 1x no Supabase se ainda não existir):</b><br>
+  <code style="color:#c0c8d8">alter table public.pedidos_entrega_dia add column if not exists alerta_bebida text default 'nao';
+alter table public.pedidos_entrega_dia add column if not exists alerta_receber_valor text;</code>
+</div>
 </div>
 </div>
 
@@ -2761,7 +2797,7 @@ function _htmlCardCustoMaster(p){
     <div id="custoMasterSt_${p.id}" style="font-size:10px;color:#8b93a7;min-height:12px">${pedBloq?'🔒 Bloqueado após envio (reabra o turno para alterar)':''}</div>
     <div class="ci-row" style="margin-top:6px;display:flex;gap:6px">
       <button class="btn blue" style="flex:1;padding:10px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px" onclick="event.stopPropagation();abrirMapaPorId('${p.id}')"><span>📍</span><span>Mapa</span></button>
-      <button class="btn" style="flex:1;padding:10px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="event.stopPropagation();abrirModalEditarEndereco('${p.id}')"><span>✏️</span><span>Endereço</span></button>
+      <button class="btn" style="flex:1;padding:10px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="event.stopPropagation();abrirModalEditarEndereco('${p.id}')"><span>✏️</span><span>Editar</span></button>
     </div>
   </div>`;
 }
@@ -2819,7 +2855,7 @@ function _htmlCardCustoMasterGrupo(membros){
     <div id="custoMasterSt_${p0.id}" style="font-size:10px;color:#8b93a7;min-height:12px">${pedBloq?'🔒 Bloqueado após envio (reabra o turno para alterar)':'🔗 1 valor para o grupo inteiro'}</div>
     <div class="ci-row" style="margin-top:6px;display:flex;gap:6px">
       <button class="btn blue" style="flex:1;padding:10px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px" onclick="event.stopPropagation();abrirMapaPorId('${p0.id}')"><span>📍</span><span>Mapa</span></button>
-      <button class="btn" style="flex:1;padding:10px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="event.stopPropagation();abrirModalEditarEndereco('${p0.id}')"><span>✏️</span><span>Endereço</span></button>
+      <button class="btn" style="flex:1;padding:10px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="event.stopPropagation();abrirModalEditarEndereco('${p0.id}')"><span>✏️</span><span>Editar</span></button>
     </div>
   </div>`;
 }
@@ -6139,15 +6175,62 @@ function _htmlAlteradoEnd(pedOuLista){
 // ===================== MASTER: EDITAR ENDEREÇO =====================
 let _editEndPedidoId = null;
 
+function _parseValorBR(str){
+  if(str == null || str === '') return null;
+  let s = String(str).trim().replace(/R\$\s?/gi,'').replace(/\s/g,'');
+  if(!s) return null;
+  // 1.234,56 → 1234.56 | 45,00 → 45.00 | 45.00 → 45.00
+  if(s.indexOf(',') >= 0){
+    s = s.replace(/\./g,'').replace(',','.');
+  }
+  const n = Number(s);
+  return isNaN(n) ? null : n;
+}
+function _fmtValorInput(v){
+  if(v == null || v === '') return '';
+  const n = Number(v);
+  if(isNaN(n)) return String(v);
+  return n.toFixed(2).replace('.',',');
+}
+function _pedidoTemAlertaBebida(p){
+  if(!p) return false;
+  const a = (p.alerta_bebida == null ? '' : String(p.alerta_bebida)).trim().toLowerCase();
+  return a === 'sim' || a === 's' || a === 'true' || a === '1' || a === 'yes';
+}
+function _pedidoAlertaReceberValor(p){
+  if(!p) return '';
+  const v = (p.alerta_receber_valor == null ? '' : String(p.alerta_receber_valor)).trim();
+  return v;
+}
+function toggleEditAlertaReceberUI(){
+  const on = !!(document.getElementById('editAlertaReceber') && document.getElementById('editAlertaReceber').checked);
+  const wrap = document.getElementById('editAlertaReceberWrap');
+  if(wrap) wrap.style.display = on ? 'block' : 'none';
+}
+
 function abrirModalEditarEndereco(pedidoId){
   if(!usuarioLogado?.isMaster){ alert('Apenas Master'); return; }
   const p = _pedidoPorIdCusto(pedidoId);
   if(!p){ alert('Pedido não encontrado'); return; }
   _editEndPedidoId = pedidoId;
   const info = document.getElementById('editEndInfo');
-  if(info) info.innerHTML = `<b style="color:#f0c14a">#${p.numero_pedido||'—'}</b> · ${p.cliente_nome||'—'}<br>📍 Atual: ${p.cliente_endereco||'—'}`;
+  if(info){
+    const valTxt = (p.valor != null && p.valor !== '') ? (' · 💵 ' + (String(p.valor).startsWith('R$') ? p.valor : ('R$ ' + _fmtValorInput(p.valor)))) : '';
+    info.innerHTML = `<b style="color:#f0c14a">#${p.numero_pedido||'—'}</b> · ${p.cliente_nome||'—'}${valTxt}<br>📍 Atual: ${p.cliente_endereco||'—'}`;
+  }
   const ta = document.getElementById('editEndTexto');
   if(ta) ta.value = p.cliente_endereco || '';
+  const inpVal = document.getElementById('editEndValorDinheiro');
+  if(inpVal) inpVal.value = _fmtValorInput(p.valor);
+  const chkBeb = document.getElementById('editAlertaBebida');
+  if(chkBeb) chkBeb.checked = _pedidoTemAlertaBebida(p) || (typeof pedidoTemBebida === 'function' && pedidoTemBebida(p) && _pedidoTemAlertaBebida(p));
+  if(chkBeb) chkBeb.checked = _pedidoTemAlertaBebida(p);
+  const arVal = _pedidoAlertaReceberValor(p);
+  const chkRec = document.getElementById('editAlertaReceber');
+  if(chkRec) chkRec.checked = !!arVal;
+  const inpRec = document.getElementById('editAlertaReceberValor');
+  if(inpRec) inpRec.value = arVal || '';
+  toggleEditAlertaReceberUI();
   const wrap = document.getElementById('editEndGrupoWrap');
   const membros = p.grupo_entrega ? _todosPedidosComCache().filter(m=>m && m.grupo_entrega===p.grupo_entrega) : [];
   if(wrap){
@@ -6179,59 +6262,103 @@ async function salvarEnderecoMaster(){
   if(!p){ if(st){ st.textContent='❌ Pedido não encontrado'; st.style.color='#ff6b6b'; } return; }
   const novo = (document.getElementById('editEndTexto').value||'').replace(/\s+/g,' ').trim();
   if(!novo){ if(st){ st.textContent='❌ Informe o endereço'; st.style.color='#ff6b6b'; } return; }
+
+  const valorRaw = (document.getElementById('editEndValorDinheiro') && document.getElementById('editEndValorDinheiro').value) || '';
+  const valorNum = valorRaw.trim() === '' ? null : _parseValorBR(valorRaw);
+  if(valorRaw.trim() !== '' && valorNum === null){
+    if(st){ st.textContent='❌ Valor em dinheiro inválido'; st.style.color='#ff6b6b'; }
+    return;
+  }
+
+  const alertaBebida = !!(document.getElementById('editAlertaBebida') && document.getElementById('editAlertaBebida').checked);
+  const alertaReceberOn = !!(document.getElementById('editAlertaReceber') && document.getElementById('editAlertaReceber').checked);
+  let alertaReceberValor = '';
+  if(alertaReceberOn){
+    const rv = (document.getElementById('editAlertaReceberValor') && document.getElementById('editAlertaReceberValor').value) || '';
+    const rn = _parseValorBR(rv);
+    if(rn === null){
+      if(st){ st.textContent='❌ Informe o valor do alerta "receber na entrega"'; st.style.color='#ff6b6b'; }
+      return;
+    }
+    alertaReceberValor = rn.toFixed(2).replace('.',',');
+  }
+
   const client = getSb();
   if(!client){ if(st){ st.textContent='❌ Supabase não configurado'; st.style.color='#ff6b6b'; } return; }
   const aplicarGrupo = !!(p.grupo_entrega && document.getElementById('editEndGrupoWrap').style.display !== 'none' && document.getElementById('editEndGrupo').checked);
   const alvos = aplicarGrupo ? _todosPedidosComCache().filter(m=>m && m.grupo_entrega===p.grupo_entrega) : [p];
-  if(btn){ btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
-  if(st){ st.textContent = 'Salvando...'; st.style.color = '#8b93a7'; }
-  if(alvos.every(m => String(m.cliente_endereco||'').trim() === novo)){
-    if(st){ st.textContent = 'O endereço é igual ao atual — nada a alterar'; st.style.color = '#f0c14a'; }
-    if(btn){ btn.disabled = false; btn.textContent = '💾 Salvar'; }
-    return;
-  }
-  let avisoColunas = false;
+  const ids = alvos.map(x=>x.id).filter(Boolean);
+  if(!ids.length){ if(st){ st.textContent='❌ Nenhum pedido alvo'; st.style.color='#ff6b6b'; } return; }
+
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Salvando...'; }
+  if(st){ st.textContent='Salvando...'; st.style.color='#f0c14a'; }
+
+  const payloadFull = {
+    cliente_endereco: novo,
+    valor: valorNum,
+    alerta_bebida: alertaBebida ? 'sim' : 'nao',
+    alerta_receber_valor: alertaReceberValor || null
+  };
+  // Se alerta receber e não tem forma_pagamento de receber, sugere Dinheiro (não sobrescreve pago online)
   try{
-    const agora = new Date().toISOString();
-    for(const m of alvos){
-      const original = m.endereco_original || m.cliente_endereco || null;
-      const full = { cliente_endereco: novo, alterado: true, endereco_original: original, endereco_alterado_em: agora };
-      let {error} = await client.from('pedidos_entrega_dia').update(full).eq('id', m.id);
-      if(error){
-        const msg = String(error.message||'').toLowerCase();
-        const faltaColuna = error.code === 'PGRST204' || error.code === '42703' || msg.includes('column') || msg.includes('schema cache');
-        if(!faltaColuna) throw error;
-        // colunas ainda não criadas: salva só o endereço novo
-        const r2 = await client.from('pedidos_entrega_dia').update({ cliente_endereco: novo }).eq('id', m.id);
-        if(r2.error) throw r2.error;
-        avisoColunas = true;
-      }
-      m.cliente_endereco = novo;
-      m.alterado = true;
-      m.endereco_original = original;
-      m.endereco_alterado_em = agora;
+    const fp = (p.forma_pagamento||'').toString().trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const isPago = /^(pago|pago online|online|pix online|ja pago|pre pago|creditado)$/.test(fp) || (/\bpago\b/.test(fp) && !/na\s*entrega|receber|cartao|dinheiro/.test(fp));
+    if(alertaReceberOn && !isPago && (!fp || /dinheiro|especie|cash/.test(fp))){
+      payloadFull.forma_pagamento = 'Dinheiro';
     }
-    if(avisoColunas){
-      if(st){ st.textContent = '⚠️ Endereço salvo, mas faltam as colunas alterado / endereco_original / endereco_alterado_em no Supabase (rode o SQL). Sem elas o destaque some ao recarregar.'; st.style.color = '#f0c14a'; }
-    } else if(st){ st.textContent = '✅ Endereço atualizado e pedido marcado como ALTERADO'; st.style.color = '#3dcc8a'; }
+  }catch(e){}
+
+  try{
+    let {error} = await client.from('pedidos_entrega_dia').update(payloadFull).in('id', ids);
+    if(error){
+      // fallback sem colunas de alerta (banco ainda sem migration)
+      const msg = (error.message||'') + '';
+      if(/alerta_bebida|alerta_receber|column/i.test(msg)){
+        const payloadMin = { cliente_endereco: novo };
+        if(valorNum !== undefined) payloadMin.valor = valorNum;
+        if(payloadFull.forma_pagamento) payloadMin.forma_pagamento = payloadFull.forma_pagamento;
+        const r2 = await client.from('pedidos_entrega_dia').update(payloadMin).in('id', ids);
+        if(r2.error) throw r2.error;
+        // guarda alertas localmente para não perder na sessão
+        try{
+          const key = 'master_alertas_pedido';
+          const map = JSON.parse(localStorage.getItem(key)||'{}');
+          ids.forEach(id=>{
+            map[id] = { alerta_bebida: alertaBebida ? 'sim' : 'nao', alerta_receber_valor: alertaReceberValor || '' };
+          });
+          localStorage.setItem(key, JSON.stringify(map));
+        }catch(e){}
+        if(st){ st.textContent = '✅ Endereço/valor salvos. ⚠️ Rode o SQL das colunas alerta_bebida e alerta_receber_valor para persistir alertas no banco.'; st.style.color='#f0c14a'; }
+      } else {
+        throw error;
+      }
+    } else {
+      if(st){ st.textContent = '✅ Pedido atualizado'; st.style.color='#3dcc8a'; }
+    }
+    // cache local
+    ids.forEach(id=>{
+      const idx = todosPedidos.findIndex(x=>x.id===id);
+      if(idx>=0){
+        todosPedidos[idx].cliente_endereco = novo;
+        todosPedidos[idx].valor = valorNum;
+        todosPedidos[idx].alerta_bebida = alertaBebida ? 'sim' : 'nao';
+        todosPedidos[idx].alerta_receber_valor = alertaReceberValor || null;
+        if(payloadFull.forma_pagamento) todosPedidos[idx].forma_pagamento = payloadFull.forma_pagamento;
+        try{ todosPedidos[idx]._endereco_editado_master = true; }catch(e){}
+      }
+    });
+    try{ render(); }catch(e){}
     setTimeout(()=>{
-      const gidAberto = masterGrupoSelecionadoId, pidAberto = masterPedidoSelecionadoId;
       fecharModalEditarEndereco();
-      try{ render(); }catch(e){}
-      try{ if(abaEntregadorAtual === 'custo') renderAbaCustoMaster(); }catch(e){}
-      try{
-        const mp = document.getElementById('modalMasterPedido');
-        if(mp && mp.style.display !== 'none'){
-          if(gidAberto) abrirModalMasterGrupo(gidAberto);
-          else if(pidAberto) abrirModalMasterPedido(pidAberto);
-        }
-      }catch(e){}
-    }, avisoColunas ? 3500 : 700);
+      try{ carregar(); }catch(e){}
+    }, 600);
   }catch(e){
-    if(st){ st.textContent = '❌ '+(e.message||e); st.style.color = '#ff6b6b'; }
-    if(btn){ btn.disabled = false; btn.textContent = '💾 Salvar'; }
+    console.error('salvarEnderecoMaster', e);
+    if(st){ st.textContent = '❌ '+(e.message||e); st.style.color='#ff6b6b'; }
+    if(btn){ btn.disabled=false; btn.textContent='💾 Salvar'; }
   }
 }
+
 
 async function abrirModalMasterPedido(pedidoId){
   if(!usuarioLogado?.isMaster) return;
@@ -6279,7 +6406,7 @@ async function abrirModalMasterPedido(pedidoId){
     acoes += `<button class="btn red" onclick="removerEntregadorDoPedido('${p.id}')">❌ Remover do entregador (voltar p/ espera)</button>`;
   }
   acoes += `<button class="btn blue" onclick="abrirMapaPorId('${p.id}')">📍 Ver no Mapa</button>`;
-  acoes += `<button class="btn" style="background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="abrirModalEditarEndereco('${p.id}')">✏️ Editar endereço</button>`;
+  acoes += `<button class="btn" style="background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="abrirModalEditarEndereco('${p.id}')">✏️ Editar</button>`;
   if(!custoBloq){
     acoes += `<button class="btn red" onclick="excluirPedidoDefinitivo('${p.id}')">🗑️ Excluir DEFINITIVO</button>`;
   }
@@ -6916,7 +7043,7 @@ async function abrirModalMasterGrupo(gid){
     <div style="margin-top:6px">Entregador atual: <b style="color:#6ab7ff">${nomeReserva||'⏳ Em espera (sem entregador)'}</b></div>
   `;
   let acoes = `<button class="btn blue" onclick="abrirMapa('${(membros[0].cliente_endereco||'').replace(/'/g,"\\'")}')">📍 Ver no Mapa</button>`;
-  acoes += `<button class="btn" style="background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="abrirModalEditarEndereco('${membros[0].id}')">✏️ Editar endereço do grupo</button>`;
+  acoes += `<button class="btn" style="background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="abrirModalEditarEndereco('${membros[0].id}')">✏️ Editar</button>`;
   acoes += `<button class="btn red" onclick="desfazerGrupo('${gid}'); fecharModalMasterPedido()">🔓 Desfazer agrupamento</button>`;
   document.getElementById('masterModalAcoesGerais').innerHTML = acoes;
   document.getElementById('masterModalListaTitulo').textContent = nomeReserva ? '🔄 Transferir grupo para:' : '📤 Enviar grupo para:';
@@ -7155,13 +7282,35 @@ let _refriCache = { rows:{}, datas:'', ts:0, loading:false };
 function _normNumRefri(v){
   return String(v==null?'':v).toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^WA/,'').replace(/^0+/,'');
 }
+
+/** Aplica alertas Master salvos no localStorage quando o banco ainda não tem as colunas. */
+function _aplicarAlertasMasterLocais(lista){
+  try{
+    const map = JSON.parse(localStorage.getItem('master_alertas_pedido')||'{}');
+    (lista||[]).forEach(p=>{
+      if(!p || !p.id) return;
+      const a = map[p.id];
+      if(!a) return;
+      if(p.alerta_bebida == null || p.alerta_bebida === '') p.alerta_bebida = a.alerta_bebida;
+      if(p.alerta_receber_valor == null || p.alerta_receber_valor === '') p.alerta_receber_valor = a.alerta_receber_valor;
+    });
+  }catch(e){}
+}
+
 function pedidoTemBebida(p){
   if(!p) return false;
+  try{ if(typeof _pedidoTemAlertaBebida === 'function' && _pedidoTemAlertaBebida(p)) return true; }catch(e){}
+  try{
+    const map = JSON.parse(localStorage.getItem('master_alertas_pedido')||'{}');
+    const a = map[p.id];
+    if(a && (String(a.alerta_bebida||'').toLowerCase()==='sim' || a.alerta_bebida===true)) return true;
+  }catch(e){}
   const datas = _refriCache.rows[_normNumRefri(p.numero_pedido)];
   if(!datas || !datas.length) return false;
   try{ if(isPedidoExterno(p.numero_pedido)) return true; }catch(e){}
   const d = String(p.data||'').slice(0,10);
   return !d || datas.some(x => !x || x === d);
+
 }
 function _tagBebida(p){
   return pedidoTemBebida(p) ? '<span class="tag-bebida" title="Pedido com bebida">BEBIDA</span>' : '';
@@ -7211,6 +7360,8 @@ async function _agendarRefriCache(force){
 }
 
 function render(){
+  try{ _aplicarAlertasMasterLocais(todosPedidos); }catch(e){}
+
  try{ _agendarRefriCache(); }catch(e){}
  const busca=(document.getElementById('buscaEntregador')?.value||'').toLowerCase().trim();
  let base=todosPedidos;
@@ -7430,7 +7581,7 @@ function cardPedido(p, idx, lista){
   const custoBloq = isPedidoCustoBloqueado(p);
   if(isMasterUser){
     let acoes = `<button class="btn blue" onclick="event.stopPropagation(); abrirMapaPorId('${p.id}')"><span>📍</span><span>Mapa</span></button>`;
-    acoes += `<button class="btn" style="background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="event.stopPropagation(); abrirModalEditarEndereco('${p.id}')"><span>✏️</span><span>Endereço</span></button>`;
+    acoes += `<button class="btn" style="background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="event.stopPropagation(); abrirModalEditarEndereco('${p.id}')"><span>✏️</span><span>Editar</span></button>`;
     if(custoBloq){
       acoes += `<button class="btn" style="background:#3a2a1a;color:#f0c14a;border-color:#5a4a2a" onclick="event.stopPropagation(); reativarPedido('${p.id}')"><span>↺</span><span>Liberar</span></button>`;
       acoes += `<button class="btn blue pm-full" onclick="event.stopPropagation(); abrirModalMasterPedido('${p.id}')"><span>👁️</span><span>Ver</span></button>`;
@@ -7549,7 +7700,7 @@ function cardGrupoPedidos(item){
   const acoesGrupo = isMasterUser
     ? `<div class="master-modal-actions" style="margin-top:8px">
         <button class="btn blue small" onclick="event.stopPropagation();abrirMapa('${end.replace(/'/g,"\'")}')"><span>📍</span><span>Mapa</span></button>
-        <button class="btn small" style="background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="event.stopPropagation();abrirModalEditarEndereco('${membros[0].id}')"><span>✏️</span><span>Endereço</span></button>
+        <button class="btn small" style="background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="event.stopPropagation();abrirModalEditarEndereco('${membros[0].id}')"><span>✏️</span><span>Editar</span></button>
         <button class="btn blue small" onclick="event.stopPropagation();abrirModalMasterGrupo('${gid}')"><span>${nomeRes?'🔄':'📤'}</span><span>${nomeRes?'Mover':'Enviar'}</span></button>
         <button class="btn red small pm-full" onclick="event.stopPropagation();desfazerGrupo('${gid}')"><span>🗑️</span><span>Desfazer grupo</span></button>
       </div>`
@@ -8029,6 +8180,18 @@ let _tokenAlertasConf = 0;
 
 /** Retorna 'DINHEIRO' / 'CARTÃO' / texto da forma quando o pagamento é na entrega; '' se já está pago. */
 function _pagamentoNaEntrega(p){
+  try{
+    let av = (p && p.alerta_receber_valor != null) ? String(p.alerta_receber_valor).trim() : '';
+    if(!av){
+      try{
+        const map = JSON.parse(localStorage.getItem('master_alertas_pedido')||'{}');
+        const a = map[p && p.id];
+        if(a && a.alerta_receber_valor) av = String(a.alerta_receber_valor).trim();
+      }catch(e){}
+    }
+    if(av) return 'DINHEIRO';
+  }catch(e){}
+
   const raw = ((p && p.forma_pagamento) || '').toString().trim();
   if(!raw) return '';
   const n = raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
@@ -8037,6 +8200,7 @@ function _pagamentoNaEntrega(p){
   if(isPago) return '';
   const isReceber = /cartao|dinheiro|especie|maquina|debito|credito|na\s*entrega|cobrar|receber|cash|card/.test(n);
   return isReceber ? raw.toUpperCase() : '';
+
 }
 
 function _fmtBRL(v){
@@ -8052,11 +8216,35 @@ async function carregarAlertasConfirmacao(pedido){
 
   let htmlPag = '';
   const fp = _pagamentoNaEntrega(pedido);
-  if(fp){
-    const val = (pedido.valor != null && pedido.valor !== '') ? ' — ' + (String(pedido.valor).startsWith('R$') ? _escAttrTxt(pedido.valor) : _escAttrTxt(_fmtBRL(pedido.valor) || pedido.valor)) : '';
-    htmlPag = `<div class="conf-alerta"><div class="ca-tit">💰 COBRAR NA ENTREGA</div><div class="ca-item">🔴 PAGAMENTO NA ENTREGA: ${_escAttrTxt(fp)}${val}</div></div>`;
+  // Valor Master do alerta receber (prioridade sobre valor do pedido)
+  let valorAlertaMaster = '';
+  try{
+    valorAlertaMaster = (pedido.alerta_receber_valor != null && String(pedido.alerta_receber_valor).trim()) ? String(pedido.alerta_receber_valor).trim() : '';
+    if(!valorAlertaMaster){
+      const map = JSON.parse(localStorage.getItem('master_alertas_pedido')||'{}');
+      const a = map[pedido.id];
+      if(a && a.alerta_receber_valor) valorAlertaMaster = String(a.alerta_receber_valor).trim();
+    }
+  }catch(e){}
+  if(fp || valorAlertaMaster){
+    let valTxt = '';
+    if(valorAlertaMaster){
+      valTxt = ' — R$ ' + (valorAlertaMaster.indexOf('R$')===0 ? valorAlertaMaster.replace(/^R\$\s*/,'') : valorAlertaMaster);
+    } else if(pedido.valor != null && pedido.valor !== ''){
+      valTxt = ' — ' + (String(pedido.valor).startsWith('R$') ? _escAttrTxt(pedido.valor) : _escAttrTxt(_fmtBRL(pedido.valor) || pedido.valor));
+    }
+    const rotulo = valorAlertaMaster ? 'DINHEIRO' : _escAttrTxt(fp || 'RECEBER');
+    htmlPag = `<div class="conf-alerta"><div class="ca-tit">💰 COBRAR NA ENTREGA</div><div class="ca-item">🔴 PAGAMENTO NA ENTREGA: ${rotulo}${valTxt}</div></div>`;
   }
-  box.innerHTML = htmlPag + '<div class="conf-alerta-info">🥤 Verificando refrigerantes do pedido…</div>';
+  // Alerta bebida Master (genérico) — além do refri_pedidos
+  let htmlBebidaMaster = '';
+  try{
+    const temBebMaster = (typeof _pedidoTemAlertaBebida === 'function' && _pedidoTemAlertaBebida(pedido)) || (()=>{ try{ const m=JSON.parse(localStorage.getItem('master_alertas_pedido')||'{}'); const a=m[pedido.id]; return !!(a && (a.alerta_bebida==='sim'||a.alerta_bebida===true)); }catch(e){ return false; } })();
+    if(temBebMaster){
+      htmlBebidaMaster = `<div class="conf-alerta"><div class="ca-tit">🥤 ATENÇÃO</div><div class="ca-item">ATENÇÃO BEBIDA</div></div>`;
+    }
+  }catch(e){}
+box.innerHTML = htmlPag + htmlBebidaMaster + '<div class="conf-alerta-info">🥤 Verificando refrigerantes do pedido…</div>';
   box.style.display = 'block';
 
   let htmlRefri = '';
@@ -8096,7 +8284,7 @@ async function carregarAlertasConfirmacao(pedido){
     htmlRefri = '<div class="conf-alerta-info">⚠️ Não foi possível verificar refrigerantes agora (sem conexão ou tabela indisponível).</div>';
   }
   if(!aindaAtual()) return;
-  const conteudo = htmlPag + htmlRefri;
+  const conteudo = htmlPag + htmlBebidaMaster + htmlRefri;
   box.innerHTML = conteudo;
   box.style.display = conteudo ? 'block' : 'none';
 }
