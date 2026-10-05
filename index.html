@@ -304,7 +304,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 051026.181345</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 051026.183439</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -1848,10 +1848,30 @@ function renderEntregadores(){
       <div style="display:flex;align-items:center;gap:8px;background:#0e1118;border:1px solid #2c3340;border-radius:8px;padding:8px 10px">
         <span style="font-size:11px;color:#8b93a7">Senha:</span>
         <code style="flex:1;font-size:13px;font-weight:700;color:${visivel?'#3dcc8a':'#8b93a7'};letter-spacing:${visivel?'0.04em':'0.12em'};word-break:break-all">${senhaMostrada || '—'}</code>
-        ${visivel && senha ? `<button class="btn small" style="padding:4px 8px;font-size:10px" onclick="navigator.clipboard.writeText(${JSON.stringify(senha)}).then(()=>{const s=document.getElementById('entregadoresStatus');if(s){s.textContent='Senha copiada';s.style.color='#3dcc8a';setTimeout(()=>{if(s)s.style.color='#8b93a7';},1500)}})">📋</button>` : ''}
+        ${visivel && senha ? `<button class="btn small" style="padding:4px 8px;font-size:10px" onclick="copiarSenhaEntregador('${id}')">📋</button>` : ''}
       </div>
     </div>`;
   }).join('');
+}
+
+/** Copia a senha do entregador (busca no cache pelo id; a senha não vai dentro do atributo onclick). */
+function copiarSenhaEntregador(id){
+  if(!usuarioLogado?.isMaster) return;
+  const e = (cacheEntregadores||[]).find(x => String(x.id)===String(id));
+  const senha = (e && e.senha != null) ? String(e.senha) : '';
+  if(!senha) return;
+  const st = document.getElementById('entregadoresStatus');
+  const ok = ()=>{ if(st){ st.textContent = 'Senha copiada'; st.style.color = '#3dcc8a'; setTimeout(()=>{ st.style.color = '#8b93a7'; }, 1500); } };
+  const fallback = ()=>{
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = senha; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+      ok();
+    }catch(err){ alert('Não foi possível copiar a senha'); }
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(senha).then(ok).catch(fallback); }
+  else fallback();
 }
 
 function toggleSenhaEntregador(id){
