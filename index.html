@@ -303,7 +303,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 041026.231500</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 041026.233220</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -2264,8 +2264,7 @@ function atualizarUIFiltroCustoEnt(){
 function setAbaEntregador(aba){
   const isMasterCheck = !!(usuarioLogado && usuarioLogado.isMaster);
   abaEntregadorAtual = aba || 'rota';
-  // Master não tem a aba "Em rota" (ele não adiciona pedidos para si)
-  if(isMasterCheck && abaEntregadorAtual === 'rota') abaEntregadorAtual = 'pedidos';
+  // Master: Em rota é a principal (padrão). Pedidos = visão com filtros; Custo = conferir custos.
   const btnR = document.getElementById('btnAbaRota');
   const btnP = document.getElementById('btnAbaPedidos');
   const btnC = document.getElementById('btnAbaCusto');
@@ -2274,6 +2273,7 @@ function setAbaEntregador(aba){
   if(btnC) btnC.className = 'tab'+(abaEntregadorAtual==='custo'?' active':'');
 
   const isCusto = abaEntregadorAtual === 'custo';
+  const isRota = abaEntregadorAtual === 'rota';
 
   const gridStats = document.getElementById('gridStats');
   const viewTurnos = document.getElementById('viewTurnos');
@@ -2284,8 +2284,9 @@ function setAbaEntregador(aba){
   const cardAdd = document.getElementById('cardAddPedido');
   const cardBusca = document.getElementById('cardBuscaEntregador');
   const filtroDia = document.getElementById('filtroDiaPedidos');
+  const btnToggleBusca = document.getElementById('btnToggleBusca');
 
-  // Se for Master, mantém comportamento original (com filtros)
+  // MASTER
   if(isMasterCheck){
     if(isCusto){
       if(gridStats) gridStats.style.display = 'none';
@@ -2297,11 +2298,29 @@ function setAbaEntregador(aba){
       if(filtroDia) filtroDia.style.display = 'none';
       atualizarUIFiltroCustoEnt();
       renderAbaCustoMaster();
+    } else if(isRota){
+      // Em rota: pedidos de HOJE do TURNO ATUAL, só por entregador — SEM adicionar e SEM pesquisa
+      if(gridStats) gridStats.style.display = '';
+      if(viewTurnos) viewTurnos.style.display = 'block';
+      if(viewCusto) viewCusto.style.display = 'none';
+      if(filtroDia) filtroDia.style.display = 'none';
+      try{ filtro = 'hoje'; dataSel = null; }catch(e){}
+      if(cardAdd){ cardAdd.classList.add('barra-oculta'); cardAdd.style.display = 'none'; }
+      if(cardBusca){ cardBusca.classList.add('barra-oculta'); }
+      if(topRow) topRow.style.display = 'none';
+      if(toggleBar) toggleBar.style.display = 'none';
+      if(btnToggleBusca) btnToggleBusca.style.display = 'none';
+      const btnToggleAdd = document.getElementById('btnToggleAdd');
+      if(btnToggleAdd) btnToggleAdd.style.display = 'none';
+      try{ carregar(); }catch(e){ try{ render(); }catch(e2){} }
     } else {
+      // Aba Pedidos: visão completa com filtro de dia + pesquisa (comportamento anterior)
       if(gridStats) gridStats.style.display = '';
       if(viewTurnos) viewTurnos.style.display = 'block';
       if(viewCusto) viewCusto.style.display = 'none';
       if(filtroDia) filtroDia.style.display = 'block';
+      if(btnToggleBusca) btnToggleBusca.style.display = '';
+      if(toggleBar) toggleBar.style.display = 'flex';
       try{ aplicarVisibilidadeBarras(); }catch(e){}
       try{ atualizarUIFiltroEntregador(); }catch(e){}
       try{ render(); }catch(e){}
@@ -2367,8 +2386,12 @@ function atualizarVisibilidadeAbasEntregador(){
   const btnC = document.getElementById('btnAbaCusto');
   { const _l = document.getElementById('lblAbaCusto'); if(_l) _l.textContent = isMaster ? 'Conferir custos' : 'Custo'; }
   const btnR = document.getElementById('btnAbaRota');
-  if(btnR) btnR.style.display = isMaster ? 'none' : '';
+  // Master e entregador: Em rota visível e é a principal
+  if(btnR) btnR.style.display = '';
   if(logado){
+    // Sempre abre na Em rota (principal)
+    if(isMaster) abaEntregadorAtual = 'rota';
+    else if(!abaEntregadorAtual) abaEntregadorAtual = 'rota';
     setAbaEntregador(abaEntregadorAtual || 'rota');
   }
 }
@@ -5053,6 +5076,18 @@ function getHtmlTempoEntrega(p){
   return `<div class="pm-tempo ${cls}" title="Previsão: ${deadline.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})}">${icon} ${label}</div>`;
 }
 
+/** Turno vigente agora (SP), com base em configHorarios. */
+function getTurnoAtual(){
+  const agoraMin = getHoraSP()*60 + getMinSP();
+  const almIni = parseTimeToMinutes(configHorarios.almoco_inicio)||6*60;
+  const almFim = parseTimeToMinutes(configHorarios.almoco_fim)||15*60+59;
+  function isAlmocoByMin(hMin){
+    if(almIni<=almFim) return hMin>=almIni && hMin<=almFim;
+    return hMin>=almIni || hMin<=almFim;
+  }
+  return isAlmocoByMin(agoraMin) ? 'almoco' : 'jantar';
+}
+
 function getTurno(p){
   const ct=(p.turno||p.periodo||'').toLowerCase();
   if(ct.includes('almo')) return 'almoco';
@@ -7234,10 +7269,26 @@ function aplicarVisibilidadeBarras(){
     if(addVis && buscaVis) topRow.classList.remove('uma-barra');
     else topRow.classList.add('uma-barra');
   }
-  // Só mostra botões de toggle na aba Pedidos (não na de Custo)
+  // Toggle de barras: só na aba Pedidos (Master); esconde na Custo e na Em rota
   if(toggleBar){
-    const naCusto = (typeof abaEntregadorAtual !== 'undefined' && abaEntregadorAtual === 'custo' && usuarioLogado && !usuarioLogado.isMaster);
-    toggleBar.style.display = naCusto ? 'none' : 'flex';
+    const aba = (typeof abaEntregadorAtual !== 'undefined') ? abaEntregadorAtual : '';
+    const esconder = (aba === 'custo' || aba === 'rota');
+    toggleBar.style.display = esconder ? 'none' : 'flex';
+  }
+  // Master Em rota: sem Adicionar e sem pesquisa
+  if(usuarioLogado && usuarioLogado.isMaster && typeof abaEntregadorAtual !== 'undefined' && abaEntregadorAtual === 'rota'){
+    if(cardAdd){ cardAdd.classList.add('barra-oculta'); cardAdd.style.display = 'none'; }
+    if(cardBusca) cardBusca.classList.add('barra-oculta');
+    if(topRow) topRow.style.display = 'none';
+    const btnBusca = document.getElementById('btnToggleBusca');
+    const btnAdd = document.getElementById('btnToggleAdd');
+    if(btnBusca) btnBusca.style.display = 'none';
+    if(btnAdd) btnAdd.style.display = 'none';
+  } else {
+    const btnBusca = document.getElementById('btnToggleBusca');
+    const btnAdd = document.getElementById('btnToggleAdd');
+    if(btnBusca && usuarioLogado && usuarioLogado.isMaster) btnBusca.style.display = '';
+    if(btnAdd && usuarioLogado && usuarioLogado.isMaster) btnAdd.style.display = '';
   }
   atualizarBotoesToggleBarras();
 }
@@ -7374,6 +7425,13 @@ function render(){
  if(busca) filtrados=base.filter(p=> (p.cliente_nome||'').toLowerCase().includes(busca) || String(p.numero_pedido||'').toLowerCase().includes(busca) || (p.localizador||'').toLowerCase().includes(busca) || (getNomeReserva(p)||'').toLowerCase().includes(busca) );
 
  const isMaster = !!(usuarioLogado && usuarioLogado.isMaster);
+ // MASTER Em rota: só HOJE + turno atual (não mostra turno diferente)
+ if(isMaster && typeof abaEntregadorAtual !== 'undefined' && abaEntregadorAtual === 'rota'){
+   const hojeRota = getHojeSP();
+   const turnoAgora = (typeof getTurnoAtual === 'function') ? getTurnoAtual() : 'jantar';
+   filtrados = (filtrados||[]).filter(p => (p.data||'') === hojeRota && getTurno(p) === turnoAgora);
+   // sem pesquisa nesta aba
+ }
  const rootMaster = document.getElementById('viewMasterEntregadores');
  const viewTurnos = document.getElementById('viewTurnos');
  const statEspera = document.getElementById('statEspera');
@@ -7390,7 +7448,7 @@ function render(){
  }
  if(!filtrados.length){
    if(base.length===0 && !busca){
-     document.getElementById('listaVazia').innerHTML='<div style="text-align:center;color:#8b93a7;padding:10px">Nenhum pedido'+(isMaster?' para esta data.':(abaEntregadorAtual==='rota'?' em rota.<br>Use o campo acima para adicionar.':' finalizado.'))+'</div>';
+     document.getElementById('listaVazia').innerHTML='<div style="text-align:center;color:#8b93a7;padding:10px">Nenhum pedido'+(isMaster?(abaEntregadorAtual==='rota'?' em rota neste turno.<br>Pedidos de outro turno não aparecem aqui.':' para esta data.'):(abaEntregadorAtual==='rota'?' em rota.<br>Use o campo acima para adicionar.':' finalizado.'))+'</div>';
      document.getElementById('listaVazia').style.display='block';
    } else {
      document.getElementById('listaVazia').innerHTML='<div style="text-align:center;color:#8b93a7;padding:10px">Nenhum pedido encontrado</div>';
@@ -7409,6 +7467,21 @@ function render(){
      // Entregador sem nada para mostrar: esconde os cabeçalhos de turno
      ['.turno-header.jantar','.turno-header.almoco'].forEach(s=>{ const el=document.querySelector(s); if(el) el.style.display='none'; });
      ['wrapJantar','wrapAlmoco'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
+   } else if(typeof abaEntregadorAtual !== 'undefined' && abaEntregadorAtual === 'rota'){
+     // Master Em rota vazio: esconde cabeçalhos de turno
+     ['.turno-header.jantar','.turno-header.almoco'].forEach(s=>{ const el=document.querySelector(s); if(el) el.style.display='none'; });
+     const wrapJ = document.getElementById('wrapJantar');
+     const wrapA = document.getElementById('wrapAlmoco');
+     if(wrapJ){ wrapJ.style.display='block'; }
+     if(wrapA){ wrapA.style.display='none'; }
+     const turnoAgora = (typeof getTurnoAtual === 'function') ? getTurnoAtual() : 'jantar';
+     const rotuloTurno = turnoAgora === 'almoco' ? '☀️ Almoço' : '🌙 Jantar';
+     const lj = document.getElementById('listaJantarPendente');
+     if(lj) lj.innerHTML = `<div class="card" style="margin:10px 12px;padding:10px 12px;border-color:#2a3a5a;background:#1a1e2a">
+       <div style="font-size:12px;font-weight:900;color:#6ab7ff">🛵 Em rota · ${rotuloTurno} · ${formatarDataBR(getHojeSP())}</div>
+       <div style="font-size:10px;color:#8b93a7;margin-top:4px">Nenhum pedido neste turno agora</div>
+     </div>`;
+     const la = document.getElementById('listaAlmocoPendente'); if(la) la.innerHTML='';
    }
    return;
  }
@@ -7467,20 +7540,40 @@ function render(){
  const wrapA = document.getElementById('wrapAlmoco');
 
  if(isMaster){
-   // Master: dentro de cada turno → Em espera + entregadores daquele turno
-   // Esconde sub-headers A ENTREGAR / CONFIRMADOS (substituídos pelas seções)
    const subs = document.querySelectorAll('#viewTurnos .sub-header');
    subs.forEach(el=> el.style.display='none');
-   document.getElementById('listaJantarPendente').innerHTML = htmlMasterDentroDoTurno(jantar, 'jantar');
    document.getElementById('listaJantarConfirmado').innerHTML = '';
    document.getElementById('listaJantarConfirmado').style.display = 'none';
-   document.getElementById('listaAlmocoPendente').innerHTML = htmlMasterDentroDoTurno(almoco, 'almoco');
    document.getElementById('listaAlmocoConfirmado').innerHTML = '';
    document.getElementById('listaAlmocoConfirmado').style.display = 'none';
-   // Abre turnos que têm pedidos
-   if(jantar.length && !turnosVisiveis.jantar){ /* deixa o usuário abrir */ }
-   if(headerJ) headerJ.style.display = 'flex';
-   if(headerA) headerA.style.display = 'flex';
+
+   const naRotaMaster = (typeof abaEntregadorAtual !== 'undefined' && abaEntregadorAtual === 'rota');
+   if(naRotaMaster){
+     // Em rota: NÃO separa por turno — só por entregador (já filtrado para turno atual + hoje)
+     const listaRota = agruparEOrdenar(filtrados);
+     const turnoAgora = (typeof getTurnoAtual === 'function') ? getTurnoAtual() : 'jantar';
+     const rotuloTurno = turnoAgora === 'almoco' ? '☀️ Almoço' : '🌙 Jantar';
+     // Banner informativo (não é separação de listas)
+     const banner = `<div class="card" style="margin:10px 12px 6px;padding:10px 12px;border-color:#2a3a5a;background:#1a1e2a">
+       <div style="font-size:12px;font-weight:900;color:#6ab7ff">🛵 Em rota · ${rotuloTurno} · ${formatarDataBR(getHojeSP())}</div>
+       <div style="font-size:10px;color:#8b93a7;margin-top:4px">Pedidos de hoje neste turno · agrupados por entregador · turno diferente não aparece</div>
+     </div>`;
+     document.getElementById('listaJantarPendente').innerHTML = banner + htmlMasterDentroDoTurno(listaRota, 'rota');
+     document.getElementById('listaAlmocoPendente').innerHTML = '';
+     if(headerJ) headerJ.style.display = 'none';
+     if(headerA) headerA.style.display = 'none';
+     if(wrapJ) wrapJ.style.display = 'block';
+     if(wrapA) wrapA.style.display = 'none';
+     // counts no banner via stats
+     document.getElementById('countJantar').textContent = String(montarItensAgrupados(listaRota).length);
+     document.getElementById('countAlmoco').textContent = '0';
+   } else {
+     // Aba Pedidos: visão por turno (comportamento anterior)
+     document.getElementById('listaJantarPendente').innerHTML = htmlMasterDentroDoTurno(jantar, 'jantar');
+     document.getElementById('listaAlmocoPendente').innerHTML = htmlMasterDentroDoTurno(almoco, 'almoco');
+     if(headerJ) headerJ.style.display = 'flex';
+     if(headerA) headerA.style.display = 'flex';
+   }
  } else {
    // Entregador: ambos os turnos visíveis (sem filtro por horário)
    const subs = document.querySelectorAll('#viewTurnos .sub-header');
