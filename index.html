@@ -304,7 +304,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 051026.123945</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 051026.181345</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -1782,11 +1782,19 @@ function salvarCfgSupabase(){
 function getSb(){ if(sb) return sb; const url=localStorage.getItem('supabase_url')||DEFAULT_URL; const key=localStorage.getItem('supabase_key')||DEFAULT_KEY; if(!url||!key){ console.warn('Supabase não configurado'); return null; } try{ sb=supabase.createClient(url,key); return sb; }catch(e){ console.error('Erro supabase', e); return null; } }
 
 /** Lista entregadores ativos do Supabase */
-async function carregarEntregadoresDoBanco(){
+/** true = entregador ativo (só é inativo quando ativo=false/0/'false'). */
+function _entAtivo(e){
+  return !(e && (e.ativo===false || e.ativo===0 || String(e.ativo).toLowerCase()==='false'));
+}
+
+/** Lista entregadores do Supabase. Com incluirInativos=true traz também os inativos (usado no painel de Configurações). */
+async function carregarEntregadoresDoBanco(incluirInativos){
   const client = getSb();
   if(!client){ cacheEntregadores=[]; return []; }
   try{
-    let {data, error} = await client.from('entregadores').select('id,nome,senha,is_master,ativo').eq('ativo', true).order('nome');
+    let _q = client.from('entregadores').select('id,nome,senha,is_master,ativo').order('nome');
+    if(!incluirInativos) _q = _q.eq('ativo', true);
+    let {data, error} = await _q;
     if(error){
       const res2 = await client.from('entregadores').select('id,nome,senha,is_master,ativo').order('nome');
       data = res2.data; error = res2.error;
@@ -1818,19 +1826,23 @@ function renderEntregadores(){
     const escHtml = (s)=> String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     const senhaMostrada = visivel ? escHtml(senha) : '••••••••';
     const isMaster = e.is_master===true||e.is_master===1||String(e.is_master).toLowerCase()==='true';
-    const ativo = e.ativo!==false && e.ativo!==0;
-    return `<div class="list-item" style="flex-direction:column;align-items:stretch;gap:8px;padding:12px">
+    const ativo = _entAtivo(e);
+    const ehEu = String(e.id) === String(usuarioLogado && usuarioLogado.id);
+    return `<div class="list-item" style="flex-direction:column;align-items:stretch;gap:8px;padding:12px${!ativo?';opacity:.8;border-color:#5a2a2a':''}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
         <div>
           <b style="color:#f0c14a;font-size:15px">${e.nome||'—'}</b>
           ${isMaster ? ' <span style="color:#f0c14a;font-size:10px">👑 Master</span>' : ''}
-          ${!ativo ? ' <span style="color:#ff6b6b;font-size:10px">inativo</span>' : ''}
+          ${!ativo ? ' <span style="color:#ff6b6b;font-size:10px;font-weight:800">⛔ INATIVO — sem acesso</span>' : ''}
           <div style="font-size:10px;color:#5a657a;margin-top:2px">id: ${id.slice(0,8)}… · Supabase</div>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn small" style="padding:6px 10px;font-size:11px" onclick="toggleSenhaEntregador('${id}')">${visivel?'🙈 Ocultar':'👁️ Ver senha'}</button>
           <button class="btn blue small" style="padding:6px 10px;font-size:11px" onclick="abrirModalEditarEntregador('${id}')">✏️ Editar</button>
-          <button class="btn red small" style="padding:6px 10px;font-size:11px" onclick="removerEntregador('${id}','${nomeEsc}')">🗑️</button>
+          ${ativo
+            ? (ehEu ? '' : `<button class="btn small" style="padding:6px 10px;font-size:11px;background:#3a2a1a;color:#f0c14a;border-color:#5a4a2a" onclick="alternarAtivoEntregador('${id}','${nomeEsc}')">⏸ Desativar</button>
+          <button class="btn red small" style="padding:6px 10px;font-size:11px" onclick="removerEntregador('${id}','${nomeEsc}')">🗑️</button>`)
+            : `<button class="btn green small" style="padding:6px 10px;font-size:11px" onclick="alternarAtivoEntregador('${id}','${nomeEsc}')">▶ Reativar</button>`}
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;background:#0e1118;border:1px solid #2c3340;border-radius:8px;padding:8px 10px">
@@ -1945,14 +1957,15 @@ async function addEntregador(){
     document.getElementById('novoNome').value = '';
     document.getElementById('novaSenha').value = '';
     if(chk) chk.checked = false;
-    await carregarEntregadoresDoBanco();
+    await carregarEntregadoresDoBanco(true);
     renderEntregadores();
   }catch(e){ alert('Erro: ' + (e.message || e)); }
 }
 
 async function removerEntregador(id, nome){
   if(!usuarioLogado?.isMaster){ alert('Apenas Master pode remover'); return; }
-  if(!(await mostrarConfirmacao('Remover entregador "' + (nome||'') + '"?\n\nEle não poderá mais fazer login.', { titulo:'Remover entregador', okTexto:'Remover', cancelarTexto:'Cancelar' }))) return;
+  if(String(id) === String(usuarioLogado && usuarioLogado.id)){ alert('Você não pode remover a sua própria conta.'); return; }
+  if(!(await mostrarConfirmacao('Remover entregador "' + (nome||'') + '"?\n\nSe ele estiver logado, será deslogado automaticamente e não poderá mais fazer login.', { titulo:'Remover entregador', okTexto:'Remover', cancelarTexto:'Cancelar' }))) return;
   const client = getSb();
   if(!client){ alert('Supabase não configurado'); return; }
   try{
@@ -1961,9 +1974,33 @@ async function removerEntregador(id, nome){
       const {error: err2} = await client.from('entregadores').delete().eq('id', id);
       if(err2){ alert('Erro ao remover: ' + err2.message); return; }
     }
-    await carregarEntregadoresDoBanco();
+    await carregarEntregadoresDoBanco(true);
     renderEntregadores();
   }catch(e){ alert('Erro: ' + (e.message || e)); }
+}
+
+/** Master: desativa/reativa um entregador. Inativo = não consegue logar e, se estiver logado, é deslogado automaticamente. */
+async function alternarAtivoEntregador(id, nome){
+  if(!usuarioLogado?.isMaster){ alert('Apenas Master pode alterar'); return; }
+  const e = (cacheEntregadores||[]).find(x => String(x.id)===String(id));
+  const ativoAtual = _entAtivo(e);
+  const novo = !ativoAtual;
+  if(!novo && String(id) === String(usuarioLogado.id)){ alert('Você não pode desativar a sua própria conta.'); return; }
+  const msg = novo
+    ? 'Reativar o entregador "' + (nome||'') + '"?\n\nEle poderá fazer login novamente.'
+    : 'Desativar o entregador "' + (nome||'') + '"?\n\nSe ele estiver logado, será deslogado automaticamente e não conseguirá mais entrar até ser reativado.';
+  const ok = await mostrarConfirmacao(msg, { titulo: novo ? 'Reativar entregador' : 'Desativar entregador', okTexto: novo ? 'Reativar' : 'Desativar', cancelarTexto:'Cancelar' });
+  if(!ok) return;
+  const client = getSb();
+  if(!client){ alert('Supabase não configurado'); return; }
+  try{
+    const {error} = await client.from('entregadores').update({ativo: novo}).eq('id', id);
+    if(error){ alert('Erro ao alterar: ' + error.message); return; }
+    await carregarEntregadoresDoBanco(true);
+    renderEntregadores();
+    const st = document.getElementById('entregadoresStatus');
+    if(st) st.textContent = (novo ? '✅ Reativado: ' : '⛔ Desativado: ') + (nome||'');
+  }catch(err){ alert('Erro: ' + (err.message || err)); }
 }
 
 function abrirCfg(){
@@ -1972,7 +2009,7 @@ function abrirCfg(){
     return;
   }
   document.getElementById('cfg').style.display='flex';
-  carregarEntregadoresDoBanco().then(()=> renderEntregadores());
+  carregarEntregadoresDoBanco(true).then(()=> renderEntregadores());
   carregarModo();
   try{ carregarCustosEntrega(); }catch(e){}
   try{ carregarHorarios(); }catch(e){}
@@ -4196,19 +4233,20 @@ async function fazerLogin(){
   erroEl.textContent = 'Verificando...';
   erroEl.style.color = '#8b93a7';
   try{
-    const {data, error} = await client.from('entregadores')
+    const {data: _rowsLogin, error} = await client.from('entregadores')
       .select('id,nome,senha,is_master,ativo')
-      .ilike('nome', nomeInput)
-      .eq('ativo', true)
-      .maybeSingle();
+      .ilike('nome', nomeInput);
     if(error){
       erroEl.style.color = '#ff6b6b';
       erroEl.textContent = 'Erro ao consultar: ' + error.message + ' (crie a tabela entregadores no SQL Editor)';
       return;
     }
-    if(!data || String(data.senha) !== String(senhaInput)){
+    const _mesmoNome = (_rowsLogin||[]).filter(r => String(r.nome||'').toLowerCase() === nomeInput.toLowerCase() && String(r.senha) === String(senhaInput));
+    const data = _mesmoNome.find(r => _entAtivo(r));
+    if(!data){
       erroEl.style.color = '#ff6b6b';
-      erroEl.textContent = 'Usuário ou senha inválidos';
+      // senha correta, mas cadastro inativo: login NÃO autorizado
+      erroEl.textContent = _mesmoNome.length ? '🚫 Usuário inativo. Procure o Master.' : 'Usuário ou senha inválidos';
       return;
     }
     // Master: is_master no banco OU nome Master → acesso total (entregas + filtros + configurações)
@@ -4255,6 +4293,52 @@ async function logout(){
   if(!ok) return;
   _executarLogout();
 }
+// =================== ACESSO: DESLOGA AUTOMATICAMENTE ENTREGADOR INATIVO ===================
+let _verificandoAcessoAtivo = false;
+let _logoutInativoEmCurso = false;
+
+/** Encerra a sessão local de quem foi desativado pelo Master e avisa na tela de login. */
+function _forcarLogoutInativo(){
+  if(_logoutInativoEmCurso || !usuarioLogado) return;
+  _logoutInativoEmCurso = true;
+  try{
+    _executarLogout();
+    const erroEl = document.getElementById('loginErro');
+    if(erroEl){ erroEl.style.color = '#ff6b6b'; erroEl.textContent = '🚫 Seu acesso foi desativado pelo Master.'; }
+    try{ mostrarAlerta('🚫 Seu acesso foi desativado pelo Master.\n\nVocê foi deslogado. Procure o Master para reativar.'); }catch(e){}
+  } finally {
+    _logoutInativoEmCurso = false;
+  }
+}
+
+/** Confere no Supabase se a conta logada continua ativa. Inativo ou removido → desloga. Erro de rede NÃO derruba a sessão. */
+async function verificarAcessoAtivo(){
+  if(_verificandoAcessoAtivo) return;
+  if(!usuarioLogado || usuarioLogado.viaMaster) return;   // sessão aberta pelo Master (trocar conta) não é validada aqui
+  if(navigator.onLine === false) return;
+  const client = getSb();
+  if(!client) return;
+  _verificandoAcessoAtivo = true;
+  try{
+    let q = client.from('entregadores').select('id,nome,ativo');
+    q = usuarioLogado.id ? q.eq('id', usuarioLogado.id) : q.ilike('nome', usuarioLogado.nome || '');
+    const {data, error} = await q.maybeSingle();
+    if(error) return;                    // falha de consulta: mantém a sessão
+    if(!usuarioLogado) return;           // saiu enquanto consultava
+    if(!data || !_entAtivo(data)) _forcarLogoutInativo();
+  }catch(e){ console.warn('verificarAcessoAtivo', e); }
+  finally{ _verificandoAcessoAtivo = false; }
+}
+function iniciarMonitorAcessoAtivo(){
+  if(window.__monitorAcessoAtivo) return;
+  window.__monitorAcessoAtivo = true;
+  setInterval(()=>{ verificarAcessoAtivo(); }, 20000);
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) verificarAcessoAtivo(); });
+  window.addEventListener('focus', ()=>{ verificarAcessoAtivo(); });
+  window.addEventListener('online', ()=>{ verificarAcessoAtivo(); });
+}
+// =================== FIM ACESSO ATIVO ===================
+
 function _executarLogout(){
   localStorage.removeItem('usuario_logado');
   localStorage.removeItem('master_origem');
@@ -6119,7 +6203,7 @@ function abrirModalMasterNovoPedido(){
   document.getElementById('novoPedData').value = getHojeSP();
   document.getElementById('novoPedStatus').textContent = '';
   document.getElementById('modalMasterNovoPedido').style.display='flex';
-  carregarEntregadoresDoBanco().then(()=>renderEntregadores());
+  carregarEntregadoresDoBanco(true).then(()=>renderEntregadores());
 }
 
 /** Monta um created_at (ISO) cujo horário de Brasília cai dentro do turno ('almoco' | 'jantar') na data AAAA-MM-DD. */
@@ -9381,6 +9465,7 @@ function ouvir(){
     .on('postgres_changes',{event:'*',schema:'public',table:'refri_pedidos'},()=>{ try{ _agendarRefriCache(true); }catch(e){} })
     .on('postgres_changes',{event:'*',schema:'public',table:'pedidos_entrega_dia'},()=>carregar())
     .on('postgres_changes',{event:'*',schema:'public',table:'reservas_entregadores'},()=>carregar())
+    .on('postgres_changes',{event:'*',schema:'public',table:'entregadores'},()=>{ try{ verificarAcessoAtivo(); }catch(e){} })
     .on('postgres_changes',{event:'*',schema:'public',table:'app_config'}, (payload)=>{
       if(payload.new && payload.new.chave==='modo_confirmacao' && payload.new.valor){
         console.log('Modo global alterado pelo Master:', payload.new.valor);
@@ -9463,7 +9548,8 @@ ajustarAlturaHeader();
   if(!localStorage.getItem('supabase_url')) localStorage.setItem('supabase_url',DEFAULT_URL);
   if(!localStorage.getItem('supabase_key')) localStorage.setItem('supabase_key',DEFAULT_KEY);
   try{ localStorage.removeItem('entregadores_lista'); }catch(e){}
-  if(checkLoginPersistido()){ carregar(); ouvir(); carregarModoGlobal(); } else { carregarModoGlobal(); }
+  if(checkLoginPersistido()){ carregar(); ouvir(); carregarModoGlobal(); try{ verificarAcessoAtivo(); }catch(e){} } else { carregarModoGlobal(); }
+  try{ iniciarMonitorAcessoAtivo(); }catch(e){ console.warn(e); }
   atualizarBadgeModo();
   try{ carregarHorarios(); }catch(e){}
   try{ atualizarInfoRegra(); }catch(e){}
