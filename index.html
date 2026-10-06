@@ -366,7 +366,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 061026.152100</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 061026.202100</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -924,6 +924,14 @@ select '06:00','15:59','16:00','05:59','07:00','23:30',5,false where not exists 
 <label style="font-size:11px;color:#8b93a7;font-weight:700;display:block;margin-top:12px">💵 Valor a receber em dinheiro (R$)</label>
 <input id="editEndValorDinheiro" type="text" inputmode="decimal" placeholder="Ex: 45,00 ou vazio para limpar" style="margin-top:6px;width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;background:#0e1118;color:#fff;font-weight:800;font-size:15px"/>
 <div style="font-size:10px;color:#5a657a;margin-top:4px;line-height:1.35">Atualiza o valor do pedido. Use para cobrança em dinheiro na entrega.</div>
+
+<label style="font-size:11px;color:#8b93a7;font-weight:700;display:block;margin-top:12px">💳 Forma de pagamento</label>
+<select id="editFormaPagamento" style="margin-top:6px;width:100%;padding:12px;border-radius:10px;border:1px solid #2c3340;background:#0e1118;color:#fff;font-weight:800;font-size:14px">
+  <option value="Pago">Pago</option>
+  <option value="Cartão">Cartão</option>
+  <option value="Dinheiro">Dinheiro</option>
+</select>
+<div style="font-size:10px;color:#5a657a;margin-top:4px;line-height:1.35">Altere de Pago para Cartão ou Dinheiro (receber na entrega).</div>
 
 <div style="margin-top:14px;padding:12px;background:#1a1212;border:1px solid #5a2a2a;border-radius:12px">
   <div style="font-size:12px;font-weight:900;color:#ff6b6b;margin-bottom:10px">🚨 Alertas na finalização</div>
@@ -6544,6 +6552,21 @@ function abrirModalEditarEndereco(pedidoId){
   if(ta) ta.value = p.cliente_endereco || '';
   const inpVal = document.getElementById('editEndValorDinheiro');
   if(inpVal) inpVal.value = _fmtValorInput(p.valor);
+  const selFp = document.getElementById('editFormaPagamento');
+  if(selFp){
+    const fp = (p.forma_pagamento||'').toString().trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    let v = 'Pago';
+    if(/cartao|debito|credito|card|maquina/.test(fp)) v = 'Cartão';
+    else if(/dinheiro|especie|cash/.test(fp)) v = 'Dinheiro';
+    else if(/pago|online|pix|pre pago|creditado/.test(fp) || !fp) v = 'Pago';
+    else if(fp) {
+      // tenta casar opção existente
+      if(/cartao/.test(fp)) v = 'Cartão';
+      else if(/dinheiro/.test(fp)) v = 'Dinheiro';
+      else v = 'Pago';
+    }
+    selFp.value = v;
+  }
   const chkBeb = document.getElementById('editAlertaBebida');
   if(chkBeb) chkBeb.checked = _pedidoTemAlertaBebida(p) || (typeof pedidoTemBebida === 'function' && pedidoTemBebida(p) && _pedidoTemAlertaBebida(p));
   if(chkBeb) chkBeb.checked = _pedidoTemAlertaBebida(p);
@@ -6615,17 +6638,19 @@ async function salvarEnderecoMaster(){
   if(btn){ btn.disabled=true; btn.textContent='⏳ Salvando...'; }
   if(st){ st.textContent='Salvando...'; st.style.color='#f0c14a'; }
 
+  const selFp = document.getElementById('editFormaPagamento');
+  const formaPag = selFp ? String(selFp.value||'Pago').trim() : '';
   const payloadFull = {
     cliente_endereco: novo,
     valor: valorNum,
     alerta_bebida: alertaBebida ? 'sim' : 'nao',
     alerta_receber_valor: alertaReceberValor || null
   };
-  // Se alerta receber e não tem forma_pagamento de receber, sugere Dinheiro (não sobrescreve pago online)
+  if(formaPag) payloadFull.forma_pagamento = formaPag;
+  // Se alerta receber e forma ainda é Pago, alinha para Dinheiro só se o Master não escolheu Cartão
   try{
-    const fp = (p.forma_pagamento||'').toString().trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-    const isPago = /^(pago|pago online|online|pix online|ja pago|pre pago|creditado)$/.test(fp) || (/\bpago\b/.test(fp) && !/na\s*entrega|receber|cartao|dinheiro/.test(fp));
-    if(alertaReceberOn && !isPago && (!fp || /dinheiro|especie|cash/.test(fp))){
+    const fp = (payloadFull.forma_pagamento||'').toString().trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    if(alertaReceberOn && (/^pago$/.test(fp) || !fp)){
       payloadFull.forma_pagamento = 'Dinheiro';
     }
   }catch(e){}
