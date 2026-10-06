@@ -259,6 +259,11 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 .nome-bebida-wrap{display:flex;align-items:flex-start;gap:5px;min-width:0}
 @keyframes dinPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,107,107,.55)}50%{box-shadow:0 0 0 7px rgba(255,107,107,0)}}
 #btnDinheiro.din-alerta{animation:dinPulse 1.6s infinite;background:#2a1414 !important}
+@keyframes chamaPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(239,68,68,.7)}50%{transform:scale(1.05);box-shadow:0 0 0 10px rgba(239,68,68,0)}}
+#btnChamar.chamando,#btnChamarMaster.chamando{animation:chamaPulse 1s infinite;background:#7f1d1d !important;color:#fff !important;border-color:#ef4444 !important}
+#modalChamadaRecebida .card{border:2px solid #ef4444;animation:chamaPulse 1.2s infinite}
+#modalChamadaRecebida .ch-nome{font-size:22px;font-weight:900;color:#f0c14a;text-align:center;margin:8px 0}
+#modalChamadaRecebida .ch-sub{font-size:13px;color:#8b93a7;text-align:center;margin-bottom:14px}
 
 /* Modal alerta UI (substitui window.alert) */
 #modalAlertaUI .card{width:100%;max-width:400px;margin:0;padding:18px 16px 14px;border-radius:16px;border:1px solid #2c3340;background:#161a22;box-shadow:0 12px 40px rgba(0,0,0,.55)}
@@ -289,6 +294,30 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 </div>
 </div>
 
+
+<!-- MODAL CHAMADA RECEBIDA -->
+<div id="modalChamadaRecebida" class="overlay" style="display:none;z-index:9995" role="dialog" aria-modal="true">
+<div class="card" style="width:100%;max-width:380px;margin:0;padding:20px 16px 16px;text-align:center">
+  <div style="font-size:36px;line-height:1;margin-bottom:6px">📞</div>
+  <h3 style="margin:0 0 4px;color:#ff6b6b;font-size:16px;font-weight:900">Chamada</h3>
+  <div class="ch-nome" id="chRecebidaNome">—</div>
+  <div class="ch-sub" id="chRecebidaSub">está chamando…</div>
+  <button class="btn red" id="btnPararChamada" style="width:100%;padding:16px;font-size:16px;font-weight:900" onclick="atenderChamadaRecebida()">⏹ Parar</button>
+</div>
+</div>
+
+<!-- MODAL MASTER ESCOLHER ENTREGADOR PARA CHAMAR -->
+<div id="modalMasterChamar" class="overlay" style="display:none;z-index:250">
+<div class="card" style="width:100%;max-width:420px;margin:0">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+<h3 style="margin:0;color:#6ab7ff">📞 Chamar entregador</h3>
+<button class="btn" onclick="fecharModalMasterChamar()">✕</button>
+</div>
+<div id="masterChamarStatus" style="font-size:11px;color:#8b93a7;margin-bottom:8px;text-align:center"></div>
+<div id="masterChamarLista" style="display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow:auto"></div>
+</div>
+</div>
+
 <div id="loginScreen" class="overlay" style="z-index:300">
 <div class="card" style="width:100%;max-width:380px;">
 <h2 style="margin:0 0 6px;color:#f0c14a;text-align:center">🛵 A BATATARIA</h2>
@@ -304,11 +333,13 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 051026.234841</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 061026.142900</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
 <div class="hdr-actions">
+<button class="btn" id="btnChamar" onclick="toggleChamadaEntregador()" style="display:none;font-size:11px;padding:8px 10px;background:#3a1a1a;border-color:#5a2a2a;color:#ff6b6b" title="Chamar o Master">📞 <span class="hlbl" id="lblBtnChamar">Chamar</span></button>
+<button class="btn" id="btnChamarMaster" onclick="abrirModalMasterChamar()" style="display:none;font-size:11px;padding:8px 10px;background:#1a2a3a;border-color:#2a4a5a;color:#6ab7ff" title="Chamar entregador">📞 <span class="hlbl">Chamar</span></button>
 <button class="btn" id="btnDinheiro" onclick="abrirModalDinheiro()" style="display:none;font-size:11px;padding:8px 10px;position:relative;background:#1a2a1a;border-color:#2a5a3a;color:#3dcc8a" title="Controle de dinheiro (somente leitura)">
   💵 <span id="badgeDinheiro" style="display:none;position:absolute;top:-6px;right:-6px;background:#ff6b6b;color:#fff;font-size:10px;font-weight:900;min-width:18px;height:18px;border-radius:999px;align-items:center;justify-content:center;padding:0 4px">0</span>
 </button>
@@ -522,6 +553,23 @@ create index if not exists idx_calc_entregas_dia_ent on calc_entregas (dia, id_e
 alter table calc_entregas enable row level security;
 create policy "libera tudo anon calc entregas" on calc_entregas for all using (true) with check (true);
 
+
+-- Tabela de chamadas (entregador ↔ Master)
+create table if not exists chamadas_app (
+  id uuid primary key default gen_random_uuid(),
+  de_nome text not null,
+  para_nome text not null,
+  status text not null default 'chamando',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create index if not exists idx_chamadas_app_status on chamadas_app (status);
+create index if not exists idx_chamadas_app_para on chamadas_app (para_nome, status);
+alter table chamadas_app enable row level security;
+create policy "libera tudo anon chamadas" on chamadas_app for all using (true) with check (true);
+-- Habilitar realtime (rode 1x; ignore erro se já estiver na publication)
+alter publication supabase_realtime add table chamadas_app;
+
 -- Repasse semanal (gravado por outro sistema; o site só lê e exibe)
 create table if not exists repasse_entregador (
   id uuid primary key default gen_random_uuid(),
@@ -723,6 +771,11 @@ select '06:00','15:59','16:00','05:59','07:00','23:30',5,false where not exists 
 
 <div id="confAlertasPedido" style="display:none;margin-bottom:12px"></div>
 
+<div id="confCodigoExistente" style="display:none;margin-bottom:12px;padding:12px;background:#F0FDF4;border:1px solid #4ADE80;border-radius:12px">
+  <div style="font-size:10px;color:#15803D;font-weight:700;letter-spacing:0.06em;margin-bottom:4px;text-align:center">CÓDIGO</div>
+  <div id="confCodigoExistenteValor" style="font-size:28px;font-weight:900;color:#166534;letter-spacing:0.25em;text-align:center"></div>
+</div>
+
 <label style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:#3f3f46;display:block;margin-bottom:6px">LOCALIZADOR (COPIAR → GRAVA + ABRE IFOOD)</label>
 <div style="display:flex;gap:8px;margin-bottom:12px">
 <input id="confLocalizador" readonly style="flex:1;background:#f4f4f5;border:2px solid #e4e4e7;color:#18181b;font-weight:900;font-size:20px;text-align:center;letter-spacing:0.1em;border-radius:12px;padding:14px"/>
@@ -759,6 +812,10 @@ select '06:00','15:59','16:00','05:59','07:00','23:30',5,false where not exists 
   <div style="font-size:12px;color:#8b93a7;line-height:1.35">📍 <span id="autoModalEndereco"></span></div>
 </div>
 <div id="autoAlertasPedido" style="display:none;margin-bottom:12px"></div>
+<div id="autoCodigoExistente" style="display:none;margin-bottom:12px;padding:12px;background:#0e1118;border:1px solid #2a5a3a;border-radius:12px">
+  <div style="font-size:10px;color:#8b93a7;font-weight:700;letter-spacing:0.06em;margin-bottom:4px;text-align:center">CÓDIGO</div>
+  <div id="autoCodigoExistenteValor" style="font-size:28px;font-weight:900;color:#3dcc8a;letter-spacing:0.25em;text-align:center"></div>
+</div>
 <label style="font-size:11px;color:#8b93a7;font-weight:700;display:block;margin-bottom:6px">Código do cliente (4 dígitos)</label>
 <input id="autoModalCodigo" inputmode="numeric" maxlength="4" placeholder="Ex: 1234" autocomplete="one-time-code"
   style="font-size:28px;font-weight:900;text-align:center;letter-spacing:0.35em;padding:16px;margin-bottom:8px"
@@ -4301,6 +4358,8 @@ async function fazerLogin(){
     const btnLimpeza = document.getElementById('btnLimpeza30'); if(btnLimpeza) btnLimpeza.style.display = isMaster ? 'inline-block' : 'none';
     const btnAgrupar = document.getElementById('btnModoAgrupar'); if(btnAgrupar) btnAgrupar.style.display = isMaster ? 'inline-block' : 'none';
     const btnDin = document.getElementById('btnDinheiro'); if(btnDin) btnDin.style.display = 'inline-block';
+    try{ atualizarBotoesChamada(); }catch(e){}
+    try{ iniciarMonitorChamadas(); }catch(e){}
     try{ atualizarBotaoTrocarConta(); }catch(e){}
     erroEl.textContent = '';
     await carregarPedidosVisiveis();
@@ -4385,6 +4444,10 @@ function _executarLogout(){
   const btnLimpeza = document.getElementById('btnLimpeza30'); if(btnLimpeza) btnLimpeza.style.display='none';
   const btnAgrupar = document.getElementById('btnModoAgrupar'); if(btnAgrupar) btnAgrupar.style.display='none';
   const btnDin = document.getElementById('btnDinheiro'); if(btnDin) btnDin.style.display='none';
+  const btnCh = document.getElementById('btnChamar'); if(btnCh){ btnCh.style.display='none'; btnCh.classList.remove('chamando'); }
+  const btnChM = document.getElementById('btnChamarMaster'); if(btnChM){ btnChM.style.display='none'; btnChM.classList.remove('chamando'); }
+  try{ pararTudoChamadaLocal(); }catch(e){}
+
   try{ mostrarAlertaLimpezaUI(false); }catch(e){}
   try{ pararMonitorDinheiro(); }catch(e){}
   try{ const ad=document.getElementById('alertaAltaDemanda'); if(ad) ad.style.display='none'; }catch(e){}
@@ -4420,6 +4483,8 @@ function checkLoginPersistido(){
       const btnLimpeza2 = document.getElementById('btnLimpeza30'); if(btnLimpeza2) btnLimpeza2.style.display = usuarioLogado.isMaster ? 'inline-block' : 'none';
       const btnAgrupar2 = document.getElementById('btnModoAgrupar'); if(btnAgrupar2) btnAgrupar2.style.display = usuarioLogado.isMaster ? 'inline-block' : 'none';
       const btnDin2 = document.getElementById('btnDinheiro'); if(btnDin2) btnDin2.style.display = 'inline-block';
+      try{ atualizarBotoesChamada(); }catch(e){}
+      try{ iniciarMonitorChamadas(); }catch(e){}
       try{ atualizarBotaoTrocarConta(); }catch(e){}
       atualizarBadgeModo();
       try{ carregarPedidosVisiveis(); }catch(e){}
@@ -7597,6 +7662,8 @@ async function _agendarRefriCache(force){
 }
 
 function render(){
+  try{ sincronizarFlagsConfirmacaoLocal(todosPedidos); }catch(e){}
+
   try{ _aplicarAlertasMasterLocais(todosPedidos); }catch(e){}
 
  try{ _agendarRefriCache(); }catch(e){}
@@ -8548,6 +8615,33 @@ async function onMasterCodigoErradoToggle(){
   }
 }
 
+
+/** Exibe código 4 dígitos no modal do entregador (só visual — sem checkbox, sem autopreencher). */
+async function mostrarCodigoEntregadorNoModal(prefix, pedido){
+  const boxId = prefix === 'auto' ? 'autoCodigoExistente' : 'confCodigoExistente';
+  const valId = prefix === 'auto' ? 'autoCodigoExistenteValor' : 'confCodigoExistenteValor';
+  const box = document.getElementById(boxId);
+  const valEl = document.getElementById(valId);
+  if(!box) return;
+  box.style.display = 'none';
+  if(valEl) valEl.textContent = '';
+  if(!pedido) return;
+  let cod = codigoClienteOferecer(pedido.codigo_cliente);
+  if(!cod){
+    try{ cod = await buscarCodigoHistoricoPedido(pedido); }catch(e){}
+  }
+  // modal ainda no mesmo pedido?
+  if(prefix === 'auto'){
+    if(pedidoConfirmAutoId !== (pedido && pedido.id)) return;
+  } else {
+    if(!pedidoConfirmAtual || pedidoConfirmAtual.id !== (pedido && pedido.id)) return;
+  }
+  if(cod){
+    if(valEl) valEl.textContent = cod;
+    box.style.display = 'block';
+  }
+}
+
 function abrirConfirmacaoEntregador(pedido){
   pedidoConfirmAtual = pedido;
   document.getElementById('confNumero').textContent = pedido.numero_pedido;
@@ -8583,6 +8677,7 @@ function abrirConfirmacaoEntregador(pedido){
     if(fb){ fb.style.display='none'; }
   }
   document.getElementById('modalConfirmEntregador').style.display='flex';
+  try{ mostrarCodigoEntregadorNoModal('conf', pedido); }catch(e){}
   try{ carregarAlertasConfirmacao(pedido); }catch(e){ console.warn('alertas confirmação', e); }
 }
 
@@ -8707,6 +8802,8 @@ function fecharConfirmEntregador(){
   pedidoConfirmAtual=null;
   _tokenAlertasConf++;
   const _bx = document.getElementById('confAlertasPedido'); if(_bx){ _bx.innerHTML=''; _bx.style.display='none'; }
+  const _ce = document.getElementById('confCodigoExistente'); if(_ce){ _ce.style.display='none'; }
+  const _cv = document.getElementById('confCodigoExistenteValor'); if(_cv) _cv.textContent='';
 }
 
 const FILA_CONF_KEY = 'fila_confirmacoes_offline';
@@ -8731,6 +8828,25 @@ function jaConfirmadoLocal(pedidoId){
   if(!pedidoId) return false;
   return !!getConfirmadosIds()[pedidoId];
 }
+
+/** Limpa flag local de confirmação quando o pedido voltou a pendente no servidor (reativado). */
+function sincronizarFlagsConfirmacaoLocal(lista){
+  try{
+    const m = getConfirmadosIds();
+    let mudou = false;
+    (lista||[]).forEach(p=>{
+      if(!p || !p.id) return;
+      const st = String(p.status||'');
+      if(st !== 'codigo_informado' && m[p.id]){
+        delete m[p.id];
+        mudou = true;
+      }
+    });
+    if(mudou) localStorage.setItem(CONFIRMADOS_IDS_KEY, JSON.stringify(m));
+  }catch(e){}
+}
+
+
 
 /** Enfileira confirmação offline (dedup por pedido_id). */
 function enfileirarConfirmacaoOffline(item){
@@ -9370,19 +9486,27 @@ async function copiarLocalizador(){
   const nomeEntregador = _nomeFinalizacao(pedido);
   const numeroPedido = pedido ? String(pedido.numero_pedido||'') : '';
 
-  // 2) Gravar (online) ou enfileirar (offline) — no máximo 1x por pedido
+  // 2) Gravar (online) ou enfileirar (offline)
+  // Importante: se o pedido foi REATIVADO, o flag local jaConfirmadoLocal pode ainda estar true —
+  // nesse caso ainda precisamos gravar de novo no Supabase (status ainda não é codigo_informado).
   let statusGravacao = '';
   if(pedido){
-    if(jaConfirmadoLocal(pedido.id)){
+    const jaFinalizadoNoBanco = String(pedido.status||'') === 'codigo_informado';
+    if(jaFinalizadoNoBanco){
       statusGravacao = 'já gravado';
-      // garante UI local
       const idx = todosPedidos.findIndex(x=>x.id===pedido.id);
       if(idx>=0){
         todosPedidos[idx].status='codigo_informado';
-        todosPedidos[idx].codigo_cliente='IFOOD';
-        todosPedidos[idx].entregador_nome=nomeEntregador;
+        todosPedidos[idx].codigo_cliente = todosPedidos[idx].codigo_cliente || 'IFOOD';
+        todosPedidos[idx].entregador_nome = todosPedidos[idx].entregador_nome || nomeEntregador;
       }
+      marcarConfirmadoLocal(pedido.id);
     } else if(!navigator.onLine){
+      // limpa flag local antigo (reativação em outro aparelho) para sincronizar de novo
+      try{
+        const m = getConfirmadosIds();
+        if(m[pedido.id]){ delete m[pedido.id]; localStorage.setItem(CONFIRMADOS_IDS_KEY, JSON.stringify(m)); }
+      }catch(e){}
       const _codOff = 'IFOOD';
       enfileirarConfirmacaoOffline({
         pedido_id: pedido.id,
@@ -9391,17 +9515,26 @@ async function copiarLocalizador(){
         nome_entregador: nomeEntregador,
         cliente_nome: pedido.cliente_nome,
         loja: pedido.loja,
-        codigo_cliente: _codOff
+        codigo_cliente: _codOff,
+        modo: 'entregador'
       });
-      // marca visualmente como confirmado no aparelho; sobe ao sincronizar
       const idx = todosPedidos.findIndex(x=>x.id===pedido.id);
       if(idx>=0){
         todosPedidos[idx].status='codigo_informado';
         todosPedidos[idx].codigo_cliente=_codOff;
         todosPedidos[idx].entregador_nome=nomeEntregador;
+        todosPedidos[idx].codigo_informado_em = new Date().toISOString();
       }
       statusGravacao = 'offline (fila)';
     } else {
+      // força regravação mesmo se flag local antigo existir (pedido reativado)
+      try{
+        const m = getConfirmadosIds();
+        if(m[pedido.id] && !jaFinalizadoNoBanco){
+          delete m[pedido.id];
+          localStorage.setItem(CONFIRMADOS_IDS_KEY, JSON.stringify(m));
+        }
+      }catch(e){}
       const _codOn = 'IFOOD';
       const ok = await gravarConfirmacaoEntregadorNoSupabase({pedido, localizador: v, nomeEntregador, codigoCliente: _codOn});
       if(ok){
@@ -9414,8 +9547,16 @@ async function copiarLocalizador(){
           nome_entregador: nomeEntregador,
           cliente_nome: pedido.cliente_nome,
           loja: pedido.loja,
-          codigo_cliente: _codOn
+          codigo_cliente: _codOn,
+          modo: 'entregador'
         });
+        // otimista local
+        const idx = todosPedidos.findIndex(x=>x.id===pedido.id);
+        if(idx>=0){
+          todosPedidos[idx].status='codigo_informado';
+          todosPedidos[idx].codigo_cliente=_codOn;
+          todosPedidos[idx].entregador_nome=nomeEntregador;
+        }
         statusGravacao = 'fila (falha rede)';
       }
     }
@@ -9474,6 +9615,7 @@ function abrirConfirmacaoAutomatico(pedido, opts){
     inp.value = '';
     inp.disabled = false;
   }
+  try{ mostrarCodigoEntregadorNoModal('auto', pedido); }catch(e){}
   const st = document.getElementById('autoModalStatus');
   if(st){ st.textContent = ''; st.style.color = '#8b93a7'; }
   const btn = document.getElementById('btnConfirmarCodigoAuto');
@@ -9504,6 +9646,8 @@ function fecharConfirmAutomatico(fromUser){
   const _abx = document.getElementById('autoAlertasPedido'); if(_abx){ _abx.innerHTML=''; _abx.style.display='none'; }
   const inp = document.getElementById('autoModalCodigo');
   if(inp){ inp.value = ''; inp.disabled = false; }
+  const _ce = document.getElementById('autoCodigoExistente'); if(_ce){ _ce.style.display='none'; }
+  const _cv = document.getElementById('autoCodigoExistenteValor'); if(_cv) _cv.textContent='';
   // Se fechou pelo X/Cancelar e tinha history state, volta sem sair do app
   if(fromUser && _confirmAutoHistoryPushed){
     _confirmAutoHistoryPushed = false;
@@ -9718,6 +9862,9 @@ function ouvir(){
     .on('postgres_changes',{event:'*',schema:'public',table:'config_horarios'}, ()=>{
       try{ carregarHorarios(); }catch(e){}
     })
+    .on('postgres_changes',{event:'*',schema:'public',table:'chamadas_app'}, (payload)=>{
+      try{ onChamadaRealtime(payload); }catch(e){ console.warn('chamada realtime', e); }
+    })
     .subscribe();
   carregarModoGlobal();
 }
@@ -9784,6 +9931,368 @@ window.addEventListener('resize', ajustarAlturaHeader);
 window.addEventListener('load', ajustarAlturaHeader);
 if(window.ResizeObserver){ try{ new ResizeObserver(ajustarAlturaHeader).observe(document.querySelector('header')); }catch(e){} }
 ajustarAlturaHeader();
+
+
+// ===================== CHAMADAS (entregador ↔ Master) =====================
+let _chamadaAtivaId = null;       // id da chamada que EU iniciei
+let _chamadaRecebidaId = null;    // id da chamada que estou recebendo
+let _chamadaSomTimer = null;
+let _chamadaSomInterval = null;
+let _chamadaAudioCtx = null;
+let _chamadaVibTimer = null;
+let _chamadaExpireTimer = null;
+const CHAMADA_DURACAO_MS = 15000;
+
+function atualizarBotoesChamada(){
+  const btnE = document.getElementById('btnChamar');
+  const btnM = document.getElementById('btnChamarMaster');
+  if(!usuarioLogado){
+    if(btnE) btnE.style.display = 'none';
+    if(btnM) btnM.style.display = 'none';
+    return;
+  }
+  const isMaster = !!usuarioLogado.isMaster;
+  // entregador (ou conta via Master): botão Chamar Master
+  if(btnE) btnE.style.display = isMaster ? 'none' : 'inline-block';
+  // Master real: botão para chamar entregadores
+  if(btnM) btnM.style.display = isMaster ? 'inline-block' : 'none';
+}
+
+function _nomeChamadaLocal(){
+  return (usuarioLogado && usuarioLogado.nome) ? String(usuarioLogado.nome).trim() : '';
+}
+function _ehDestinatarioChamada(paraNome){
+  if(!usuarioLogado || !paraNome) return false;
+  const p = String(paraNome).trim().toLowerCase();
+  if(usuarioLogado.isMaster){
+    return p === 'master' || p === String(usuarioLogado.nome||'').toLowerCase();
+  }
+  return p === String(usuarioLogado.lower || usuarioLogado.nome || '').toLowerCase();
+}
+
+function iniciarSomChamada(){
+  pararSomChamada();
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return;
+    const ctx = new AC();
+    _chamadaAudioCtx = ctx;
+    if(ctx.state === 'suspended') try{ ctx.resume(); }catch(e){}
+    const fim = Date.now() + CHAMADA_DURACAO_MS;
+    function bip(){
+      if(Date.now() >= fim){ pararSomChamada(); return; }
+      try{
+        if(ctx.state === 'suspended') ctx.resume();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = 'square';
+        o.frequency.value = 880;
+        g.gain.setValueAtTime(0.0001, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(ctx.currentTime);
+        o.stop(ctx.currentTime + 0.2);
+        setTimeout(()=>{
+          if(Date.now() >= fim || !_chamadaAudioCtx) return;
+          try{
+            const o2 = ctx.createOscillator();
+            const g2 = ctx.createGain();
+            o2.type = 'square';
+            o2.frequency.value = 1174.7;
+            g2.gain.setValueAtTime(0.0001, ctx.currentTime);
+            g2.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.02);
+            g2.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
+            o2.connect(g2); g2.connect(ctx.destination);
+            o2.start(ctx.currentTime);
+            o2.stop(ctx.currentTime + 0.2);
+          }catch(e){}
+        }, 220);
+      }catch(e){}
+    }
+    bip();
+    _chamadaSomInterval = setInterval(bip, 900);
+    _chamadaSomTimer = setTimeout(()=>{ pararSomChamada(); }, CHAMADA_DURACAO_MS + 200);
+  }catch(e){ console.warn('som chamada', e); }
+}
+function pararSomChamada(){
+  if(_chamadaSomInterval){ clearInterval(_chamadaSomInterval); _chamadaSomInterval = null; }
+  if(_chamadaSomTimer){ clearTimeout(_chamadaSomTimer); _chamadaSomTimer = null; }
+  if(_chamadaAudioCtx){
+    try{ _chamadaAudioCtx.close(); }catch(e){}
+    _chamadaAudioCtx = null;
+  }
+}
+function iniciarVibracaoChamada(){
+  pararVibracaoChamada();
+  try{
+    if(navigator.vibrate){
+      navigator.vibrate([250, 120, 250]);
+      _chamadaVibTimer = setInterval(()=>{
+        try{ navigator.vibrate([250, 120, 250]); }catch(e){}
+      }, 1000);
+    }
+  }catch(e){}
+}
+function pararVibracaoChamada(){
+  if(_chamadaVibTimer){ clearInterval(_chamadaVibTimer); _chamadaVibTimer = null; }
+  try{ if(navigator.vibrate) navigator.vibrate(0); }catch(e){}
+}
+function setBtnChamarUI(chamando){
+  const btn = document.getElementById('btnChamar');
+  const lbl = document.getElementById('lblBtnChamar');
+  if(!btn) return;
+  if(chamando){
+    btn.classList.add('chamando');
+    if(lbl) lbl.textContent = 'Chamando…';
+    else btn.innerHTML = '📞 <span class="hlbl" id="lblBtnChamar">Chamando…</span>';
+  } else {
+    btn.classList.remove('chamando');
+    if(lbl) lbl.textContent = 'Chamar';
+    else btn.innerHTML = '📞 <span class="hlbl" id="lblBtnChamar">Chamar</span>';
+  }
+}
+function setBtnMasterChamarUI(chamando){
+  const btn = document.getElementById('btnChamarMaster');
+  if(!btn) return;
+  if(chamando) btn.classList.add('chamando');
+  else btn.classList.remove('chamando');
+}
+
+function pararTudoChamadaLocal(){
+  pararSomChamada();
+  pararVibracaoChamada();
+  if(_chamadaExpireTimer){ clearTimeout(_chamadaExpireTimer); _chamadaExpireTimer = null; }
+  setBtnChamarUI(false);
+  setBtnMasterChamarUI(false);
+  const m = document.getElementById('modalChamadaRecebida');
+  if(m) m.style.display = 'none';
+  _chamadaRecebidaId = null;
+}
+
+async function toggleChamadaEntregador(){
+  if(!usuarioLogado || usuarioLogado.isMaster) return;
+  if(_chamadaAtivaId){
+    await cancelarMinhaChamada();
+    return;
+  }
+  await iniciarChamadaPara('MASTER');
+}
+
+async function iniciarChamadaPara(paraNome){
+  const de = _nomeChamadaLocal();
+  if(!de || !paraNome) return;
+  const client = getSb();
+  if(!client){ alert('Supabase não configurado'); return; }
+  try{
+    // encerra chamadas antigas minhas ainda abertas
+    try{
+      await client.from('chamadas_app').update({ status:'cancelado', updated_at: new Date().toISOString() })
+        .eq('de_nome', de).eq('status', 'chamando');
+    }catch(e){}
+    const {data, error} = await client.from('chamadas_app').insert({
+      de_nome: de,
+      para_nome: paraNome,
+      status: 'chamando',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }).select('id').maybeSingle();
+    if(error) throw error;
+    _chamadaAtivaId = data && data.id ? data.id : null;
+    // UI local do caller
+    if(usuarioLogado.isMaster){
+      setBtnMasterChamarUI(true);
+    } else {
+      setBtnChamarUI(true);
+      iniciarVibracaoChamada();
+    }
+    // auto-expira em 15s
+    if(_chamadaExpireTimer) clearTimeout(_chamadaExpireTimer);
+    _chamadaExpireTimer = setTimeout(async ()=>{
+      if(!_chamadaAtivaId) return;
+      try{
+        await client.from('chamadas_app').update({ status:'expirado', updated_at: new Date().toISOString() })
+          .eq('id', _chamadaAtivaId).eq('status', 'chamando');
+      }catch(e){}
+      _chamadaAtivaId = null;
+      setBtnChamarUI(false);
+      setBtnMasterChamarUI(false);
+      pararVibracaoChamada();
+    }, CHAMADA_DURACAO_MS);
+  }catch(e){
+    console.error('iniciarChamadaPara', e);
+    alert('Erro ao chamar: ' + (e.message||e) + '\n\nCrie a tabela chamadas_app no Supabase (SQL nas Configurações).');
+    _chamadaAtivaId = null;
+    setBtnChamarUI(false);
+    setBtnMasterChamarUI(false);
+  }
+}
+
+async function cancelarMinhaChamada(){
+  const id = _chamadaAtivaId;
+  _chamadaAtivaId = null;
+  setBtnChamarUI(false);
+  setBtnMasterChamarUI(false);
+  pararVibracaoChamada();
+  if(_chamadaExpireTimer){ clearTimeout(_chamadaExpireTimer); _chamadaExpireTimer = null; }
+  if(!id) return;
+  const client = getSb();
+  if(!client) return;
+  try{
+    await client.from('chamadas_app').update({ status:'cancelado', updated_at: new Date().toISOString() }).eq('id', id);
+  }catch(e){ console.warn(e); }
+}
+
+function mostrarModalChamadaRecebida(deNome, id){
+  _chamadaRecebidaId = id;
+  const m = document.getElementById('modalChamadaRecebida');
+  const nome = document.getElementById('chRecebidaNome');
+  const sub = document.getElementById('chRecebidaSub');
+  if(nome) nome.textContent = deNome || '—';
+  if(sub) sub.textContent = usuarioLogado && usuarioLogado.isMaster ? 'entregador está chamando…' : 'Master está chamando…';
+  if(m) m.style.display = 'flex';
+  iniciarSomChamada();
+  iniciarVibracaoChamada();
+  // auto-fecha som em 15s (status pode vir expirado via realtime)
+  if(_chamadaExpireTimer) clearTimeout(_chamadaExpireTimer);
+  _chamadaExpireTimer = setTimeout(()=>{
+    // se ainda recebendo, só para som; modal some quando status mudar
+    pararSomChamada();
+    pararVibracaoChamada();
+  }, CHAMADA_DURACAO_MS);
+}
+
+async function atenderChamadaRecebida(){
+  const id = _chamadaRecebidaId;
+  pararSomChamada();
+  pararVibracaoChamada();
+  const m = document.getElementById('modalChamadaRecebida');
+  if(m) m.style.display = 'none';
+  _chamadaRecebidaId = null;
+  if(!id) return;
+  const client = getSb();
+  if(!client) return;
+  try{
+    await client.from('chamadas_app').update({ status:'atendido', updated_at: new Date().toISOString() }).eq('id', id);
+  }catch(e){ console.warn(e); }
+}
+
+function onChamadaRealtime(payload){
+  if(!usuarioLogado) return;
+  const ev = payload.eventType || payload.event || '';
+  const row = payload.new || payload.record || null;
+  const old = payload.old || null;
+  if(!row && !old) return;
+
+  // INSERT ou UPDATE para status chamando → se sou o destinatário, mostrar
+  if(row && row.status === 'chamando' && _ehDestinatarioChamada(row.para_nome)){
+    // não receber a própria chamada
+    if(String(row.de_nome||'').toLowerCase() === String(_nomeChamadaLocal()).toLowerCase()) return;
+    if(_chamadaRecebidaId === row.id) return;
+    mostrarModalChamadaRecebida(row.de_nome, row.id);
+    return;
+  }
+
+  // status final na chamada que estou recebendo
+  if(row && _chamadaRecebidaId && row.id === _chamadaRecebidaId && row.status !== 'chamando'){
+    pararSomChamada();
+    pararVibracaoChamada();
+    const m = document.getElementById('modalChamadaRecebida');
+    if(m) m.style.display = 'none';
+    _chamadaRecebidaId = null;
+    return;
+  }
+
+  // status final na chamada que EU iniciei
+  if(row && _chamadaAtivaId && row.id === _chamadaAtivaId && row.status !== 'chamando'){
+    _chamadaAtivaId = null;
+    setBtnChamarUI(false);
+    setBtnMasterChamarUI(false);
+    pararVibracaoChamada();
+    if(_chamadaExpireTimer){ clearTimeout(_chamadaExpireTimer); _chamadaExpireTimer = null; }
+    if(row.status === 'atendido'){
+      try{
+        // feedback rápido no botão
+        const btn = document.getElementById(usuarioLogado.isMaster ? 'btnChamarMaster' : 'btnChamar');
+        if(btn){
+          const prev = btn.innerHTML;
+          btn.innerHTML = '✓ Atendeu';
+          setTimeout(()=>{ try{ atualizarBotoesChamada(); setBtnChamarUI(false); setBtnMasterChamarUI(false); if(!usuarioLogado.isMaster){ const l=document.getElementById('lblBtnChamar'); if(l)l.textContent='Chamar'; btn.innerHTML='📞 <span class="hlbl" id="lblBtnChamar">Chamar</span>'; } else btn.innerHTML='📞 <span class="hlbl">Chamar</span>'; }catch(e){} }, 2000);
+        }
+      }catch(e){}
+    }
+  }
+}
+
+async function iniciarMonitorChamadas(){
+  // ao logar, verifica se há chamada ativa para mim
+  if(!usuarioLogado) return;
+  const client = getSb();
+  if(!client) return;
+  try{
+    const para = usuarioLogado.isMaster ? 'MASTER' : _nomeChamadaLocal();
+    const {data} = await client.from('chamadas_app')
+      .select('id,de_nome,para_nome,status,created_at')
+      .eq('status', 'chamando')
+      .order('created_at', {ascending:false})
+      .limit(10);
+    const lista = data || [];
+    for(const c of lista){
+      if(!_ehDestinatarioChamada(c.para_nome)) continue;
+      if(String(c.de_nome||'').toLowerCase() === String(_nomeChamadaLocal()).toLowerCase()) continue;
+      // só se criada há menos de 15s
+      const t = new Date(c.created_at).getTime();
+      if(Date.now() - t > CHAMADA_DURACAO_MS) continue;
+      mostrarModalChamadaRecebida(c.de_nome, c.id);
+      break;
+    }
+  }catch(e){ console.warn('iniciarMonitorChamadas', e); }
+}
+
+function fecharModalMasterChamar(){
+  const m = document.getElementById('modalMasterChamar');
+  if(m) m.style.display = 'none';
+}
+async function abrirModalMasterChamar(){
+  if(!usuarioLogado || !usuarioLogado.isMaster) return;
+  // se já estou chamando, segundo clique cancela
+  if(_chamadaAtivaId){
+    await cancelarMinhaChamada();
+    return;
+  }
+  const m = document.getElementById('modalMasterChamar');
+  const lista = document.getElementById('masterChamarLista');
+  const st = document.getElementById('masterChamarStatus');
+  if(m) m.style.display = 'flex';
+  if(lista) lista.innerHTML = '';
+  if(st) st.textContent = '⏳ Carregando…';
+  const client = getSb();
+  if(!client){ if(st) st.textContent = 'Supabase não configurado'; return; }
+  try{
+    const {data, error} = await client.from('entregadores').select('id,nome,is_master,ativo').eq('ativo', true).order('nome');
+    if(error) throw error;
+    const ents = (data||[]).filter(e => e && e.nome && !e.is_master && String(e.nome).toLowerCase() !== 'master');
+    if(!ents.length){
+      if(st) st.textContent = 'Nenhum entregador ativo.';
+      return;
+    }
+    if(st) st.textContent = 'Toque para chamar (15s).';
+    if(lista){
+      lista.innerHTML = ents.map(e => {
+        const n = String(e.nome).replace(/'/g, "\\'");
+        return `<button class="btn" style="width:100%;text-align:left;padding:14px;font-weight:800" onclick="masterChamarEntregador('${n}')">🛵 ${e.nome} <span style="float:right;color:#6ab7ff;font-size:12px">Chamar →</span></button>`;
+      }).join('');
+    }
+  }catch(e){
+    if(st) st.textContent = 'Erro: '+(e.message||e);
+  }
+}
+async function masterChamarEntregador(nome){
+  fecharModalMasterChamar();
+  await iniciarChamadaPara(nome);
+}
+
+// =================== FIM CHAMADAS ===================
 
 (function(){
   document.getElementById('cfgUrl').value=localStorage.getItem('supabase_url')||DEFAULT_URL||'';
