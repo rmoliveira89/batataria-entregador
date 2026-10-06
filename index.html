@@ -308,7 +308,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
     <div style="font-size:13px;color:#e6e8ef;margin-top:4px" id="chRecebidaPedidoCliente"></div>
     <div style="font-size:11px;color:#8b93a7;margin-top:4px;line-height:1.35" id="chRecebidaPedidoEnd"></div>
   </div>
-  <div id="chRecebidaMsg" style="display:none;margin:0 0 12px;padding:10px 12px;background:#0e1118;border:1px solid #2c3340;border-radius:10px;font-size:13px;color:#e6e8ef;line-height:1.4;text-align:left;white-space:pre-wrap"></div>
+  <div id="chRecebidaMsg" style="display:none;margin:0 0 12px;padding:14px 14px;background:#1a1a0e;border:2px solid #f0c14a;border-radius:12px;font-size:16px;font-weight:800;color:#f0c14a;line-height:1.45;text-align:center;white-space:pre-wrap"></div>
   <button class="btn red" id="btnPararChamada" style="width:100%;padding:16px;font-size:16px;font-weight:900" onclick="atenderChamadaRecebida()">✓ OK, vi</button>
 </div>
 </div>
@@ -327,6 +327,30 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 </div>
 </div>
 
+<!-- MODAL ENTREGADOR CHAMAR MASTER -->
+<div id="modalEntChamar" class="overlay" style="display:none;z-index:250">
+<div class="card" style="width:100%;max-width:480px;margin:0;max-height:92vh;overflow:auto">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+<h3 style="margin:0;color:#f0c14a">🔔 Chamar a loja</h3>
+<button class="btn" onclick="fecharModalEntChamar()">✕</button>
+</div>
+<label style="font-size:11px;color:#8b93a7;font-weight:700">Mensagem rápida</label>
+<div style="display:flex;flex-direction:column;gap:6px;margin:6px 0 10px">
+  <button type="button" class="btn" style="width:100%;text-align:left;padding:12px 14px;font-weight:800;font-size:13px;background:#1c1c12;border-color:#5a4a2a;color:#f0c14a" onclick="entChamarMsgRapida('Cliente não atende')">📞 Cliente não atende</button>
+  <button type="button" class="btn" style="width:100%;text-align:left;padding:12px 14px;font-weight:800;font-size:13px;background:#1a1e2a;border-color:#2a3a5a;color:#6ab7ff" onclick="entChamarMsgRapida('Preciso de ajuda com pedido')">🆘 Preciso de ajuda com pedido</button>
+</div>
+<label style="font-size:11px;color:#8b93a7;font-weight:700">Ou escreva uma mensagem</label>
+<textarea id="entChamarMsg" rows="2" maxlength="200" placeholder="Texto breve para a loja…" style="width:100%;margin:6px 0 10px;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;background:#0e1118;color:#fff;font-family:inherit;font-size:13px;resize:vertical"></textarea>
+<div style="font-size:11px;color:#8b93a7;margin-bottom:8px">Marque o pedido com problema (ativos + finalizados até 40 min):</div>
+<div id="entChamarLista" style="display:flex;flex-direction:column;gap:6px;max-height:45vh;overflow:auto;margin-bottom:12px"></div>
+<div id="entChamarStatus" style="font-size:11px;color:#8b93a7;text-align:center;margin-bottom:8px;min-height:14px"></div>
+<div style="display:flex;gap:8px">
+<button class="btn" style="flex:1;padding:14px" onclick="fecharModalEntChamar()">Cancelar</button>
+<button class="btn primary" style="flex:1;padding:14px;font-weight:900" onclick="enviarChamadaEntregador()">🔔 Chamar</button>
+</div>
+</div>
+</div>
+
 <div id="loginScreen" class="overlay" style="z-index:300">
 <div class="card" style="width:100%;max-width:380px;">
 <h2 style="margin:0 0 6px;color:#f0c14a;text-align:center">🛵 A BATATARIA</h2>
@@ -342,7 +366,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 061026.142900</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 061026.151300</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -10042,18 +10066,22 @@ function desbloquearAudioChamada(){
         o.stop(_chamadaAudioCtx.currentTime + 0.02);
       }catch(e){}
     }
-    // pré-carrega HTMLAudio
+    // pré-carrega HTMLAudio em silêncio (sem bip)
     const uri = _getChamadaWavUri();
     if(uri){
       if(!_chamadaHtmlAudio){
         _chamadaHtmlAudio = new Audio(uri);
         _chamadaHtmlAudio.preload = 'auto';
-        _chamadaHtmlAudio.volume = 1;
+        _chamadaHtmlAudio.volume = 0;
       }
       try{
+        _chamadaHtmlAudio.volume = 0;
         _chamadaHtmlAudio.currentTime = 0;
         const p = _chamadaHtmlAudio.play();
-        if(p && p.then) p.then(()=>{ _chamadaHtmlAudio.pause(); _chamadaHtmlAudio.currentTime = 0; _chamadaAudioUnlocked = true; }).catch(()=>{});
+        if(p && p.then) p.then(()=>{
+          try{ _chamadaHtmlAudio.pause(); _chamadaHtmlAudio.currentTime = 0; _chamadaHtmlAudio.volume = 1; }catch(e){}
+          _chamadaAudioUnlocked = true;
+        }).catch(()=>{ try{ _chamadaHtmlAudio.volume = 1; }catch(e){} });
       }catch(e){}
     }
   }catch(e){}
@@ -10214,7 +10242,83 @@ async function toggleChamadaEntregador(){
     await cancelarMinhaChamada();
     return;
   }
-  await iniciarChamadaPara('MASTER');
+  abrirModalEntChamar();
+}
+
+function fecharModalEntChamar(){
+  const m = document.getElementById('modalEntChamar');
+  if(m) m.style.display = 'none';
+}
+
+function abrirModalEntChamar(){
+  if(!usuarioLogado || usuarioLogado.isMaster) return;
+  const m = document.getElementById('modalEntChamar');
+  const lista = document.getElementById('entChamarLista');
+  const st = document.getElementById('entChamarStatus');
+  const msgIn = document.getElementById('entChamarMsg');
+  if(msgIn) msgIn.value = '';
+  if(st) st.textContent = '';
+  if(m) m.style.display = 'flex';
+  const nome = _nomeChamadaLocal();
+  const peds = _pedidosAbertosDoEntregador(nome);
+  if(!lista) return;
+  if(!peds.length){
+    lista.innerHTML = '<div style="font-size:12px;color:#5a657a;padding:10px;text-align:center">Nenhum pedido em rota nem finalizado nos últimos 40 min.<br><span style="font-size:11px">Você ainda pode chamar a loja só com a mensagem.</span></div>';
+    return;
+  }
+  lista.innerHTML = peds.map((p, pi) => {
+    const num = String(p.numero_pedido||'—');
+    const cli = String(p.cliente_nome||'—');
+    const end = String(p.cliente_endereco||'—');
+    const id = String(p.id||'');
+    const stP = String(p.status||'');
+    const finalizado = (stP==='codigo_informado' || stP==='finalizado' || stP==='entregue');
+    const badge = finalizado ? '<span style="font-size:9px;font-weight:800;color:#3dcc8a;margin-left:6px">✓ finalizado</span>' : '<span style="font-size:9px;font-weight:800;color:#f0c14a;margin-left:6px">em rota</span>';
+    return `<label style="display:flex;gap:8px;align-items:flex-start;padding:8px;background:#0e1118;border:1px solid ${finalizado?'#2a5a3a':'#2c3340'};border-radius:8px;cursor:pointer">
+      <input type="checkbox" class="ech-ped" name="ech_ped" data-id="${id.replace(/"/g,'&quot;')}" data-num="${num.replace(/"/g,'&quot;')}" data-cli="${cli.replace(/"/g,'&quot;')}" data-end="${end.replace(/"/g,'&quot;')}" style="width:auto;margin-top:3px" onchange="entChamarPedExclusive(this)"/>
+      <span style="flex:1;min-width:0">
+        <b style="color:#f0c14a">#${num.replace(/</g,'')}</b>${badge}
+        <span style="display:block;font-size:12px;color:#e6e8ef">${cli.replace(/</g,'')}</span>
+        <span style="display:block;font-size:10px;color:#8b93a7;line-height:1.3">📍 ${end.replace(/</g,'')}</span>
+      </span>
+    </label>`;
+  }).join('');
+}
+
+function entChamarPedExclusive(el){
+  if(!el || !el.checked) return;
+  document.querySelectorAll('input.ech-ped').forEach(c=>{ if(c !== el) c.checked = false; });
+}
+
+/** Cola a mensagem padrão e envia o alerta para a loja na hora. */
+async function entChamarMsgRapida(texto){
+  const msgEl = document.getElementById('entChamarMsg');
+  if(msgEl) msgEl.value = texto || '';
+  await enviarChamadaEntregador();
+}
+
+async function enviarChamadaEntregador(){
+  if(!usuarioLogado || usuarioLogado.isMaster) return;
+  const msgEl = document.getElementById('entChamarMsg');
+  const mensagem = msgEl ? String(msgEl.value||'').trim() : '';
+  let pedido = null;
+  const checked = document.querySelector('input.ech-ped:checked');
+  if(checked){
+    pedido = {
+      pedido_numero: checked.getAttribute('data-num') || '',
+      pedido_cliente: checked.getAttribute('data-cli') || '',
+      pedido_endereco: checked.getAttribute('data-end') || ''
+    };
+  }
+  const st = document.getElementById('entChamarStatus');
+  if(st) st.textContent = 'Enviando…';
+  fecharModalEntChamar();
+  await iniciarChamadaPara('MASTER', {
+    mensagem: mensagem,
+    pedido_numero: pedido ? pedido.pedido_numero : '',
+    pedido_cliente: pedido ? pedido.pedido_cliente : '',
+    pedido_endereco: pedido ? pedido.pedido_endereco : ''
+  });
 }
 
 async function iniciarChamadaPara(paraNome, opts){
@@ -10254,11 +10358,9 @@ async function iniciarChamadaPara(paraNome, opts){
     if(usuarioLogado.isMaster){
       setBtnMasterChamarUI(true);
     } else {
+      // só UI local — som/vibração apenas no aparelho que RECEBE o alerta
       setBtnChamarUI(true);
-      iniciarVibracaoChamada();
     }
-    // feedback sonoro local curto no aparelho que ligou
-    try{ _tocarBipUnico(988, 0.12); }catch(e){}
     if(_chamadaExpireTimer) clearTimeout(_chamadaExpireTimer);
     const idExp = _chamadaAtivaId;
     _chamadaExpireTimer = setTimeout(async ()=>{
