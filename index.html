@@ -366,7 +366,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 061026.151300</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 061026.152100</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -609,6 +609,7 @@ alter table chamadas_app add column if not exists mensagem text;
 alter table chamadas_app add column if not exists pedido_numero text;
 alter table chamadas_app add column if not exists pedido_cliente text;
 alter table chamadas_app add column if not exists pedido_endereco text;
+alter table chamadas_app add column if not exists atendido_por text;
 -- Habilitar realtime (rode 1x; ignore erro se já estiver na publication)
 alter publication supabase_realtime add table chamadas_app;
 
@@ -10459,7 +10460,15 @@ async function atenderChamadaRecebida(){
   const client = getSb();
   if(!client) return;
   try{
-    await client.from('chamadas_app').update({ status:'atendido', updated_at: new Date().toISOString() }).eq('id', id);
+    const quem = _nomeChamadaLocal() || '';
+    const {error} = await client.from('chamadas_app').update({
+      status:'atendido',
+      updated_at: new Date().toISOString(),
+      atendido_por: quem
+    }).eq('id', id);
+    if(error && /atendido_por|column/i.test(error.message||'')){
+      await client.from('chamadas_app').update({ status:'atendido', updated_at: new Date().toISOString() }).eq('id', id);
+    }
   }catch(e){ console.warn(e); }
 }
 
@@ -10513,7 +10522,14 @@ function processarLinhaChamada(row){
     if(_chamadaExpireTimer){ clearTimeout(_chamadaExpireTimer); _chamadaExpireTimer = null; }
     if(eraAtendido){
       try{
-        const quem = row.para_nome || (usuarioLogado && usuarioLogado.isMaster ? 'Entregador' : 'Master');
+        let quem = (row.atendido_por && String(row.atendido_por).trim()) ? String(row.atendido_por).trim() : '';
+        if(!quem){
+          // fallback: se para era MASTER, não mostrar a palavra Master
+          const para = String(row.para_nome||'').trim();
+          if(para && para.toLowerCase() !== 'master') quem = para;
+          else quem = 'Loja';
+        }
+        if(String(quem).toLowerCase() === 'master') quem = 'Loja';
         notificarAlertaVisto(quem);
         const btn = document.getElementById(usuarioLogado.isMaster ? 'btnChamarMaster' : 'btnChamar');
         if(btn){
@@ -10543,7 +10559,7 @@ async function pollChamadas(){
   if(!client) return;
   try{
     const {data, error} = await client.from('chamadas_app')
-      .select('id,de_nome,para_nome,status,mensagem,pedido_numero,pedido_cliente,pedido_endereco,created_at,updated_at')
+      .select('id,de_nome,para_nome,status,mensagem,pedido_numero,pedido_cliente,pedido_endereco,atendido_por,created_at,updated_at')
       .eq('status', 'chamando')
       .order('created_at', {ascending:false})
       .limit(20);
@@ -10557,7 +10573,7 @@ async function pollChamadas(){
     if(_chamadaAtivaId && !lista.some(c => c.id === _chamadaAtivaId)){
       // busca status final
       try{
-        const {data: one} = await client.from('chamadas_app').select('id,status,de_nome,para_nome').eq('id', _chamadaAtivaId).maybeSingle();
+        const {data: one} = await client.from('chamadas_app').select('id,status,de_nome,para_nome,atendido_por').eq('id', _chamadaAtivaId).maybeSingle();
         if(one) processarLinhaChamada(one);
         else {
           _chamadaAtivaId = null;
@@ -10570,7 +10586,7 @@ async function pollChamadas(){
     // se estava recebendo e a chamada não está mais chamando
     if(_chamadaRecebidaId && !lista.some(c => c.id === _chamadaRecebidaId)){
       try{
-        const {data: one} = await client.from('chamadas_app').select('id,status,de_nome,para_nome').eq('id', _chamadaRecebidaId).maybeSingle();
+        const {data: one} = await client.from('chamadas_app').select('id,status,de_nome,para_nome,atendido_por').eq('id', _chamadaRecebidaId).maybeSingle();
         if(one) processarLinhaChamada(one);
         else {
           pararSomChamada(false);
