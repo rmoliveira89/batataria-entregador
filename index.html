@@ -784,6 +784,20 @@ select '06:00','15:59','16:00','05:59','07:00','23:30',5,false where not exists 
 </div>
 <div id="masterModalInfo" style="background:#0e1118;border:1px solid #2c3340;border-radius:10px;padding:10px;font-size:11px;color:#8b93a7;margin-bottom:12px"></div>
 
+<div id="masterCodigoBloco" style="display:none;margin-bottom:12px;padding:12px;background:#0e1118;border:1px solid #2a5a3a;border-radius:12px">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;font-size:13px;color:#e6e8ef;font-weight:800">
+      <input type="checkbox" id="masterCodigoErrado" style="width:auto;width:18px;height:18px" onchange="onMasterCodigoErradoToggle()"/>
+      <span style="color:#ff6b6b">Errado</span>
+    </label>
+    <div style="flex:1;min-width:120px;text-align:center">
+      <div style="font-size:10px;color:#8b93a7;font-weight:700;letter-spacing:0.06em;margin-bottom:4px">CÓDIGO</div>
+      <div id="masterCodigoValor" style="font-size:26px;font-weight:900;color:#3dcc8a;letter-spacing:0.25em"></div>
+    </div>
+  </div>
+  <div id="masterCodigoStatus" style="font-size:11px;text-align:center;margin-top:8px;min-height:14px;color:#8b93a7"></div>
+</div>
+
 <div id="masterModalAcoesGerais" class="master-modal-actions"></div>
 
 <div style="margin-top:14px">
@@ -6591,6 +6605,7 @@ async function abrirModalMasterPedido(pedidoId){
     ${pagLine}
     <div style="margin-top:6px">Entregador atual: <b style="color:#6ab7ff">${nomeReserva||'⏳ Em espera (sem entregador)'}</b></div>
   `;
+  try{ atualizarMasterCodigoBloco(p); }catch(e){ console.warn(e); }
 
   const custoBloq = isPedidoCustoBloqueado(p);
   let acoes = '';
@@ -6654,6 +6669,12 @@ function fecharModalMasterPedido(){
   document.getElementById('modalMasterPedido').style.display='none';
   masterPedidoSelecionadoId=null;
   masterGrupoSelecionadoId=null;
+  const box = document.getElementById('masterCodigoBloco');
+  if(box) box.style.display = 'none';
+  const chk = document.getElementById('masterCodigoErrado');
+  if(chk) chk.checked = false;
+  const st = document.getElementById('masterCodigoStatus');
+  if(st){ st.textContent = ''; st.style.color = '#8b93a7'; }
 }
 
 let envioPendente = null; // { tipo:'pedido'|'grupo', pedidoId?, gid?, novoNome, acao }
@@ -8395,6 +8416,138 @@ async function executarReativarPedidoConfirmado(){
 // --- MODAL MODO ENTREGADOR - LOCALIZADOR + IFOOD ---
 let pedidoConfirmAtual = null;
 
+/** Código 4 dígitos já cadastrado (não vazio / não 0000 / não rótulo de plataforma). */
+function codigoClienteOferecer(c){
+  if(c==null || c==='') return '';
+  const raw = String(c).trim();
+  if(!raw) return '';
+  const up = raw.toUpperCase();
+  if(up==='IFOOD' || up==='WA' || up==='AIQFOME' || up==='MASTER' || up.startsWith('AUTO-') || up.startsWith('EXTERNO')) return '';
+  const dig = raw.replace(/\D/g,'').slice(0,4);
+  if(dig.length!==4) return '';
+  if(dig==='0000') return '';
+  if(!/^\d{4}$/.test(dig)) return '';
+  return dig;
+}
+
+/** Cache: numero_pedido → último código 4 dígitos válido (histórico). */
+const _cacheCodigosHist = {};
+
+async function buscarCodigoHistoricoPedido(pedido){
+  if(!pedido) return '';
+  const direto = codigoClienteOferecer(pedido.codigo_cliente);
+  if(direto) return direto;
+  const num = String(pedido.numero_pedido||'').replace(/^#/,'').trim();
+  if(!num) return '';
+  const chaveCache = num + '|' + String(pedido.data||'').slice(0,10);
+  if(_cacheCodigosHist[chaveCache]) return _cacheCodigosHist[chaveCache];
+  const client = getSb();
+  if(!client || !navigator.onLine) return '';
+  try{
+    const variantes = Array.from(new Set([
+      num, num.toUpperCase(), num.toLowerCase(),
+      String(num).replace(/^0+/,''), '#'+num
+    ].filter(Boolean)));
+    let rows = [];
+    const {data, error} = await client.from('confirmacoes_entregas')
+      .select('codigo_cliente,numero_pedido,created_at,data')
+      .in('numero_pedido', variantes)
+      .order('created_at', {ascending:false})
+      .limit(30);
+    if(error){
+      const {data: d2} = await client.from('confirmacoes_entregas')
+        .select('codigo_cliente,numero_pedido,created_at,data')
+        .in('numero_pedido', variantes)
+        .limit(30);
+      rows = d2 || [];
+    } else {
+      rows = data || [];
+    }
+    for(const r of rows){
+      const cod = codigoClienteOferecer(r && r.codigo_cliente);
+      if(cod){
+        _cacheCodigosHist[chaveCache] = cod;
+        return cod;
+      }
+    }
+  }catch(e){ console.warn('buscarCodigoHistoricoPedido', e); }
+  return '';
+}
+
+/** Master: exibe código atual no modal do pedido + checkbox Errado. */
+async function atualizarMasterCodigoBloco(pedido){
+  const box = document.getElementById('masterCodigoBloco');
+  const valEl = document.getElementById('masterCodigoValor');
+  const chk = document.getElementById('masterCodigoErrado');
+  const st = document.getElementById('masterCodigoStatus');
+  if(!box) return;
+  if(chk) chk.checked = false;
+  if(st){ st.textContent = ''; st.style.color = '#8b93a7'; }
+  if(!pedido){ box.style.display = 'none'; return; }
+  let cod = codigoClienteOferecer(pedido.codigo_cliente);
+  // se no pedido estiver vazio (ex.: reativado), tenta histórico
+  if(!cod){
+    try{ cod = await buscarCodigoHistoricoPedido(pedido); }catch(e){}
+  }
+  // se ainda for o mesmo pedido aberto
+  if(masterPedidoSelecionadoId !== pedido.id) return;
+  if(cod){
+    if(valEl) valEl.textContent = cod;
+    box.style.display = 'block';
+  } else {
+    // mostra também se codigo_cliente for 0000 ou texto gravado (para master ver o atual)
+    const raw = (pedido.codigo_cliente != null && String(pedido.codigo_cliente).trim()) ? String(pedido.codigo_cliente).trim() : '';
+    if(raw && raw !== '0000'){
+      // rótulos tipo IFOOD — mostra como está, sem checkbox de 4 dígitos? User asked for codigo atual
+      if(valEl) valEl.textContent = raw;
+      box.style.display = 'block';
+    } else if(raw === '0000'){
+      if(valEl) valEl.textContent = '0000';
+      box.style.display = 'block';
+      if(chk) chk.checked = true;
+    } else {
+      if(valEl) valEl.textContent = '—';
+      box.style.display = 'block';
+    }
+  }
+}
+
+async function onMasterCodigoErradoToggle(){
+  const chk = document.getElementById('masterCodigoErrado');
+  const st = document.getElementById('masterCodigoStatus');
+  const valEl = document.getElementById('masterCodigoValor');
+  if(!chk || !chk.checked) return;
+  if(!usuarioLogado?.isMaster){ chk.checked = false; return; }
+  const id = masterPedidoSelecionadoId;
+  if(!id){ chk.checked = false; return; }
+  const p = (todosPedidos||[]).find(x=>x.id===id);
+  if(!p){ chk.checked = false; return; }
+  const client = getSb();
+  if(!client){
+    if(st){ st.textContent = '❌ Supabase não configurado'; st.style.color = '#ff6b6b'; }
+    chk.checked = false;
+    return;
+  }
+  if(st){ st.textContent = '…'; st.style.color = '#f0c14a'; }
+  try{
+    const {error} = await client.from('pedidos_entrega_dia').update({ codigo_cliente: '0000' }).eq('id', id);
+    if(error) throw error;
+    const idx = todosPedidos.findIndex(x=>x.id===id);
+    if(idx>=0) todosPedidos[idx].codigo_cliente = '0000';
+    if(valEl) valEl.textContent = '0000';
+    if(st){ st.textContent = '✓'; st.style.color = '#3dcc8a'; }
+    // invalida cache histórico deste número
+    try{
+      const num = String(p.numero_pedido||'').replace(/^#/,'').trim();
+      Object.keys(_cacheCodigosHist).forEach(k=>{ if(k.startsWith(num+'|')) delete _cacheCodigosHist[k]; });
+    }catch(e){}
+  }catch(e){
+    console.warn('onMasterCodigoErradoToggle', e);
+    if(st){ st.textContent = '❌ '+(e.message||e); st.style.color = '#ff6b6b'; }
+    chk.checked = false;
+  }
+}
+
 function abrirConfirmacaoEntregador(pedido){
   pedidoConfirmAtual = pedido;
   document.getElementById('confNumero').textContent = pedido.numero_pedido;
@@ -8588,7 +8741,7 @@ function enfileirarConfirmacaoOffline(item){
 }
 
 /** Tenta gravar no Supabase: histórico + status do pedido. Retorna true se ok. */
-async function gravarConfirmacaoEntregadorNoSupabase({pedido, localizador, nomeEntregador}){
+async function gravarConfirmacaoEntregadorNoSupabase({pedido, localizador, nomeEntregador, codigoCliente}){
   if(!pedido || !pedido.id) return false;
   if(jaConfirmadoLocal(pedido.id) && navigator.onLine){
     // Já marcado localmente — tenta só o que faltar na fila; evita insert duplicado no histórico
@@ -8596,11 +8749,14 @@ async function gravarConfirmacaoEntregadorNoSupabase({pedido, localizador, nomeE
   const client = getSb();
   if(!client) return false;
   try{
+    const _codSalvar = (codigoCliente != null && codigoCliente !== '')
+      ? String(codigoCliente)
+      : 'IFOOD';
     // 1) Histórico (só se ainda não enviamos este pedido_id nesta sessão/dispositivo)
     if(!jaConfirmadoLocal(pedido.id)){
       await registrarConfirmacaoSupabase({
         numero_pedido: pedido.numero_pedido,
-        codigo_cliente: null,
+        codigo_cliente: _codSalvar === 'IFOOD' ? null : _codSalvar,
         localizador: localizador,
         nome_entregador: nomeEntregador,
         modo: 'entregador',
@@ -8613,7 +8769,7 @@ async function gravarConfirmacaoEntregadorNoSupabase({pedido, localizador, nomeE
       status:'codigo_informado',
       entregador_nome: nomeEntregador,
       codigo_informado_em: new Date().toISOString(),
-      codigo_cliente: 'IFOOD'
+      codigo_cliente: _codSalvar
     }).eq('id', pedido.id);
     if(error) throw error;
     marcarConfirmadoLocal(pedido.id);
@@ -8621,7 +8777,7 @@ async function gravarConfirmacaoEntregadorNoSupabase({pedido, localizador, nomeE
     const idx = todosPedidos.findIndex(x=>x.id===pedido.id);
     if(idx>=0){
       todosPedidos[idx].status='codigo_informado';
-      todosPedidos[idx].codigo_cliente='IFOOD';
+      todosPedidos[idx].codigo_cliente=_codSalvar;
       todosPedidos[idx].entregador_nome=nomeEntregador;
     }
     return true;
@@ -8657,7 +8813,8 @@ async function processarFilaConfirmacoesOffline(){
         ok = await gravarConfirmacaoEntregadorNoSupabase({
           pedido,
           localizador: item.localizador,
-          nomeEntregador: item.nome_entregador
+          nomeEntregador: item.nome_entregador,
+          codigoCliente: item.codigo_cliente
         });
       }
       if(!ok) restantes.push(item);
@@ -9226,24 +9383,27 @@ async function copiarLocalizador(){
         todosPedidos[idx].entregador_nome=nomeEntregador;
       }
     } else if(!navigator.onLine){
+      const _codOff = 'IFOOD';
       enfileirarConfirmacaoOffline({
         pedido_id: pedido.id,
         numero_pedido: pedido.numero_pedido,
         localizador: v,
         nome_entregador: nomeEntregador,
         cliente_nome: pedido.cliente_nome,
-        loja: pedido.loja
+        loja: pedido.loja,
+        codigo_cliente: _codOff
       });
       // marca visualmente como confirmado no aparelho; sobe ao sincronizar
       const idx = todosPedidos.findIndex(x=>x.id===pedido.id);
       if(idx>=0){
         todosPedidos[idx].status='codigo_informado';
-        todosPedidos[idx].codigo_cliente='IFOOD';
+        todosPedidos[idx].codigo_cliente=_codOff;
         todosPedidos[idx].entregador_nome=nomeEntregador;
       }
       statusGravacao = 'offline (fila)';
     } else {
-      const ok = await gravarConfirmacaoEntregadorNoSupabase({pedido, localizador: v, nomeEntregador});
+      const _codOn = 'IFOOD';
+      const ok = await gravarConfirmacaoEntregadorNoSupabase({pedido, localizador: v, nomeEntregador, codigoCliente: _codOn});
       if(ok){
         statusGravacao = 'gravado';
       } else {
@@ -9253,7 +9413,8 @@ async function copiarLocalizador(){
           localizador: v,
           nome_entregador: nomeEntregador,
           cliente_nome: pedido.cliente_nome,
-          loja: pedido.loja
+          loja: pedido.loja,
+          codigo_cliente: _codOn
         });
         statusGravacao = 'fila (falha rede)';
       }
@@ -9309,7 +9470,8 @@ function abrirConfirmacaoAutomatico(pedido, opts){
   if(titulo) titulo.textContent = opts.editar ? '✏️ Editar código' : '🔢 Informar código';
   const inp = document.getElementById('autoModalCodigo');
   if(inp){
-    inp.value = opts.codigoAtual ? String(opts.codigoAtual).replace(/\D/g,'').slice(0,4) : '';
+    // sem autopreenchimento — código existente (se houver) só é exibido no bloco acima
+    inp.value = '';
     inp.disabled = false;
   }
   const st = document.getElementById('autoModalStatus');
