@@ -298,11 +298,11 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <!-- MODAL CHAMADA RECEBIDA -->
 <div id="modalChamadaRecebida" class="overlay" style="display:none;z-index:9995" role="dialog" aria-modal="true">
 <div class="card" style="width:100%;max-width:380px;margin:0;padding:20px 16px 16px;text-align:center">
-  <div style="font-size:36px;line-height:1;margin-bottom:6px">📞</div>
-  <h3 style="margin:0 0 4px;color:#ff6b6b;font-size:16px;font-weight:900">Chamada</h3>
+  <div style="font-size:36px;line-height:1;margin-bottom:6px">🔔</div>
+  <h3 style="margin:0 0 4px;color:#ff6b6b;font-size:16px;font-weight:900">Atenção</h3>
   <div class="ch-nome" id="chRecebidaNome">—</div>
-  <div class="ch-sub" id="chRecebidaSub">está chamando…</div>
-  <button class="btn red" id="btnPararChamada" style="width:100%;padding:16px;font-size:16px;font-weight:900" onclick="atenderChamadaRecebida()">⏹ Parar</button>
+  <div class="ch-sub" id="chRecebidaSub">está pedindo atenção</div>
+  <button class="btn red" id="btnPararChamada" style="width:100%;padding:16px;font-size:16px;font-weight:900" onclick="atenderChamadaRecebida()">✓ OK, vi</button>
 </div>
 </div>
 
@@ -310,7 +310,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <div id="modalMasterChamar" class="overlay" style="display:none;z-index:250">
 <div class="card" style="width:100%;max-width:420px;margin:0">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-<h3 style="margin:0;color:#6ab7ff">📞 Chamar entregador</h3>
+<h3 style="margin:0;color:#6ab7ff">🔔 Chamar atenção</h3>
 <button class="btn" onclick="fecharModalMasterChamar()">✕</button>
 </div>
 <div id="masterChamarStatus" style="font-size:11px;color:#8b93a7;margin-bottom:8px;text-align:center"></div>
@@ -338,8 +338,8 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
 <div class="hdr-actions">
-<button class="btn" id="btnChamar" onclick="toggleChamadaEntregador()" style="display:none;font-size:11px;padding:8px 10px;background:#3a1a1a;border-color:#5a2a2a;color:#ff6b6b" title="Chamar o Master">📞 <span class="hlbl" id="lblBtnChamar">Chamar</span></button>
-<button class="btn" id="btnChamarMaster" onclick="abrirModalMasterChamar()" style="display:none;font-size:11px;padding:8px 10px;background:#1a2a3a;border-color:#2a4a5a;color:#6ab7ff" title="Chamar entregador">📞 <span class="hlbl">Chamar</span></button>
+<button class="btn" id="btnChamar" onclick="toggleChamadaEntregador()" style="display:none;font-size:11px;padding:8px 10px;background:#3a1a1a;border-color:#5a2a2a;color:#ff6b6b" title="Chamar atenção do Master">🔔 <span class="hlbl" id="lblBtnChamar">Chamar</span></button>
+<button class="btn" id="btnChamarMaster" onclick="abrirModalMasterChamar()" style="display:none;font-size:11px;padding:8px 10px;background:#1a2a3a;border-color:#2a4a5a;color:#6ab7ff" title="Chamar atenção do entregador">🔔 <span class="hlbl">Chamar</span></button>
 <button class="btn" id="btnDinheiro" onclick="abrirModalDinheiro()" style="display:none;font-size:11px;padding:8px 10px;position:relative;background:#1a2a1a;border-color:#2a5a3a;color:#3dcc8a" title="Controle de dinheiro (somente leitura)">
   💵 <span id="badgeDinheiro" style="display:none;position:absolute;top:-6px;right:-6px;background:#ff6b6b;color:#fff;font-size:10px;font-weight:900;min-width:18px;height:18px;border-radius:999px;align-items:center;justify-content:center;padding:0 4px">0</span>
 </button>
@@ -9934,13 +9934,16 @@ ajustarAlturaHeader();
 
 
 // ===================== CHAMADAS (entregador ↔ Master) =====================
-let _chamadaAtivaId = null;       // id da chamada que EU iniciei
-let _chamadaRecebidaId = null;    // id da chamada que estou recebendo
+let _chamadaAtivaId = null;
+let _chamadaRecebidaId = null;
 let _chamadaSomTimer = null;
 let _chamadaSomInterval = null;
 let _chamadaAudioCtx = null;
 let _chamadaVibTimer = null;
 let _chamadaExpireTimer = null;
+let _chamadaPollTimer = null;
+let _chamadaAudioUnlocked = false;
+let _chamadaSeenIds = {};
 const CHAMADA_DURACAO_MS = 15000;
 
 function atualizarBotoesChamada(){
@@ -9952,9 +9955,7 @@ function atualizarBotoesChamada(){
     return;
   }
   const isMaster = !!usuarioLogado.isMaster;
-  // entregador (ou conta via Master): botão Chamar Master
   if(btnE) btnE.style.display = isMaster ? 'none' : 'inline-block';
-  // Master real: botão para chamar entregadores
   if(btnM) btnM.style.display = isMaster ? 'inline-block' : 'none';
 }
 
@@ -9970,55 +9971,78 @@ function _ehDestinatarioChamada(paraNome){
   return p === String(usuarioLogado.lower || usuarioLogado.nome || '').toLowerCase();
 }
 
-function iniciarSomChamada(){
-  pararSomChamada();
+/** Desbloqueia áudio no 1º toque (obrigatório no Chrome/Android/iOS). */
+function desbloquearAudioChamada(){
   try{
     const AC = window.AudioContext || window.webkitAudioContext;
     if(!AC) return;
-    const ctx = new AC();
-    _chamadaAudioCtx = ctx;
-    if(ctx.state === 'suspended') try{ ctx.resume(); }catch(e){}
-    const fim = Date.now() + CHAMADA_DURACAO_MS;
-    function bip(){
-      if(Date.now() >= fim){ pararSomChamada(); return; }
-      try{
-        if(ctx.state === 'suspended') ctx.resume();
-        const o = ctx.createOscillator();
-        const g = ctx.createGain();
-        o.type = 'square';
-        o.frequency.value = 880;
-        g.gain.setValueAtTime(0.0001, ctx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
-        o.connect(g); g.connect(ctx.destination);
-        o.start(ctx.currentTime);
-        o.stop(ctx.currentTime + 0.2);
-        setTimeout(()=>{
-          if(Date.now() >= fim || !_chamadaAudioCtx) return;
-          try{
-            const o2 = ctx.createOscillator();
-            const g2 = ctx.createGain();
-            o2.type = 'square';
-            o2.frequency.value = 1174.7;
-            g2.gain.setValueAtTime(0.0001, ctx.currentTime);
-            g2.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.02);
-            g2.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
-            o2.connect(g2); g2.connect(ctx.destination);
-            o2.start(ctx.currentTime);
-            o2.stop(ctx.currentTime + 0.2);
-          }catch(e){}
-        }, 220);
-      }catch(e){}
+    if(!_chamadaAudioCtx || _chamadaAudioCtx.state === 'closed'){
+      _chamadaAudioCtx = new AC();
     }
-    bip();
-    _chamadaSomInterval = setInterval(bip, 900);
-    _chamadaSomTimer = setTimeout(()=>{ pararSomChamada(); }, CHAMADA_DURACAO_MS + 200);
-  }catch(e){ console.warn('som chamada', e); }
+    if(_chamadaAudioCtx.state === 'suspended'){
+      _chamadaAudioCtx.resume().then(()=>{ _chamadaAudioUnlocked = true; }).catch(()=>{});
+    } else {
+      _chamadaAudioUnlocked = true;
+    }
+    // bip silencioso para "armar" o contexto
+    try{
+      const o = _chamadaAudioCtx.createOscillator();
+      const g = _chamadaAudioCtx.createGain();
+      g.gain.value = 0.0001;
+      o.connect(g); g.connect(_chamadaAudioCtx.destination);
+      o.start();
+      o.stop(_chamadaAudioCtx.currentTime + 0.01);
+    }catch(e){}
+  }catch(e){}
 }
-function pararSomChamada(){
+(function _armAudioUnlock(){
+  const once = ()=>{ desbloquearAudioChamada(); };
+  ['pointerdown','touchstart','click','keydown'].forEach(ev=>{
+    document.addEventListener(ev, once, {capture:true, passive:true});
+  });
+})();
+
+function _tocarBipUnico(freq, dur){
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return;
+    if(!_chamadaAudioCtx || _chamadaAudioCtx.state === 'closed'){
+      _chamadaAudioCtx = new AC();
+    }
+    const ctx = _chamadaAudioCtx;
+    if(ctx.state === 'suspended') ctx.resume();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'square';
+    o.frequency.value = freq || 880;
+    const t0 = ctx.currentTime;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.22, t0 + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + (dur || 0.18));
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t0);
+    o.stop(t0 + (dur || 0.2));
+  }catch(e){ console.warn('bip', e); }
+}
+
+function iniciarSomChamada(){
+  pararSomChamada(false);
+  desbloquearAudioChamada();
+  const fim = Date.now() + CHAMADA_DURACAO_MS;
+  function ciclo(){
+    if(Date.now() >= fim){ pararSomChamada(false); return; }
+    _tocarBipUnico(880, 0.16);
+    setTimeout(()=>{ if(Date.now() < fim) _tocarBipUnico(1175, 0.16); }, 200);
+  }
+  ciclo();
+  _chamadaSomInterval = setInterval(ciclo, 850);
+  _chamadaSomTimer = setTimeout(()=>{ pararSomChamada(false); }, CHAMADA_DURACAO_MS + 100);
+}
+function pararSomChamada(fecharCtx){
   if(_chamadaSomInterval){ clearInterval(_chamadaSomInterval); _chamadaSomInterval = null; }
   if(_chamadaSomTimer){ clearTimeout(_chamadaSomTimer); _chamadaSomTimer = null; }
-  if(_chamadaAudioCtx){
+  // NÃO fecha o AudioContext por padrão — mantém desbloqueado para próxima chamada
+  if(fecharCtx && _chamadaAudioCtx){
     try{ _chamadaAudioCtx.close(); }catch(e){}
     _chamadaAudioCtx = null;
   }
@@ -10027,10 +10051,10 @@ function iniciarVibracaoChamada(){
   pararVibracaoChamada();
   try{
     if(navigator.vibrate){
-      navigator.vibrate([250, 120, 250]);
+      navigator.vibrate([300, 100, 300]);
       _chamadaVibTimer = setInterval(()=>{
-        try{ navigator.vibrate([250, 120, 250]); }catch(e){}
-      }, 1000);
+        try{ navigator.vibrate([300, 100, 300]); }catch(e){}
+      }, 900);
     }
   }catch(e){}
 }
@@ -10044,12 +10068,12 @@ function setBtnChamarUI(chamando){
   if(!btn) return;
   if(chamando){
     btn.classList.add('chamando');
-    if(lbl) lbl.textContent = 'Chamando…';
-    else btn.innerHTML = '📞 <span class="hlbl" id="lblBtnChamar">Chamando…</span>';
+    if(lbl) lbl.textContent = 'Aguardando…';
+    else btn.innerHTML = '🔔 <span class="hlbl" id="lblBtnChamar">Aguardando…</span>';
   } else {
     btn.classList.remove('chamando');
     if(lbl) lbl.textContent = 'Chamar';
-    else btn.innerHTML = '📞 <span class="hlbl" id="lblBtnChamar">Chamar</span>';
+    else btn.innerHTML = '🔔 <span class="hlbl" id="lblBtnChamar">Chamar</span>';
   }
 }
 function setBtnMasterChamarUI(chamando){
@@ -10060,7 +10084,7 @@ function setBtnMasterChamarUI(chamando){
 }
 
 function pararTudoChamadaLocal(){
-  pararSomChamada();
+  pararSomChamada(false);
   pararVibracaoChamada();
   if(_chamadaExpireTimer){ clearTimeout(_chamadaExpireTimer); _chamadaExpireTimer = null; }
   setBtnChamarUI(false);
@@ -10068,9 +10092,11 @@ function pararTudoChamadaLocal(){
   const m = document.getElementById('modalChamadaRecebida');
   if(m) m.style.display = 'none';
   _chamadaRecebidaId = null;
+  _chamadaAtivaId = null;
 }
 
 async function toggleChamadaEntregador(){
+  desbloquearAudioChamada();
   if(!usuarioLogado || usuarioLogado.isMaster) return;
   if(_chamadaAtivaId){
     await cancelarMinhaChamada();
@@ -10080,12 +10106,12 @@ async function toggleChamadaEntregador(){
 }
 
 async function iniciarChamadaPara(paraNome){
+  desbloquearAudioChamada();
   const de = _nomeChamadaLocal();
   if(!de || !paraNome) return;
   const client = getSb();
   if(!client){ alert('Supabase não configurado'); return; }
   try{
-    // encerra chamadas antigas minhas ainda abertas
     try{
       await client.from('chamadas_app').update({ status:'cancelado', updated_at: new Date().toISOString() })
         .eq('de_nome', de).eq('status', 'chamando');
@@ -10099,25 +10125,28 @@ async function iniciarChamadaPara(paraNome){
     }).select('id').maybeSingle();
     if(error) throw error;
     _chamadaAtivaId = data && data.id ? data.id : null;
-    // UI local do caller
     if(usuarioLogado.isMaster){
       setBtnMasterChamarUI(true);
     } else {
       setBtnChamarUI(true);
       iniciarVibracaoChamada();
     }
-    // auto-expira em 15s
+    // feedback sonoro local curto no aparelho que ligou
+    try{ _tocarBipUnico(988, 0.12); }catch(e){}
     if(_chamadaExpireTimer) clearTimeout(_chamadaExpireTimer);
+    const idExp = _chamadaAtivaId;
     _chamadaExpireTimer = setTimeout(async ()=>{
-      if(!_chamadaAtivaId) return;
+      if(!_chamadaAtivaId || _chamadaAtivaId !== idExp) return;
       try{
         await client.from('chamadas_app').update({ status:'expirado', updated_at: new Date().toISOString() })
-          .eq('id', _chamadaAtivaId).eq('status', 'chamando');
+          .eq('id', idExp).eq('status', 'chamando');
       }catch(e){}
-      _chamadaAtivaId = null;
-      setBtnChamarUI(false);
-      setBtnMasterChamarUI(false);
-      pararVibracaoChamada();
+      if(_chamadaAtivaId === idExp){
+        _chamadaAtivaId = null;
+        setBtnChamarUI(false);
+        setBtnMasterChamarUI(false);
+        pararVibracaoChamada();
+      }
     }, CHAMADA_DURACAO_MS);
   }catch(e){
     console.error('iniciarChamadaPara', e);
@@ -10144,27 +10173,23 @@ async function cancelarMinhaChamada(){
 }
 
 function mostrarModalChamadaRecebida(deNome, id){
+  if(_chamadaRecebidaId === id) return;
   _chamadaRecebidaId = id;
+  _chamadaSeenIds[id] = true;
   const m = document.getElementById('modalChamadaRecebida');
   const nome = document.getElementById('chRecebidaNome');
   const sub = document.getElementById('chRecebidaSub');
   if(nome) nome.textContent = deNome || '—';
-  if(sub) sub.textContent = usuarioLogado && usuarioLogado.isMaster ? 'entregador está chamando…' : 'Master está chamando…';
+  if(sub) sub.textContent = usuarioLogado && usuarioLogado.isMaster ? 'pediu atenção da loja' : 'a loja pediu sua atenção';
   if(m) m.style.display = 'flex';
   iniciarSomChamada();
   iniciarVibracaoChamada();
-  // auto-fecha som em 15s (status pode vir expirado via realtime)
-  if(_chamadaExpireTimer) clearTimeout(_chamadaExpireTimer);
-  _chamadaExpireTimer = setTimeout(()=>{
-    // se ainda recebendo, só para som; modal some quando status mudar
-    pararSomChamada();
-    pararVibracaoChamada();
-  }, CHAMADA_DURACAO_MS);
 }
 
 async function atenderChamadaRecebida(){
+  desbloquearAudioChamada();
   const id = _chamadaRecebidaId;
-  pararSomChamada();
+  pararSomChamada(false);
   pararVibracaoChamada();
   const m = document.getElementById('modalChamadaRecebida');
   if(m) m.style.display = 'none';
@@ -10178,24 +10203,33 @@ async function atenderChamadaRecebida(){
 }
 
 function onChamadaRealtime(payload){
-  if(!usuarioLogado) return;
-  const ev = payload.eventType || payload.event || '';
-  const row = payload.new || payload.record || null;
-  const old = payload.old || null;
-  if(!row && !old) return;
+  try{
+    const row = (payload && (payload.new || payload.record)) || null;
+    if(!row) return;
+    processarLinhaChamada(row);
+  }catch(e){ console.warn('onChamadaRealtime', e); }
+}
 
-  // INSERT ou UPDATE para status chamando → se sou o destinatário, mostrar
-  if(row && row.status === 'chamando' && _ehDestinatarioChamada(row.para_nome)){
-    // não receber a própria chamada
+function processarLinhaChamada(row){
+  if(!usuarioLogado || !row) return;
+  const st = String(row.status||'');
+  const id = row.id;
+
+  // Chamada para mim
+  if(st === 'chamando' && _ehDestinatarioChamada(row.para_nome)){
     if(String(row.de_nome||'').toLowerCase() === String(_nomeChamadaLocal()).toLowerCase()) return;
-    if(_chamadaRecebidaId === row.id) return;
-    mostrarModalChamadaRecebida(row.de_nome, row.id);
+    // ignora se já passou de 15s
+    if(row.created_at){
+      const t = new Date(row.created_at).getTime();
+      if(isFinite(t) && Date.now() - t > CHAMADA_DURACAO_MS + 2000) return;
+    }
+    mostrarModalChamadaRecebida(row.de_nome, id);
     return;
   }
 
-  // status final na chamada que estou recebendo
-  if(row && _chamadaRecebidaId && row.id === _chamadaRecebidaId && row.status !== 'chamando'){
-    pararSomChamada();
+  // Fim da chamada que estou recebendo
+  if(_chamadaRecebidaId && id === _chamadaRecebidaId && st !== 'chamando'){
+    pararSomChamada(false);
     pararVibracaoChamada();
     const m = document.getElementById('modalChamadaRecebida');
     if(m) m.style.display = 'none';
@@ -10203,50 +10237,105 @@ function onChamadaRealtime(payload){
     return;
   }
 
-  // status final na chamada que EU iniciei
-  if(row && _chamadaAtivaId && row.id === _chamadaAtivaId && row.status !== 'chamando'){
+  // Fim da chamada que eu iniciei
+  if(_chamadaAtivaId && id === _chamadaAtivaId && st !== 'chamando'){
+    const eraAtendido = st === 'atendido';
     _chamadaAtivaId = null;
     setBtnChamarUI(false);
     setBtnMasterChamarUI(false);
     pararVibracaoChamada();
     if(_chamadaExpireTimer){ clearTimeout(_chamadaExpireTimer); _chamadaExpireTimer = null; }
-    if(row.status === 'atendido'){
+    if(eraAtendido){
       try{
-        // feedback rápido no botão
         const btn = document.getElementById(usuarioLogado.isMaster ? 'btnChamarMaster' : 'btnChamar');
         if(btn){
-          const prev = btn.innerHTML;
-          btn.innerHTML = '✓ Atendeu';
-          setTimeout(()=>{ try{ atualizarBotoesChamada(); setBtnChamarUI(false); setBtnMasterChamarUI(false); if(!usuarioLogado.isMaster){ const l=document.getElementById('lblBtnChamar'); if(l)l.textContent='Chamar'; btn.innerHTML='📞 <span class="hlbl" id="lblBtnChamar">Chamar</span>'; } else btn.innerHTML='📞 <span class="hlbl">Chamar</span>'; }catch(e){} }, 2000);
+          btn.innerHTML = '✓ Viu';
+          setTimeout(()=>{
+            try{
+              if(usuarioLogado && usuarioLogado.isMaster){
+                btn.innerHTML = '🔔 <span class="hlbl">Chamar</span>';
+                setBtnMasterChamarUI(false);
+              } else {
+                btn.innerHTML = '🔔 <span class="hlbl" id="lblBtnChamar">Chamar</span>';
+                setBtnChamarUI(false);
+              }
+            }catch(e){}
+          }, 2000);
         }
       }catch(e){}
     }
   }
 }
 
-async function iniciarMonitorChamadas(){
-  // ao logar, verifica se há chamada ativa para mim
+/** Polling a cada 2s — funciona mesmo sem Realtime habilitado na tabela. */
+async function pollChamadas(){
   if(!usuarioLogado) return;
+  if(document.hidden) return;
   const client = getSb();
   if(!client) return;
   try{
-    const para = usuarioLogado.isMaster ? 'MASTER' : _nomeChamadaLocal();
-    const {data} = await client.from('chamadas_app')
-      .select('id,de_nome,para_nome,status,created_at')
+    const {data, error} = await client.from('chamadas_app')
+      .select('id,de_nome,para_nome,status,created_at,updated_at')
       .eq('status', 'chamando')
       .order('created_at', {ascending:false})
-      .limit(10);
+      .limit(20);
+    if(error) return;
     const lista = data || [];
+    // processa recebidas
     for(const c of lista){
-      if(!_ehDestinatarioChamada(c.para_nome)) continue;
-      if(String(c.de_nome||'').toLowerCase() === String(_nomeChamadaLocal()).toLowerCase()) continue;
-      // só se criada há menos de 15s
-      const t = new Date(c.created_at).getTime();
-      if(Date.now() - t > CHAMADA_DURACAO_MS) continue;
-      mostrarModalChamadaRecebida(c.de_nome, c.id);
-      break;
+      processarLinhaChamada(c);
     }
-  }catch(e){ console.warn('iniciarMonitorChamadas', e); }
+    // se eu tinha chamada ativa e ela sumiu da lista (foi atendida/cancelada/expirada)
+    if(_chamadaAtivaId && !lista.some(c => c.id === _chamadaAtivaId)){
+      // busca status final
+      try{
+        const {data: one} = await client.from('chamadas_app').select('id,status,de_nome,para_nome').eq('id', _chamadaAtivaId).maybeSingle();
+        if(one) processarLinhaChamada(one);
+        else {
+          _chamadaAtivaId = null;
+          setBtnChamarUI(false);
+          setBtnMasterChamarUI(false);
+          pararVibracaoChamada();
+        }
+      }catch(e){}
+    }
+    // se estava recebendo e a chamada não está mais chamando
+    if(_chamadaRecebidaId && !lista.some(c => c.id === _chamadaRecebidaId)){
+      try{
+        const {data: one} = await client.from('chamadas_app').select('id,status,de_nome,para_nome').eq('id', _chamadaRecebidaId).maybeSingle();
+        if(one) processarLinhaChamada(one);
+        else {
+          pararSomChamada(false);
+          pararVibracaoChamada();
+          const m = document.getElementById('modalChamadaRecebida');
+          if(m) m.style.display = 'none';
+          _chamadaRecebidaId = null;
+        }
+      }catch(e){}
+    }
+  }catch(e){ console.warn('pollChamadas', e); }
+}
+
+function iniciarMonitorChamadas(){
+  if(!usuarioLogado) return;
+  if(_chamadaPollTimer){ clearInterval(_chamadaPollTimer); _chamadaPollTimer = null; }
+  // poll imediato + a cada 2s
+  pollChamadas();
+  _chamadaPollTimer = setInterval(pollChamadas, 2000);
+  // canal dedicado (além do ouvir geral)
+  try{
+    const client = getSb();
+    if(client){
+      client.channel('chamadas-app-v1')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'chamadas_app' }, (payload)=>{
+          try{ onChamadaRealtime(payload); }catch(e){}
+        })
+        .subscribe((status)=>{ console.log('[chamadas] channel', status); });
+    }
+  }catch(e){}
+  document.addEventListener('visibilitychange', ()=>{
+    if(!document.hidden) pollChamadas();
+  });
 }
 
 function fecharModalMasterChamar(){
@@ -10254,8 +10343,8 @@ function fecharModalMasterChamar(){
   if(m) m.style.display = 'none';
 }
 async function abrirModalMasterChamar(){
+  desbloquearAudioChamada();
   if(!usuarioLogado || !usuarioLogado.isMaster) return;
-  // se já estou chamando, segundo clique cancela
   if(_chamadaAtivaId){
     await cancelarMinhaChamada();
     return;
@@ -10276,11 +10365,11 @@ async function abrirModalMasterChamar(){
       if(st) st.textContent = 'Nenhum entregador ativo.';
       return;
     }
-    if(st) st.textContent = 'Toque para chamar (15s).';
+    if(st) st.textContent = 'Toque no entregador para chamar a atenção (15s).';
     if(lista){
       lista.innerHTML = ents.map(e => {
-        const n = String(e.nome).replace(/'/g, "\\'");
-        return `<button class="btn" style="width:100%;text-align:left;padding:14px;font-weight:800" onclick="masterChamarEntregador('${n}')">🛵 ${e.nome} <span style="float:right;color:#6ab7ff;font-size:12px">Chamar →</span></button>`;
+        const n = String(e.nome).replace(/\\/g,'\\\\').replace(/'/g, "\\'");
+        return `<button class="btn" style="width:100%;text-align:left;padding:14px;font-weight:800" onclick="masterChamarEntregador('${n}')">🛵 ${e.nome} <span style="float:right;color:#6ab7ff;font-size:12px">🔔 Chamar</span></button>`;
       }).join('');
     }
   }catch(e){
@@ -10288,6 +10377,7 @@ async function abrirModalMasterChamar(){
   }
 }
 async function masterChamarEntregador(nome){
+  desbloquearAudioChamada();
   fecharModalMasterChamar();
   await iniciarChamadaPara(nome);
 }
