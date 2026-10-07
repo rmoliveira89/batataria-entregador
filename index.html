@@ -47,7 +47,6 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
   align-items:stretch !important;
   justify-content:stretch !important;
   background:#0e1118 !important;
-  /* top/left/right/bottom explícitos ajudam o Chrome Android com teclado */
   top:0;left:0;right:0;bottom:0;
   width:100%;
   height:100%;
@@ -56,6 +55,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
   max-height:100dvh;
   overflow:hidden;
   -webkit-overflow-scrolling:touch;
+  /* altura estável — não alterar via JS no resize do teclado */
 }
 #modalIfood .ifood-shell{
   display:flex;flex-direction:column;
@@ -374,10 +374,10 @@ body.ifood-modal-open{
     <div style="flex:1;min-width:0">
       <div style="font-size:13px;font-weight:900;color:#EA1D2C">iFood · confirmação</div>
       <div id="ifoodModalCliente" style="font-size:15px;font-weight:900;color:#f0c14a;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</div>
-      <div id="ifoodModalHint" style="font-size:10px;color:#8b93a7;line-height:1.3">Localizador já copiado — cole no iFood (Ctrl+V ou toque longo) e confirme. Depois Fechar.</div>
+      <div id="ifoodModalHint" style="font-size:10px;color:#8b93a7;line-height:1.3">Localizador copiado — cole no iFood e confirme. Depois toque em Finalizar.</div>
     </div>
-    <button type="button" class="btn" style="font-size:11px;padding:8px 10px;background:#1a1e2a;border-color:#2a4a5a;color:#6ab7ff;white-space:nowrap" onclick="abrirIfoodNovaAba()">↗ Nova aba</button>
-    <button type="button" class="btn primary" style="font-size:12px;padding:10px 14px;font-weight:900;white-space:nowrap" onclick="fecharModalIfoodParaFinalizar()">✕ Fechar</button>
+    <button type="button" class="btn" style="font-size:11px;padding:8px 10px;background:#1a1e2a;border-color:#2a4a5a;color:#6ab7ff;white-space:nowrap;border-radius:8px" onclick="abrirIfoodNovaAba()">↗ Nova aba</button>
+    <button type="button" class="btn" id="btnIfoodFinalizar" style="font-size:13px;padding:12px 16px;font-weight:900;white-space:nowrap;background:#16a34a;border:2px solid #15803d;color:#fff;border-radius:8px;min-width:110px;text-align:center;box-shadow:0 2px 8px rgba(22,163,74,.35)" onclick="fecharModalIfoodParaFinalizar()">✅ Finalizar</button>
   </div>
   <div id="ifoodCodigoBar" style="display:none;padding:6px 10px;background:#0f1f15;border-bottom:1px solid #2a5a3a;flex-shrink:0;text-align:center;cursor:pointer" onclick="copiarCodigoClienteIfood()" title="Toque para copiar">
     <div style="font-size:10px;color:#8b93a7;font-weight:700;letter-spacing:0.06em;margin-bottom:2px">CÓDIGO DO CLIENTE · toque para copiar</div>
@@ -399,7 +399,7 @@ body.ifood-modal-open{
       <div style="font-size:12px;color:#8b93a7;line-height:1.45;margin-bottom:16px;max-width:360px;margin-left:auto;margin-right:auto">Sites de pagamento/confirmação costumam impedir abertura em iframe. Use <b style="color:#fff">Nova aba</b> para confirmar e depois volte aqui.</div>
       <button type="button" class="btn" style="background:#EA1D2C;color:#fff;border:none;padding:14px 20px;font-weight:900;border-radius:12px;margin-bottom:10px" onclick="abrirIfoodNovaAba()">↗ Abrir iFood em nova aba</button>
       <div style="margin-top:12px">
-        <button type="button" class="btn primary" style="padding:12px 18px;font-weight:900" onclick="fecharModalIfoodParaFinalizar()">✕ Fechar e finalizar</button>
+        <button type="button" class="btn" style="padding:14px 18px;font-weight:900;background:#16a34a;border:2px solid #15803d;color:#fff;border-radius:8px" onclick="fecharModalIfoodParaFinalizar()">✅ Finalizar</button>
       </div>
     </div>
   </div>
@@ -498,7 +498,7 @@ body.ifood-modal-open{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 061026.225000</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 061026.235400</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -9838,33 +9838,12 @@ function fecharModalIfood(){
   }catch(e){}
 }
 
-/** Ajusta altura do modal quando o teclado Android abre (visualViewport). */
+/** Não redimensiona o modal com o teclado — redimensionar faz o botão Confirmar do iFood “pular” no Android. */
 let _ifoodVvHandler = null;
 function _ligarAjusteTecladoIfood(){
-  _desligarAjusteTecladoIfood();
-  const vv = window.visualViewport;
-  if(!vv) return;
-  _ifoodVvHandler = function(){
-    try{
-      const m = document.getElementById('modalIfood');
-      if(!m || m.style.display === 'none') return;
-      // altura visível real (sem teclado)
-      const h = Math.round(vv.height);
-      m.style.height = h + 'px';
-      m.style.maxHeight = h + 'px';
-      m.style.top = Math.round(vv.offsetTop) + 'px';
-    }catch(e){}
-  };
-  vv.addEventListener('resize', _ifoodVvHandler);
-  vv.addEventListener('scroll', _ifoodVvHandler);
-  _ifoodVvHandler();
+  // intencionalmente vazio: altura fixa 100dvh evita layout jump no iframe
 }
 function _desligarAjusteTecladoIfood(){
-  const vv = window.visualViewport;
-  if(vv && _ifoodVvHandler){
-    try{ vv.removeEventListener('resize', _ifoodVvHandler); }catch(e){}
-    try{ vv.removeEventListener('scroll', _ifoodVvHandler); }catch(e){}
-  }
   _ifoodVvHandler = null;
   try{
     const m = document.getElementById('modalIfood');
