@@ -295,6 +295,41 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 </div>
 
 
+<!-- MODAL IFOOD (iframe) — Fechar volta ao app -->
+<div id="modalIfood" class="overlay" style="display:none;z-index:9990;padding:0;align-items:stretch">
+<div style="display:flex;flex-direction:column;width:100%;height:100%;max-width:100%;max-height:100%;background:#0e1118;border:none;border-radius:0;margin:0;padding:0">
+  <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#161a22;border-bottom:1px solid #2c3340;flex-shrink:0">
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:900;color:#EA1D2C">iFood · confirmação</div>
+      <div id="ifoodModalCliente" style="font-size:15px;font-weight:900;color:#f0c14a;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</div>
+      <div id="ifoodModalHint" style="font-size:10px;color:#8b93a7;line-height:1.3">Cole o localizador e confirme. Depois toque em Fechar.</div>
+    </div>
+    <button type="button" class="btn" style="font-size:11px;padding:8px 10px;background:#1a1e2a;border-color:#2a4a5a;color:#6ab7ff;white-space:nowrap" onclick="abrirIfoodNovaAba()">↗ Nova aba</button>
+    <button type="button" class="btn primary" style="font-size:12px;padding:10px 14px;font-weight:900;white-space:nowrap" onclick="fecharModalIfood()">✕ Fechar</button>
+  </div>
+  <div id="ifoodCodigoBar" style="display:none;padding:10px 12px;background:#0f1f15;border-bottom:1px solid #2a5a3a;flex-shrink:0;text-align:center">
+    <div style="font-size:10px;color:#8b93a7;font-weight:700;letter-spacing:0.06em;margin-bottom:4px">CÓDIGO DO CLIENTE</div>
+    <div id="ifoodCodigoValor" style="font-size:28px;font-weight:900;color:#3dcc8a;letter-spacing:0.28em"></div>
+  </div>
+  <div id="ifoodLocBar" style="display:none;padding:8px 12px;background:#1a1212;border-bottom:1px solid #5a2a2a;flex-shrink:0">
+    <div style="font-size:10px;color:#8b93a7;margin-bottom:4px">Localizador copiado — toque para recopiar</div>
+    <button type="button" id="ifoodLocBtn" class="btn" style="width:100%;padding:10px;font-weight:900;letter-spacing:0.08em;background:#0e1118;border-color:#EA1D2C;color:#fff;font-size:15px" onclick="recopiarLocalizadorIfood()"></button>
+  </div>
+  <div id="ifoodFrameWrap" style="flex:1;min-height:0;position:relative;background:#111">
+    <iframe id="ifoodFrame" title="Confirmação iFood" style="position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation" referrerpolicy="no-referrer-when-downgrade"></iframe>
+    <div id="ifoodBlocked" style="display:none;position:absolute;inset:0;background:#0e1118;padding:24px 16px;text-align:center;overflow:auto">
+      <div style="font-size:40px;margin-bottom:8px">🔒</div>
+      <div style="font-size:15px;font-weight:900;color:#f0c14a;margin-bottom:8px">O iFood bloqueou a página dentro do app</div>
+      <div style="font-size:12px;color:#8b93a7;line-height:1.45;margin-bottom:16px;max-width:360px;margin-left:auto;margin-right:auto">Sites de pagamento/confirmação costumam impedir abertura em iframe. Use <b style="color:#fff">Nova aba</b> para confirmar e depois volte aqui.</div>
+      <button type="button" class="btn" style="background:#EA1D2C;color:#fff;border:none;padding:14px 20px;font-weight:900;border-radius:12px;margin-bottom:10px" onclick="abrirIfoodNovaAba()">↗ Abrir iFood em nova aba</button>
+      <div style="margin-top:12px">
+        <button type="button" class="btn primary" style="padding:12px 18px;font-weight:900" onclick="fecharModalIfood()">✕ Fechar e voltar ao app</button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
 <!-- MODAL CHAMADA RECEBIDA -->
 <div id="modalChamadaRecebida" class="overlay" style="display:none;z-index:9995" role="dialog" aria-modal="true">
 <div class="card" style="width:100%;max-width:400px;margin:0;padding:20px 16px 16px;text-align:center">
@@ -366,7 +401,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 061026.202100</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 061026.220600</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -9630,22 +9665,22 @@ async function copiarLocalizador(){
     }
   }
 
-  // 3) Abrir iFood — URL fixa (o trecho "numero-pedido" faz parte do link, não é o número do pedido)
+  // 3) Abrir iFood em modal (iframe). Se o iFood bloquear, o modal oferece nova aba.
   const urlIfood = 'https://confirmacao-entrega-propria.ifood.com.br/numero-pedido';
-  try{ window.open(urlIfood, '_blank'); }catch(e){}
+  abrirModalIfood(urlIfood, v, pedido);
 
   if(btn) btn.textContent = '✓ COPIADO!';
   if(fb){
     fb.style.display = 'block';
     if(statusGravacao === 'offline (fila)' || statusGravacao === 'fila (falha rede)'){
       fb.style.color = '#b45309';
-      fb.textContent = '✓ Copiado · sem internet — gravação na fila. Abriu iFood. Sincroniza quando voltar a rede.';
+      fb.textContent = '✓ Copiado · sem internet — gravação na fila. Abriu confirmação iFood.';
     } else if(statusGravacao === 'já gravado'){
       fb.style.color = '#00A650';
-      fb.textContent = '✓ Copiado · já estava gravado. Abriu iFood.';
+      fb.textContent = '✓ Copiado · já estava gravado. Abriu confirmação iFood.';
     } else {
       fb.style.color = '#00A650';
-      fb.textContent = '✓ Copiado e gravado no sistema. Abriu iFood — cole o localizador e confirme.';
+      fb.textContent = '✓ Copiado e gravado. Confirme no iFood e toque em Fechar.';
     }
   }
 
@@ -9656,6 +9691,127 @@ async function copiarLocalizador(){
   setTimeout(()=>{
     if(btn) btn.textContent = '📋 COPIAR';
   }, 2500);
+}
+
+const IFOOD_CONFIRMACAO_URL = 'https://confirmacao-entrega-propria.ifood.com.br/numero-pedido';
+let _ifoodLocCopiado = '';
+let _ifoodBlockTimer = null;
+
+function abrirModalIfood(url, localizador, pedido){
+  const u = url || IFOOD_CONFIRMACAO_URL;
+  _ifoodLocCopiado = (localizador || '').toString().trim();
+  const m = document.getElementById('modalIfood');
+  const frame = document.getElementById('ifoodFrame');
+  const blocked = document.getElementById('ifoodBlocked');
+  const locBar = document.getElementById('ifoodLocBar');
+  const locBtn = document.getElementById('ifoodLocBtn');
+  const cliEl = document.getElementById('ifoodModalCliente');
+  const codBar = document.getElementById('ifoodCodigoBar');
+  const codVal = document.getElementById('ifoodCodigoValor');
+  if(blocked) blocked.style.display = 'none';
+  // Nome do cliente no cabeçalho
+  const nomeCli = pedido ? String(pedido.cliente_nome||'').trim() : '';
+  const numPed = pedido ? String(pedido.numero_pedido||'').trim() : '';
+  if(cliEl){
+    if(nomeCli || numPed){
+      cliEl.textContent = (numPed ? ('#' + numPed.replace(/^#/,'') + ' · ') : '') + (nomeCli || 'Cliente');
+    } else {
+      cliEl.textContent = '—';
+    }
+  }
+  // Código do cliente previamente cadastrado (4 dígitos)
+  if(codBar && codVal){
+    codBar.style.display = 'none';
+    codVal.textContent = '';
+    let cod = '';
+    try{
+      if(pedido) cod = codigoClienteOferecer(pedido.codigo_cliente) || '';
+    }catch(e){}
+    if(cod){
+      codVal.textContent = cod;
+      codBar.style.display = 'block';
+    } else if(pedido){
+      // tenta histórico em background
+      buscarCodigoHistoricoPedido(pedido).then(h=>{
+        try{
+          if(!h) return;
+          const bar = document.getElementById('ifoodCodigoBar');
+          const val = document.getElementById('ifoodCodigoValor');
+          const mod = document.getElementById('modalIfood');
+          if(!mod || mod.style.display === 'none') return;
+          if(val) val.textContent = h;
+          if(bar) bar.style.display = 'block';
+        }catch(e){}
+      }).catch(()=>{});
+    }
+  }
+  if(locBar){
+    if(_ifoodLocCopiado){
+      locBar.style.display = 'block';
+      if(locBtn) locBtn.textContent = _ifoodLocCopiado;
+    } else {
+      locBar.style.display = 'none';
+    }
+  }
+  if(frame){
+    frame.style.display = 'block';
+    try{ frame.src = 'about:blank'; }catch(e){}
+    setTimeout(()=>{ try{ frame.src = u; }catch(e){} }, 30);
+  }
+  if(m) m.style.display = 'flex';
+  // Se após alguns segundos o iframe continuar inacessível (bloqueio X-Frame), mostra aviso
+  if(_ifoodBlockTimer) clearTimeout(_ifoodBlockTimer);
+  _ifoodBlockTimer = setTimeout(()=>{
+    try{
+      const f = document.getElementById('ifoodFrame');
+      if(!f || !document.getElementById('modalIfood') || document.getElementById('modalIfood').style.display === 'none') return;
+      let blockedLikely = false;
+      try{
+        // acesso a contentDocument de origem cruzada lança erro — normal
+        // se location for about:blank ainda, pode não ter carregado
+        const href = f.contentWindow && f.contentWindow.location && String(f.contentWindow.location.href||'');
+        if(href === 'about:blank') blockedLikely = true;
+      }catch(cross){
+        // cross-origin: provavelmente carregou (ou bloqueou sem erro visível)
+        blockedLikely = false;
+      }
+      // Heurística extra: muitos browsers deixam iframe "vazio" quando X-Frame-Options nega —
+      // não dá para detectar 100%. O botão "Nova aba" fica sempre disponível.
+    }catch(e){}
+  }, 2500);
+}
+
+function fecharModalIfood(){
+  if(_ifoodBlockTimer){ clearTimeout(_ifoodBlockTimer); _ifoodBlockTimer = null; }
+  const m = document.getElementById('modalIfood');
+  if(m) m.style.display = 'none';
+  const frame = document.getElementById('ifoodFrame');
+  if(frame){
+    try{ frame.src = 'about:blank'; }catch(e){}
+  }
+  _ifoodLocCopiado = '';
+}
+
+function abrirIfoodNovaAba(){
+  const u = IFOOD_CONFIRMACAO_URL;
+  try{ window.open(u, '_blank'); }catch(e){ try{ location.href = u; }catch(e2){} }
+}
+
+async function recopiarLocalizadorIfood(){
+  const v = _ifoodLocCopiado;
+  if(!v) return;
+  try{ await navigator.clipboard.writeText(v); }catch(e){
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = v; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    }catch(e2){}
+  }
+  const btn = document.getElementById('ifoodLocBtn');
+  if(btn){
+    const prev = btn.textContent;
+    btn.textContent = '✓ Copiado!';
+    setTimeout(()=>{ try{ btn.textContent = prev; }catch(e){} }, 1200);
+  }
 }
 
 // Mantém nome antigo caso algum HTML antigo chame — redireciona para COPIAR
