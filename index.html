@@ -302,17 +302,18 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
     <div style="flex:1;min-width:0">
       <div style="font-size:13px;font-weight:900;color:#EA1D2C">iFood · confirmação</div>
       <div id="ifoodModalCliente" style="font-size:15px;font-weight:900;color:#f0c14a;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</div>
-      <div id="ifoodModalHint" style="font-size:10px;color:#8b93a7;line-height:1.3">Cole o localizador e confirme. Depois toque em Fechar.</div>
+      <div id="ifoodModalHint" style="font-size:10px;color:#8b93a7;line-height:1.3">Localizador já copiado — cole no iFood (Ctrl+V ou toque longo) e confirme. Depois Fechar.</div>
     </div>
     <button type="button" class="btn" style="font-size:11px;padding:8px 10px;background:#1a1e2a;border-color:#2a4a5a;color:#6ab7ff;white-space:nowrap" onclick="abrirIfoodNovaAba()">↗ Nova aba</button>
-    <button type="button" class="btn primary" style="font-size:12px;padding:10px 14px;font-weight:900;white-space:nowrap" onclick="fecharModalIfood()">✕ Fechar</button>
+    <button type="button" class="btn primary" style="font-size:12px;padding:10px 14px;font-weight:900;white-space:nowrap" onclick="fecharModalIfoodParaFinalizar()">✕ Fechar</button>
   </div>
-  <div id="ifoodCodigoBar" style="display:none;padding:10px 12px;background:#0f1f15;border-bottom:1px solid #2a5a3a;flex-shrink:0;text-align:center">
-    <div style="font-size:10px;color:#8b93a7;font-weight:700;letter-spacing:0.06em;margin-bottom:4px">CÓDIGO DO CLIENTE</div>
+  <div id="ifoodCodigoBar" style="display:none;padding:10px 12px;background:#0f1f15;border-bottom:1px solid #2a5a3a;flex-shrink:0;text-align:center;cursor:pointer" onclick="copiarCodigoClienteIfood()" title="Toque para copiar">
+    <div style="font-size:10px;color:#8b93a7;font-weight:700;letter-spacing:0.06em;margin-bottom:2px">CÓDIGO DO CLIENTE · toque para copiar</div>
     <div id="ifoodCodigoValor" style="font-size:28px;font-weight:900;color:#3dcc8a;letter-spacing:0.28em"></div>
+    <div id="ifoodCodigoCopyFb" style="font-size:10px;color:#3dcc8a;min-height:14px;margin-top:2px"></div>
   </div>
   <div id="ifoodLocBar" style="display:none;padding:8px 12px;background:#1a1212;border-bottom:1px solid #5a2a2a;flex-shrink:0">
-    <div style="font-size:10px;color:#8b93a7;margin-bottom:4px">Localizador copiado — toque para recopiar</div>
+    <div style="font-size:10px;color:#8b93a7;margin-bottom:4px">Localizador na área de transferência — toque aqui para recopiar</div>
     <button type="button" id="ifoodLocBtn" class="btn" style="width:100%;padding:10px;font-weight:900;letter-spacing:0.08em;background:#0e1118;border-color:#EA1D2C;color:#fff;font-size:15px" onclick="recopiarLocalizadorIfood()"></button>
   </div>
   <div id="ifoodFrameWrap" style="flex:1;min-height:0;position:relative;background:#111">
@@ -323,10 +324,31 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
       <div style="font-size:12px;color:#8b93a7;line-height:1.45;margin-bottom:16px;max-width:360px;margin-left:auto;margin-right:auto">Sites de pagamento/confirmação costumam impedir abertura em iframe. Use <b style="color:#fff">Nova aba</b> para confirmar e depois volte aqui.</div>
       <button type="button" class="btn" style="background:#EA1D2C;color:#fff;border:none;padding:14px 20px;font-weight:900;border-radius:12px;margin-bottom:10px" onclick="abrirIfoodNovaAba()">↗ Abrir iFood em nova aba</button>
       <div style="margin-top:12px">
-        <button type="button" class="btn primary" style="padding:12px 18px;font-weight:900" onclick="fecharModalIfood()">✕ Fechar e voltar ao app</button>
+        <button type="button" class="btn primary" style="padding:12px 18px;font-weight:900" onclick="fecharModalIfoodParaFinalizar()">✕ Fechar e finalizar</button>
       </div>
     </div>
   </div>
+</div>
+</div>
+
+<!-- MODAL FINALIZAR ENTREGA (após iFood) -->
+<div id="modalFinalizarEntrega" class="overlay" style="display:none;z-index:9992" role="dialog" aria-modal="true">
+<div class="card" style="width:100%;max-width:400px;margin:0;padding:18px 16px">
+  <h3 style="margin:0 0 8px;color:#f0c14a;font-size:16px;font-weight:900;text-align:center">✅ Finalizar entrega</h3>
+  <div id="finEntInfo" style="background:#0e1118;border:1px solid #2c3340;border-radius:10px;padding:10px;font-size:12px;color:#8b93a7;margin-bottom:12px;text-align:center"></div>
+  <div id="finEntCodigoExistente" style="display:none;margin-bottom:10px;padding:10px;background:#0f1f15;border:1px solid #2a5a3a;border-radius:10px;text-align:center;cursor:pointer" onclick="copiarCodigoClienteFinEnt()" title="Toque para copiar">
+    <div style="font-size:10px;color:#8b93a7;font-weight:700;letter-spacing:0.06em">CÓDIGO CADASTRADO · toque para copiar</div>
+    <div id="finEntCodigoExistenteValor" style="font-size:22px;font-weight:900;color:#3dcc8a;letter-spacing:0.2em"></div>
+    <div id="finEntCodigoCopyFb" style="font-size:10px;color:#3dcc8a;min-height:14px;margin-top:2px"></div>
+  </div>
+  <label style="font-size:11px;color:#8b93a7;font-weight:700;display:block;margin-bottom:6px">Código do cliente (4 dígitos)</label>
+  <input id="finEntCodigo" inputmode="numeric" maxlength="4" placeholder="Ex: 1234" autocomplete="one-time-code"
+    style="font-size:28px;font-weight:900;text-align:center;letter-spacing:0.35em;padding:16px;margin-bottom:8px;width:100%;border-radius:12px;border:1px solid #2c3340;background:#0e1118;color:#fff"
+    oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
+    onkeydown="if(event.key==='Enter'){event.preventDefault();confirmarFinalizarEntrega();}"/>
+  <div id="finEntStatus" style="font-size:11px;color:#8b93a7;text-align:center;min-height:16px;margin-bottom:10px"></div>
+  <button class="btn green" id="btnFinalizarEntrega" style="width:100%;padding:16px;font-weight:900;font-size:15px" onclick="confirmarFinalizarEntrega()">✅ Finalizar entrega</button>
+  <button class="btn" style="width:100%;padding:12px;margin-top:8px" onclick="fecharModalFinalizarEntrega(true)">Cancelar</button>
 </div>
 </div>
 
@@ -401,7 +423,7 @@ input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;b
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 061026.220600</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 061026.222800</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -9574,7 +9596,7 @@ async function copiarLocalizador(){
   const btn = document.getElementById('btnCopiarLoc');
   const fb = document.getElementById('copyFeedback');
 
-  // 1) Copiar
+  // 1) Copiar apenas (NÃO finaliza o pedido)
   try{
     await navigator.clipboard.writeText(v);
   }catch(e){
@@ -9586,112 +9608,32 @@ async function copiarLocalizador(){
   }
 
   const pedido = pedidoConfirmAtual;
-  const nomeEntregador = _nomeFinalizacao(pedido);
-  const numeroPedido = pedido ? String(pedido.numero_pedido||'') : '';
+  // guarda pedido para finalizar depois, ao fechar o frame do iFood
+  _ifoodPedidoPendente = pedido || null;
+  _ifoodLocCopiado = v;
 
-  // 2) Gravar (online) ou enfileirar (offline)
-  // Importante: se o pedido foi REATIVADO, o flag local jaConfirmadoLocal pode ainda estar true —
-  // nesse caso ainda precisamos gravar de novo no Supabase (status ainda não é codigo_informado).
-  let statusGravacao = '';
-  if(pedido){
-    const jaFinalizadoNoBanco = String(pedido.status||'') === 'codigo_informado';
-    if(jaFinalizadoNoBanco){
-      statusGravacao = 'já gravado';
-      const idx = todosPedidos.findIndex(x=>x.id===pedido.id);
-      if(idx>=0){
-        todosPedidos[idx].status='codigo_informado';
-        todosPedidos[idx].codigo_cliente = todosPedidos[idx].codigo_cliente || 'IFOOD';
-        todosPedidos[idx].entregador_nome = todosPedidos[idx].entregador_nome || nomeEntregador;
-      }
-      marcarConfirmadoLocal(pedido.id);
-    } else if(!navigator.onLine){
-      // limpa flag local antigo (reativação em outro aparelho) para sincronizar de novo
-      try{
-        const m = getConfirmadosIds();
-        if(m[pedido.id]){ delete m[pedido.id]; localStorage.setItem(CONFIRMADOS_IDS_KEY, JSON.stringify(m)); }
-      }catch(e){}
-      const _codOff = 'IFOOD';
-      enfileirarConfirmacaoOffline({
-        pedido_id: pedido.id,
-        numero_pedido: pedido.numero_pedido,
-        localizador: v,
-        nome_entregador: nomeEntregador,
-        cliente_nome: pedido.cliente_nome,
-        loja: pedido.loja,
-        codigo_cliente: _codOff,
-        modo: 'entregador'
-      });
-      const idx = todosPedidos.findIndex(x=>x.id===pedido.id);
-      if(idx>=0){
-        todosPedidos[idx].status='codigo_informado';
-        todosPedidos[idx].codigo_cliente=_codOff;
-        todosPedidos[idx].entregador_nome=nomeEntregador;
-        todosPedidos[idx].codigo_informado_em = new Date().toISOString();
-      }
-      statusGravacao = 'offline (fila)';
-    } else {
-      // força regravação mesmo se flag local antigo existir (pedido reativado)
-      try{
-        const m = getConfirmadosIds();
-        if(m[pedido.id] && !jaFinalizadoNoBanco){
-          delete m[pedido.id];
-          localStorage.setItem(CONFIRMADOS_IDS_KEY, JSON.stringify(m));
-        }
-      }catch(e){}
-      const _codOn = 'IFOOD';
-      const ok = await gravarConfirmacaoEntregadorNoSupabase({pedido, localizador: v, nomeEntregador, codigoCliente: _codOn});
-      if(ok){
-        statusGravacao = 'gravado';
-      } else {
-        enfileirarConfirmacaoOffline({
-          pedido_id: pedido.id,
-          numero_pedido: pedido.numero_pedido,
-          localizador: v,
-          nome_entregador: nomeEntregador,
-          cliente_nome: pedido.cliente_nome,
-          loja: pedido.loja,
-          codigo_cliente: _codOn,
-          modo: 'entregador'
-        });
-        // otimista local
-        const idx = todosPedidos.findIndex(x=>x.id===pedido.id);
-        if(idx>=0){
-          todosPedidos[idx].status='codigo_informado';
-          todosPedidos[idx].codigo_cliente=_codOn;
-          todosPedidos[idx].entregador_nome=nomeEntregador;
-        }
-        statusGravacao = 'fila (falha rede)';
-      }
-    }
-  }
-
-  // 3) Abrir iFood em modal (iframe). Se o iFood bloquear, o modal oferece nova aba.
-  const urlIfood = 'https://confirmacao-entrega-propria.ifood.com.br/numero-pedido';
+  // 2) Abre iFood em modal — finalização só no "Finalizar entrega"
+  const urlIfood = IFOOD_CONFIRMACAO_URL || 'https://confirmacao-entrega-propria.ifood.com.br/numero-pedido';
   abrirModalIfood(urlIfood, v, pedido);
 
   if(btn) btn.textContent = '✓ COPIADO!';
   if(fb){
     fb.style.display = 'block';
-    if(statusGravacao === 'offline (fila)' || statusGravacao === 'fila (falha rede)'){
-      fb.style.color = '#b45309';
-      fb.textContent = '✓ Copiado · sem internet — gravação na fila. Abriu confirmação iFood.';
-    } else if(statusGravacao === 'já gravado'){
-      fb.style.color = '#00A650';
-      fb.textContent = '✓ Copiado · já estava gravado. Abriu confirmação iFood.';
-    } else {
-      fb.style.color = '#00A650';
-      fb.textContent = '✓ Copiado e gravado. Confirme no iFood e toque em Fechar.';
-    }
+    fb.style.color = '#00A650';
+    fb.textContent = '✓ Localizador copiado. Confirme no iFood e depois Finalizar entrega.';
   }
 
-  fecharConfirmEntregador();
-  render();
-  if(navigator.onLine) setTimeout(()=>{ try{ carregar(); }catch(e){} }, 500);
+  // fecha modal de confirmação (localizador) mas mantém _ifoodPedidoPendente
+  try{
+    const m = document.getElementById('modalConfirmEntregador');
+    if(m) m.style.display = 'none';
+  }catch(e){}
+  // não zera pedidoConfirmAtual ainda — finalização usa _ifoodPedidoPendente
 
-  setTimeout(()=>{
-    if(btn) btn.textContent = '📋 COPIAR';
-  }, 2500);
+  setTimeout(()=>{ if(btn) btn.textContent = '📋 COPIAR'; }, 2500);
 }
+
+let _ifoodPedidoPendente = null;
 
 const IFOOD_CONFIRMACAO_URL = 'https://confirmacao-entrega-propria.ifood.com.br/numero-pedido';
 let _ifoodLocCopiado = '';
@@ -9700,6 +9642,14 @@ let _ifoodBlockTimer = null;
 function abrirModalIfood(url, localizador, pedido){
   const u = url || IFOOD_CONFIRMACAO_URL;
   _ifoodLocCopiado = (localizador || '').toString().trim();
+  // Recopia ao abrir (não dá para colar no iframe do iFood — só na área de transferência)
+  if(_ifoodLocCopiado){
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(_ifoodLocCopiado).catch(function(){});
+      }
+    }catch(e){}
+  }
   const m = document.getElementById('modalIfood');
   const frame = document.getElementById('ifoodFrame');
   const blocked = document.getElementById('ifoodBlocked');
@@ -9789,7 +9739,169 @@ function fecharModalIfood(){
   if(frame){
     try{ frame.src = 'about:blank'; }catch(e){}
   }
-  _ifoodLocCopiado = '';
+}
+
+/** Fecha o frame do iFood e abre o modal para informar o código e finalizar. */
+function fecharModalIfoodParaFinalizar(){
+  fecharModalIfood();
+  abrirModalFinalizarEntrega();
+}
+
+function fecharModalFinalizarEntrega(cancelar){
+  const m = document.getElementById('modalFinalizarEntrega');
+  if(m) m.style.display = 'none';
+  const inp = document.getElementById('finEntCodigo');
+  if(inp) inp.value = '';
+  if(cancelar){
+    // cancela: não finaliza; limpa pendência
+    _ifoodPedidoPendente = null;
+    _ifoodLocCopiado = '';
+    pedidoConfirmAtual = null;
+  }
+}
+
+function abrirModalFinalizarEntrega(){
+  const pedido = _ifoodPedidoPendente || pedidoConfirmAtual;
+  const m = document.getElementById('modalFinalizarEntrega');
+  const info = document.getElementById('finEntInfo');
+  const st = document.getElementById('finEntStatus');
+  const inp = document.getElementById('finEntCodigo');
+  const btn = document.getElementById('btnFinalizarEntrega');
+  const boxEx = document.getElementById('finEntCodigoExistente');
+  const valEx = document.getElementById('finEntCodigoExistenteValor');
+  if(!pedido){
+    if(m) m.style.display = 'none';
+    alert('Pedido não encontrado para finalizar');
+    return;
+  }
+  if(info){
+    info.innerHTML = '<b style="color:#f0c14a">#'+String(pedido.numero_pedido||'')+'</b> · '
+      + (pedido.cliente_nome||'—') + '<br>📍 ' + (pedido.cliente_endereco||'—');
+  }
+  if(st){ st.textContent = ''; st.style.color = '#8b93a7'; }
+  if(btn){ btn.disabled = false; btn.textContent = '✅ Finalizar entrega'; }
+  if(inp){
+    inp.value = '';
+    // sugere código já cadastrado (sem obrigar)
+    let sug = '';
+    try{ sug = codigoClienteOferecer(pedido.codigo_cliente) || ''; }catch(e){}
+    if(sug){
+      if(boxEx) boxEx.style.display = 'block';
+      if(valEx) valEx.textContent = sug;
+      // não autopreenche o input — usuário confirma o que digitou no iFood
+    } else {
+      if(boxEx) boxEx.style.display = 'none';
+      if(valEx) valEx.textContent = '';
+      try{
+        buscarCodigoHistoricoPedido(pedido).then(h=>{
+          if(!h) return;
+          const mod = document.getElementById('modalFinalizarEntrega');
+          if(!mod || mod.style.display === 'none') return;
+          const b = document.getElementById('finEntCodigoExistente');
+          const v = document.getElementById('finEntCodigoExistenteValor');
+          if(v) v.textContent = h;
+          if(b) b.style.display = 'block';
+        }).catch(()=>{});
+      }catch(e){}
+    }
+  }
+  if(m) m.style.display = 'flex';
+  setTimeout(()=>{ try{ inp && inp.focus(); }catch(e){} }, 200);
+}
+
+async function confirmarFinalizarEntrega(){
+  const pedido = _ifoodPedidoPendente || pedidoConfirmAtual;
+  if(!pedido || !pedido.id){
+    alert('Pedido não encontrado');
+    return;
+  }
+  const inp = document.getElementById('finEntCodigo');
+  const st = document.getElementById('finEntStatus');
+  const btn = document.getElementById('btnFinalizarEntrega');
+  let cod = inp ? String(inp.value||'').replace(/\D/g,'').slice(0,4) : '';
+  if(cod.length !== 4){
+    if(st){ st.textContent = 'Informe o código de 4 dígitos usado no iFood'; st.style.color = '#ff6b6b'; }
+    try{ inp && inp.focus(); }catch(e){}
+    return;
+  }
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ Finalizando…'; }
+  if(st){ st.textContent = 'Gravando…'; st.style.color = '#f0c14a'; }
+
+  const nomeEntregador = _nomeFinalizacao(pedido);
+  const loc = _ifoodLocCopiado || (pedido.localizador || '');
+
+  try{
+    // limpa flag local antigo (reativação)
+    try{
+      const m = getConfirmadosIds();
+      if(m[pedido.id]){ delete m[pedido.id]; localStorage.setItem(CONFIRMADOS_IDS_KEY, JSON.stringify(m)); }
+    }catch(e){}
+
+    let ok = false;
+    if(!navigator.onLine){
+      enfileirarConfirmacaoOffline({
+        pedido_id: pedido.id,
+        numero_pedido: pedido.numero_pedido,
+        localizador: loc,
+        nome_entregador: nomeEntregador,
+        cliente_nome: pedido.cliente_nome,
+        loja: pedido.loja,
+        codigo_cliente: cod,
+        modo: 'entregador'
+      });
+      const idx = todosPedidos.findIndex(x=>x.id===pedido.id);
+      if(idx>=0){
+        todosPedidos[idx].status = 'codigo_informado';
+        todosPedidos[idx].codigo_cliente = cod;
+        todosPedidos[idx].entregador_nome = nomeEntregador;
+        todosPedidos[idx].codigo_informado_em = new Date().toISOString();
+      }
+      marcarConfirmadoLocal(pedido.id);
+      ok = true;
+      if(st){ st.textContent = '✅ Finalizado offline — sincroniza depois'; st.style.color = '#f0c14a'; }
+    } else {
+      ok = await gravarConfirmacaoEntregadorNoSupabase({
+        pedido, localizador: loc, nomeEntregador, codigoCliente: cod
+      });
+      if(!ok){
+        enfileirarConfirmacaoOffline({
+          pedido_id: pedido.id,
+          numero_pedido: pedido.numero_pedido,
+          localizador: loc,
+          nome_entregador: nomeEntregador,
+          cliente_nome: pedido.cliente_nome,
+          loja: pedido.loja,
+          codigo_cliente: cod,
+          modo: 'entregador'
+        });
+        const idx = todosPedidos.findIndex(x=>x.id===pedido.id);
+        if(idx>=0){
+          todosPedidos[idx].status = 'codigo_informado';
+          todosPedidos[idx].codigo_cliente = cod;
+          todosPedidos[idx].entregador_nome = nomeEntregador;
+          todosPedidos[idx].codigo_informado_em = new Date().toISOString();
+        }
+        marcarConfirmadoLocal(pedido.id);
+        ok = true;
+        if(st){ st.textContent = '✅ Salvo na fila (rede instável)'; st.style.color = '#f0c14a'; }
+      } else {
+        if(st){ st.textContent = '✅ Entrega finalizada!'; st.style.color = '#3dcc8a'; }
+      }
+    }
+
+    _ifoodPedidoPendente = null;
+    _ifoodLocCopiado = '';
+    pedidoConfirmAtual = null;
+    try{ render(); }catch(e){}
+    setTimeout(()=>{
+      fecharModalFinalizarEntrega(false);
+      if(navigator.onLine) setTimeout(()=>{ try{ carregar(); processarFilaConfirmacoesOffline(); }catch(e){} }, 400);
+    }, 600);
+  }catch(e){
+    console.error('confirmarFinalizarEntrega', e);
+    if(st){ st.textContent = '❌ '+(e.message||e); st.style.color = '#ff6b6b'; }
+    if(btn){ btn.disabled = false; btn.textContent = '✅ Finalizar entrega'; }
+  }
 }
 
 function abrirIfoodNovaAba(){
@@ -9812,6 +9924,51 @@ async function recopiarLocalizadorIfood(){
     btn.textContent = '✓ Copiado!';
     setTimeout(()=>{ try{ btn.textContent = prev; }catch(e){} }, 1200);
   }
+}
+
+async function _copiarTextoSimples(txt){
+  const v = String(txt||'').trim();
+  if(!v) return false;
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(v);
+      return true;
+    }
+  }catch(e){}
+  try{
+    const ta = document.createElement('textarea');
+    ta.value = v; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    return true;
+  }catch(e){ return false; }
+}
+
+async function copiarCodigoClienteIfood(){
+  const el = document.getElementById('ifoodCodigoValor');
+  const fb = document.getElementById('ifoodCodigoCopyFb');
+  const v = el ? String(el.textContent||'').replace(/\D/g,'').slice(0,4) : '';
+  if(!v || v.length !== 4) return;
+  const ok = await _copiarTextoSimples(v);
+  if(fb){
+    fb.textContent = ok ? '✓ Código copiado — cole no iFood' : 'Não foi possível copiar';
+    fb.style.color = ok ? '#3dcc8a' : '#ff6b6b';
+    setTimeout(()=>{ try{ fb.textContent = ''; }catch(e){} }, 2000);
+  }
+}
+
+async function copiarCodigoClienteFinEnt(){
+  const el = document.getElementById('finEntCodigoExistenteValor');
+  const fb = document.getElementById('finEntCodigoCopyFb');
+  const v = el ? String(el.textContent||'').replace(/\D/g,'').slice(0,4) : '';
+  if(!v || v.length !== 4) return;
+  const ok = await _copiarTextoSimples(v);
+  if(fb){
+    fb.textContent = ok ? '✓ Código copiado' : 'Não foi possível copiar';
+    fb.style.color = ok ? '#3dcc8a' : '#ff6b6b';
+    setTimeout(()=>{ try{ fb.textContent = ''; }catch(e){} }, 2000);
+  }
+  // opcional: preenche o input se estiver vazio
+  const inp = document.getElementById('finEntCodigo');
+  if(inp && !String(inp.value||'').trim()) inp.value = v;
 }
 
 // Mantém nome antigo caso algum HTML antigo chame — redireciona para COPIAR
