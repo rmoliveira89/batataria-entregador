@@ -511,7 +511,7 @@ body.ifood-modal-open{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 071026.211300</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 071026.212700</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -6261,6 +6261,49 @@ async function executarAdicionarPedido(){
     if(btn){ btn.disabled=false; btn.textContent='➕ Adicionar'; }
   }
 }
+async function excluirGrupoDaLista(gid){
+  if(usuarioLogado?.isMaster){
+    alert('Master não remove da lista por aqui.');
+    return;
+  }
+  const membros = membrosGrupoLocal(gid) || [];
+  if(!membros.length){ alert('Grupo não encontrado'); return; }
+  const nums = membros.map(p=>'#'+(p.numero_pedido||'?')).join(', ');
+  if(!(await mostrarConfirmacao('Remover o grupo ('+membros.length+' pedidos) da sua lista?\n'+nums+'\n\nVoltam para EM ESPERA.', { titulo:'Remover grupo', okTexto:'Excluir', cancelarTexto:'Cancelar' }))) return;
+  for(const p of membros){
+    try{
+      // reutiliza a lógica sem novo confirm: marca flag e chama fluxo interno
+      await excluirPedidoSemConfirm(p.id);
+    }catch(e){ console.warn('excluirGrupoDaLista', p.id, e); }
+  }
+  try{ render(); }catch(e){}
+  if(navigator.onLine) setTimeout(()=>{ try{ carregar(); }catch(e){} }, 400);
+}
+
+/** Remove pedido da lista do entregador sem pedir confirmação (uso em lote/grupo). */
+async function excluirPedidoSemConfirm(id){
+  if(usuarioLogado?.isMaster) return;
+  const client = getSb();
+  try{
+    if(client){
+      try{ await client.from('reservas_entregadores').delete().eq('pedido_id', id); }catch(e){}
+      try{ await client.from('reservas_entregadores').delete().eq('pedido_id', id).ilike('entregador_nome', nomeEntregadorAtual()); }catch(e){}
+      try{
+        await client.from('pedidos_entrega_dia').update({ entregador_nome: null }).eq('id', id);
+      }catch(e){}
+    }
+    const idx = todosPedidos.findIndex(x=>x.id===id);
+    if(idx>=0) todosPedidos[idx].entregador_nome = null;
+    try{
+      if(typeof mapaReservas !== 'undefined' && mapaReservas){
+        delete mapaReservas[id];
+      }
+    }catch(e){}
+  }catch(e){
+    console.warn('excluirPedidoSemConfirm', e);
+  }
+}
+
 async function excluirPedido(id){
   if(usuarioLogado?.isMaster){
     alert('Master não pode excluir pedidos. Use Reativar em pedidos finalizados para devolvê-los à lista.');
@@ -8238,7 +8281,16 @@ function cardGrupoPedidos(item){
     </div>`;
   }).join('');
 
-  // Card compacto; ações no modal
+  // Entregador: Mapa + Subir/Descer no card (fora do modal)
+  const acoesEntregador = !isMasterUser
+    ? `<div class="pm-rota" style="grid-template-columns:1fr 1fr auto;margin-top:6px;margin-bottom:0">
+        <button class="btn small" onclick="event.stopPropagation();moverGrupoCima('${gidEsc}')">↑ Subir</button>
+        <button class="btn small" onclick="event.stopPropagation();moverGrupoBaixo('${gidEsc}')">↓ Descer</button>
+        <button class="btn small red" onclick="event.stopPropagation();excluirGrupoDaLista('${gidEsc}')">🗑️</button>
+      </div>
+      <button type="button" class="btn blue btn-entregador-mapa" style="margin-top:6px" onclick="event.stopPropagation();abrirMapa('${endEsc}')">📍 ABRIR MAPA</button>`
+    : '';
+
   return `<div class="pedido-mini${todosConfirmados?' ok':''}${_algumAlterado(membros)?' alterado':''}" style="border-color:#f0c14a">
     <div class="pm-top">
       <div style="min-width:0;flex:1">
@@ -8250,7 +8302,8 @@ function cardGrupoPedidos(item){
     <div style="display:flex;flex-direction:column;gap:3px;padding:4px 0;border-top:1px solid #2c3340;border-bottom:1px solid #2c3340;margin:2px 0">${linhasNomes}</div>
     <div class="pm-end" title="${endEsc}">📍 ${end}</div>
     ${_htmlAlteradoEnd(membros)}
-    <button type="button" class="btn" style="width:100%;margin-top:4px;padding:10px;font-weight:800;font-size:12px;background:#1c1c12;border-color:#5a4a2a;color:#f0c14a" onclick="event.stopPropagation();abrirModalDetalheGrupo('${gidEsc}')">📋 Ver detalhes</button>
+    ${acoesEntregador}
+    <button type="button" class="btn" style="width:100%;margin-top:6px;padding:10px;font-weight:800;font-size:12px;background:#1c1c12;border-color:#5a4a2a;color:#f0c14a" onclick="event.stopPropagation();abrirModalDetalheGrupo('${gidEsc}')">📋 Ver detalhes</button>
   </div>`;
 }
 
