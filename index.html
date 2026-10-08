@@ -511,7 +511,7 @@ body.ifood-modal-open{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 071026.212700</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 071026.213200</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -8359,10 +8359,10 @@ function abrirModalDetalheGrupo(gid){
           acaoMembro = `<button class="btn small ${modo==='entregador'?'blue':''}" style="width:100%" onclick="editarCodigo('${p.id}','${String(p.codigo_cliente||'').replace(/'/g,"\\'")}')">${lab}</button>`;
         } else if(_externo){
           const plat = getLabelPlataformaExterna(p.numero_pedido);
-          acaoMembro = `<button class="btn small green" style="width:100%" onclick="finalizarPedidoExterno('${p.id}')">✅ FINALIZAR (${plat})</button>`;
+          acaoMembro = `<button class="btn green" style="width:100%;padding:14px 12px;min-height:48px;font-weight:900;font-size:13px" onclick="finalizarPedidoExterno('${p.id}')">✅ FINALIZAR (${plat})</button>`;
         } else {
           const txt = modo==='entregador' ? '✅ Finalizar' : '🔢 INFORMAR CÓDIGO';
-          acaoMembro = `<button class="btn small green" style="width:100%" onclick="informarCodigo('${p.id}')">${txt}</button>`;
+          acaoMembro = `<button class="btn green" style="width:100%;padding:14px 12px;min-height:48px;font-weight:900;font-size:13px" onclick="informarCodigo('${p.id}')">${txt}</button>`;
         }
       }
       return `<div style="background:#0e1118;border:1px solid #2c3340;border-radius:10px;padding:10px">
@@ -8386,11 +8386,8 @@ function abrirModalDetalheGrupo(gid){
         <button class="btn blue" style="width:100%" onclick="abrirModalMasterGrupo('${gidEsc}')">${nomeRes?'🔄 Mover grupo':'📤 Enviar grupo'}</button>
         <button class="btn red" style="width:100%" onclick="desfazerGrupo('${gidEsc}')">🗑️ Desfazer grupo</button>`;
     } else {
-      htmlA = `<button class="btn blue" style="width:100%;padding:14px;font-weight:900" onclick="abrirMapa('${endEsc}')">📍 ABRIR MAPA</button>
-        <div style="display:flex;gap:8px">
-          <button class="btn" style="flex:1" onclick="moverGrupoCima('${gidEsc}')">↑ Subir</button>
-          <button class="btn" style="flex:1" onclick="moverGrupoBaixo('${gidEsc}')">↓ Descer</button>
-        </div>`;
+      // Mapa / Subir / Descer ficam no card — modal só com ações por pedido
+      htmlA = '';
     }
     acoes.innerHTML = htmlA;
   }
