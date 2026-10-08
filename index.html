@@ -511,7 +511,7 @@ body.ifood-modal-open{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 071026.214000</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 081026.192708</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -2871,6 +2871,35 @@ function _resolverIdEntregaPorValor(valor){
   return o ? o.id : null;
 }
 
+/** Sincroniza com o Supabase o estado de bloqueio/valor de custo dos pedidos do dia.
+ *  Corrige o cache local desatualizado: quando o Master reabre o turno, o entregador (que já tinha
+ *  os pedidos em memória com custo_bloqueado=true) continuava bloqueado mesmo após reabrir. */
+async function _sincronizarBloqueioCustoDia(dataAlvo){
+  const client = getSb();
+  if(!client || !dataAlvo) return false;
+  try{
+    const {data, error} = await client.from('pedidos_entrega_dia')
+      .select('id,custo_bloqueado,custo_enviado_em,valor_entrega')
+      .eq('data', dataAlvo);
+    if(error || !data) return false;
+    const mapa = {};
+    data.forEach(r=>{ mapa[r.id] = r; });
+    const aplicar = (p)=>{
+      if(!p || !Object.prototype.hasOwnProperty.call(mapa, p.id)) return;
+      const r = mapa[p.id];
+      p.custo_bloqueado = !!r.custo_bloqueado;
+      p.custo_enviado_em = r.custo_enviado_em || null;
+      p.valor_entrega = r.valor_entrega;
+    };
+    (todosPedidos || []).forEach(aplicar);
+    Object.values(_cachePedidosCustoMaster || {}).forEach(aplicar);
+    return true;
+  }catch(e){
+    console.warn('_sincronizarBloqueioCustoDia', e);
+    return false;
+  }
+}
+
 async function verificarCustoDiaBloqueado(){
   custoTurnoBloqueado = { jantar: false, almoco: false };
   custoDiaBloqueado = false;
@@ -3001,6 +3030,7 @@ async function executarReabrirCustoDia(){
     if(errDel && (errDel2 || !(nomeEnt && nomeEnt !== idEntregador))) throw errDel;
 
     // 2) Desbloqueia só pedidos do turno (ou todos se null)
+    try{ await _sincronizarBloqueioCustoDia(dataAlvo); }catch(e){}
     let lista;
     if(_reabrirCustoCtx && _reabrirCustoCtx.nome){
       const nomeAlvo = _reabrirCustoCtx.nome;
@@ -3013,6 +3043,7 @@ async function executarReabrirCustoDia(){
     }
     if(turnoAlvo) lista = lista.filter(p => getTurno(p) === turnoAlvo);
     const ids = lista.map(p=>p.id).filter(Boolean);
+    let _desbloqErro = null;
     if(ids.length){
       for(let i=0;i<ids.length;i+=50){
         const chunk = ids.slice(i, i+50);
@@ -3020,6 +3051,7 @@ async function executarReabrirCustoDia(){
           .update({ custo_bloqueado: false, custo_enviado_em: null })
           .in('id', chunk);
         if(error){
+          _desbloqErro = error;
           console.warn('reabrir custo_bloqueado', error.message);
           for(const id of chunk){
             try{
@@ -3046,6 +3078,18 @@ async function executarReabrirCustoDia(){
     }
     custoDiaBloqueado = !!(custoTurnoBloqueado.jantar && custoTurnoBloqueado.almoco);
     _reabrirCustoTurno = null;
+    // Confirma no banco que nenhum pedido do turno continua bloqueado
+    try{
+      if(ids.length){
+        const {data: aindaBloq} = await client.from('pedidos_entrega_dia')
+          .select('id').in('id', ids.slice(0,200)).eq('custo_bloqueado', true);
+        if(aindaBloq && aindaBloq.length){
+          throw new Error(aindaBloq.length+' pedido(s) continuam bloqueados no banco'+(_desbloqErro?(' ('+(_desbloqErro.message||_desbloqErro)+')'):' (verifique a permissão/RLS de UPDATE em pedidos_entrega_dia)'));
+        }
+      }
+    }catch(eChk){
+      if(eChk && /continuam bloqueados/.test(eChk.message||'')) throw eChk;
+    }
     const lab = turnoAlvo === 'almoco' ? 'Almoço' : (turnoAlvo === 'jantar' ? 'Jantar' : 'dia');
     if(st){ st.textContent = '✅ Custo do '+lab+' reaberto!'; st.style.color = '#3dcc8a'; }
     setTimeout(()=>{
@@ -3328,6 +3372,7 @@ async function renderAbaCustoMaster(){
 
   const tit = document.getElementById('tituloAbaCusto');
   if(tit) tit.textContent = '💵 CONFERIR CUSTOS (Master)';
+  try{ await _sincronizarBloqueioCustoDia(getDataFiltroCustoEnt()); }catch(e){}
   if(!(cacheOpcoesCusto||[]).length){ try{ await carregarOpcoesCusto(); }catch(e){} }
 
   const dataAlvo = getDataFiltroCustoEnt();
@@ -3458,6 +3503,12 @@ async function renderAbaCustoMaster(){
       });
       if(contE.total) resumoVal += `<div style="margin-top:4px;font-weight:800;color:#3dcc8a">Total: R$ ${Number(contE.total).toFixed(2)}</div>`;
       const nomeEsc = _esc(nome), idEsc = _esc(idE);
+      let btnEnviarProprio = '';
+      if(!enviado && _masterEhEntregadorProprio(nome)){
+        const faltamE = (contE.qtdEntregas||0) - (contE.comValor||0);
+        const labT = turno==='almoco' ? '☀️ Almoço' : '🌙 Jantar';
+        btnEnviarProprio = `<button class="btn primary" onclick="event.stopPropagation();enviarCalcEntregas('${turno}')" ${faltamE>0?'disabled':''} style="width:100%;padding:16px;margin-top:10px;font-size:14px;font-weight:900;opacity:${faltamE>0?0.5:1}">${faltamE>0?('📤 Preencha todos ('+faltamE+' faltando)'):('📤 Salvar/Enviar '+labT)}</button>`;
+      }
 
       html += `<div class="master-ent-header com-pedidos" style="margin:8px 12px 6px 24px" onclick="toggleMasterCustoEnt('${keyE}')">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -3471,6 +3522,7 @@ async function renderAbaCustoMaster(){
         <div class="custo-grid">${_htmlItensCustoMaster(listaE)}</div>
         <div style="margin:8px 12px 14px 24px;padding:12px;background:#0e1118;border:1px solid #2c3340;border-radius:12px;font-size:12px;color:#8b93a7">
           ${resumoVal||'<div>Sem valores atribuídos</div>'}
+          ${btnEnviarProprio}
           ${enviado?`<button class="btn" onclick="event.stopPropagation();abrirModalReabrirCustoMaster('${nomeEsc}','${idEsc}','${turno}')" style="width:100%;padding:14px;margin-top:10px;font-size:13px;font-weight:900;background:#3a2a1a;color:#f0c14a;border-color:#5a4a2a">🔓 Reabrir ${turno==='almoco'?'Almoço':'Jantar'} de ${nome}</button>`:''}
         </div>
       </div>`;
@@ -3519,6 +3571,8 @@ async function renderAbaCusto(){
     }
   }
 
+  // Sempre traz do banco o estado atual de bloqueio (o Master pode ter reaberto o turno)
+  await _sincronizarBloqueioCustoDia(dataAlvo);
   await verificarCustoDiaBloqueado();
 
   let lista = getPedidosAbaCusto();
@@ -3827,17 +3881,51 @@ function fecharModalConfirmarEnvioCusto(){
 // Turno pendente de envio no modal
 let _envioCustoTurno = null;
 
+/** Master entregando na conta própria: o bloco dele em Conferir Custos também pode ser ENVIADO (salvar/bloquear). */
+function _masterEhEntregadorProprio(nome){
+  if(!usuarioLogado || !usuarioLogado.isMaster) return false;
+  const a = String(nome||'').trim().toLowerCase();
+  const b = String(usuarioLogado.nome||'').trim().toLowerCase();
+  return !!a && a === b;
+}
+/** ID gravado em calc_entregas: o mesmo que o Conferir Custos / Reabrir usam (id do cadastro, senão o nome). */
+function _idEntregadorParaEnvio(){
+  const nome = String((usuarioLogado && usuarioLogado.nome) || '');
+  if(usuarioLogado && usuarioLogado.isMaster){
+    const e = (cacheEntregadores||[]).find(x => String(x.nome||'').toLowerCase() === nome.toLowerCase());
+    return String((e && (e.id||e.nome)) || usuarioLogado.id || nome || '');
+  }
+  return String(usuarioLogado.id || usuarioLogado.nome || '');
+}
+/** Pedidos do turno que serão enviados (entregador: os dele; Master: os dele no Conferir Custos, grupos inclusos). */
+function _listaEnvioCusto(t){
+  if(usuarioLogado && usuarioLogado.isMaster){
+    const doDia = getPedidosCustoMasterDia();
+    const meus = doDia.filter(p => _masterEhEntregadorProprio(_nomeEntPedidoCusto(p)));
+    const grupos = new Set(meus.filter(p=>p.grupo_entrega).map(p=>p.grupo_entrega));
+    return doDia.filter(p => meus.includes(p) || (p.grupo_entrega && grupos.has(p.grupo_entrega)))
+      .filter(p => getTurno(p) === t)
+      .sort((a,b)=> String(a.numero_pedido||'').localeCompare(String(b.numero_pedido||''),'pt-BR',{numeric:true}));
+  }
+  return getPedidosAbaCusto().filter(p => getTurno(p) === t);
+}
+function _rerenderCustoAposEnvio(){
+  try{
+    if(usuarioLogado && usuarioLogado.isMaster) renderAbaCustoMaster(); else renderAbaCusto();
+  }catch(e){}
+}
+
 /** Abre modal de confirmação para um turno (não envia ainda). */
 function enviarCalcEntregas(turno){
-  if(!usuarioLogado || usuarioLogado.isMaster) return;
+  if(!usuarioLogado) return;
   const t = (turno === 'almoco') ? 'almoco' : 'jantar';
-  if(isCustoTurnoBloqueado(t)){
+  if(!usuarioLogado.isMaster && isCustoTurnoBloqueado(t)){
     alert('Este turno já foi enviado e está bloqueado.');
     return;
   }
-  let lista = getPedidosAbaCusto().filter(p => getTurno(p) === t);
-  // Pesquisa de pedidos na aba Custo
-  try{
+  let lista = _listaEnvioCusto(t);
+  // Pesquisa de pedidos na aba Custo (só entregador)
+  if(!usuarioLogado.isMaster) try{
     const buscaEl = document.getElementById('buscaEntregador');
     const termo = (buscaEl && buscaEl.value ? buscaEl.value : '').toLowerCase().trim();
     if(termo){
@@ -3922,17 +4010,17 @@ function _abrirWhatsEnvioCusto(texto){
   }catch(e){ return false; }
 }
 async function _executarEnvioCalcEntregasInterno(){
-  if(!usuarioLogado || usuarioLogado.isMaster) return;
+  if(!usuarioLogado) return;
   const t = _envioCustoTurno || 'jantar';
-  if(isCustoTurnoBloqueado(t)){
+  if(!usuarioLogado.isMaster && isCustoTurnoBloqueado(t)){
     fecharModalConfirmarEnvioCusto();
     return;
   }
   const stModal = document.getElementById('modalEnvioCustoStatus');
   const st = document.getElementById('custoEnvioStatus');
   const btnModal = document.getElementById('btnConfirmarEnvioCusto');
-  let lista = getPedidosAbaCusto().filter(p => getTurno(p) === t);
-  try{
+  let lista = _listaEnvioCusto(t);
+  if(!usuarioLogado.isMaster) try{
     const buscaEl = document.getElementById('buscaEntregador');
     const termo = (buscaEl && buscaEl.value ? buscaEl.value : '').toLowerCase().trim();
     if(termo){
@@ -3950,7 +4038,7 @@ async function _executarEnvioCalcEntregasInterno(){
   if(!cacheOpcoesCusto.length) await carregarOpcoesCusto();
 
   const dataAlvo = getDataFiltroCustoEnt();
-  const idEntregador = String(usuarioLogado.id || usuarioLogado.nome || '');
+  const idEntregador = _idEntregadorParaEnvio();
   if(!idEntregador){
     if(stModal){ stModal.textContent = 'ID do entregador não encontrado'; stModal.style.color = '#ff6b6b'; }
     return;
@@ -3969,7 +4057,7 @@ async function _executarEnvioCalcEntregasInterno(){
     if(ja && ja.length){
       custoTurnoBloqueado[t] = true;
       if(stModal){ stModal.textContent = 'Este turno já foi enviado'; stModal.style.color = '#ff6b6b'; }
-      setTimeout(()=>{ fecharModalConfirmarEnvioCusto(); renderAbaCusto(); }, 800);
+      setTimeout(()=>{ fecharModalConfirmarEnvioCusto(); _rerenderCustoAposEnvio(); }, 800);
       return;
     }
   }catch(e){}
@@ -4056,7 +4144,7 @@ async function _executarEnvioCalcEntregasInterno(){
 
     setTimeout(()=>{
       fecharModalConfirmarEnvioCusto();
-      renderAbaCusto();
+      _rerenderCustoAposEnvio();
     }, 700);
   }catch(e){
     console.warn('executarEnvioCalcEntregas', e);
