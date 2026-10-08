@@ -511,7 +511,7 @@ body.ifood-modal-open{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 071026.213200</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 071026.214000</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -8281,7 +8281,7 @@ function cardGrupoPedidos(item){
     </div>`;
   }).join('');
 
-  // Entregador: Mapa + Subir/Descer no card (fora do modal)
+  // Entregador: Mapa + Subir/Descer + excluir no card
   const acoesEntregador = !isMasterUser
     ? `<div class="pm-rota" style="grid-template-columns:1fr 1fr auto;margin-top:6px;margin-bottom:0">
         <button class="btn small" onclick="event.stopPropagation();moverGrupoCima('${gidEsc}')">↑ Subir</button>
@@ -8289,6 +8289,17 @@ function cardGrupoPedidos(item){
         <button class="btn small red" onclick="event.stopPropagation();excluirGrupoDaLista('${gidEsc}')">🗑️</button>
       </div>
       <button type="button" class="btn blue btn-entregador-mapa" style="margin-top:6px" onclick="event.stopPropagation();abrirMapa('${endEsc}')">📍 ABRIR MAPA</button>`
+    : '';
+
+  // Master: ações do grupo no card (fora do modal)
+  const idPrimeiro = membros[0] ? membros[0].id : '';
+  const acoesMaster = isMasterUser
+    ? `<div class="pm-actions" style="margin-top:6px">
+        <button class="btn blue" onclick="event.stopPropagation();abrirMapa('${endEsc}')"><span>📍</span><span>Mapa</span></button>
+        <button class="btn" style="background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="event.stopPropagation();abrirModalEditarEndereco('${idPrimeiro}')"><span>✏️</span><span>Editar</span></button>
+        <button class="btn blue" onclick="event.stopPropagation();abrirModalMasterGrupo('${gidEsc}')"><span>${nomeRes?'🔄':'📤'}</span><span>${nomeRes?'Mover':'Enviar'}</span></button>
+        <button class="btn red" onclick="event.stopPropagation();desfazerGrupo('${gidEsc}')"><span>🗑️</span><span>Desfazer</span></button>
+      </div>`
     : '';
 
   return `<div class="pedido-mini${todosConfirmados?' ok':''}${_algumAlterado(membros)?' alterado':''}" style="border-color:#f0c14a">
@@ -8303,6 +8314,7 @@ function cardGrupoPedidos(item){
     <div class="pm-end" title="${endEsc}">📍 ${end}</div>
     ${_htmlAlteradoEnd(membros)}
     ${acoesEntregador}
+    ${acoesMaster}
     <button type="button" class="btn" style="width:100%;margin-top:6px;padding:10px;font-weight:800;font-size:12px;background:#1c1c12;border-color:#5a4a2a;color:#f0c14a" onclick="event.stopPropagation();abrirModalDetalheGrupo('${gidEsc}')">📋 Ver detalhes</button>
   </div>`;
 }
@@ -8380,15 +8392,8 @@ function abrirModalDetalheGrupo(gid){
   const acoes = document.getElementById('detGrupoAcoes');
   if(acoes){
     let htmlA = '';
-    if(isMasterUser){
-      htmlA = `<button class="btn blue" style="width:100%" onclick="abrirMapa('${endEsc}')">📍 Mapa</button>
-        <button class="btn" style="width:100%;background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="abrirModalEditarEndereco('${membros[0].id}')">✏️ Editar endereço</button>
-        <button class="btn blue" style="width:100%" onclick="abrirModalMasterGrupo('${gidEsc}')">${nomeRes?'🔄 Mover grupo':'📤 Enviar grupo'}</button>
-        <button class="btn red" style="width:100%" onclick="desfazerGrupo('${gidEsc}')">🗑️ Desfazer grupo</button>`;
-    } else {
-      // Mapa / Subir / Descer ficam no card — modal só com ações por pedido
-      htmlA = '';
-    }
+    // Ações de grupo (mapa/editar/mover/desfazer) ficam no card — modal só por pedido
+    htmlA = '';
     acoes.innerHTML = htmlA;
   }
 
