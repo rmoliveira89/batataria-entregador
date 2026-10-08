@@ -367,6 +367,19 @@ body.ifood-modal-open{
 </div>
 
 
+<!-- MODAL DETALHES DO GRUPO -->
+<div id="modalDetalheGrupo" class="overlay" style="display:none;z-index:265">
+<div class="card" style="width:100%;max-width:440px;max-height:90vh;overflow:auto;margin:0">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px">
+    <h3 style="margin:0;color:#f0c14a;font-size:15px" id="detGrupoTitulo">🔗 Grupo</h3>
+    <button class="btn" onclick="fecharModalDetalheGrupo()" style="padding:6px 10px">✕</button>
+  </div>
+  <div id="detGrupoInfo" style="background:#0e1118;border:1px solid #2c3340;border-radius:10px;padding:10px;font-size:11px;color:#8b93a7;margin-bottom:12px"></div>
+  <div id="detGrupoLista" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
+  <div id="detGrupoAcoes" style="display:flex;flex-direction:column;gap:8px"></div>
+</div>
+</div>
+
 <!-- MODAL IFOOD (iframe) — Fechar volta ao app -->
 <div id="modalIfood" class="overlay" style="display:none;z-index:9990" role="dialog" aria-modal="true">
 <div class="ifood-shell">
@@ -498,7 +511,7 @@ body.ifood-modal-open{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 061026.235900</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 071026.211300</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -8090,7 +8103,7 @@ function cardPedido(p, idx, lista){
   const pos = idx+1;
   const modo = getModoConfirmacao();
   // Texto grande exigido para reativado/adicionado novamente
-  const btnConfirmarTexto = modo==='entregador' ? '📋 COPIAR LOCALIZADOR' : '🔢 INFORMAR CÓDIGO';
+  const btnConfirmarTexto = modo==='entregador' ? '✅ Finalizar' : '🔢 INFORMAR CÓDIGO';
   const nomeRes = getNomeReserva(p);
   const badgeEnt = usuarioLogado?.isMaster
     ? (nomeRes
@@ -8134,11 +8147,12 @@ function cardPedido(p, idx, lista){
     } else if(isCodigo){
       acoes += `<button class="btn" style="background:#3a2a1a;color:#f0c14a;border-color:#5a4a2a" onclick="event.stopPropagation(); reativarPedido('${p.id}')"><span>↺</span><span>Reativar</span></button>`;
       acoes += `<button class="btn blue" onclick="event.stopPropagation(); abrirModalMasterPedido('${p.id}')"><span>🔄</span><span>Mover</span></button>`;
-      acoes += `<button class="btn red" onclick="event.stopPropagation(); excluirPedidoDefinitivo('${p.id}')"><span>🗑️</span><span>Excluir</span></button>`;
+      acoes += `<button class="btn red pm-full" onclick="event.stopPropagation(); excluirPedidoDefinitivo('${p.id}')"><span>🗑️</span><span>Excluir</span></button>`;
     } else {
-      acoes += `<button class="btn green" onclick="event.stopPropagation(); finalizarPedidoMaster('${p.id}')"><span>✅</span><span>Finalizar</span></button>`;
-      acoes += `<button class="btn blue" onclick="event.stopPropagation(); abrirModalMasterPedido('${p.id}')"><span>${nomeRes?'🔄':'📤'}</span><span>${nomeRes?'Mover':'Enviar'}</span></button>`;
+      // Excluir no lugar do Finalizar; Finalizar embaixo em largura total
       acoes += `<button class="btn red" onclick="event.stopPropagation(); excluirPedidoDefinitivo('${p.id}')"><span>🗑️</span><span>Excluir</span></button>`;
+      acoes += `<button class="btn blue" onclick="event.stopPropagation(); abrirModalMasterPedido('${p.id}')"><span>${nomeRes?'🔄':'📤'}</span><span>${nomeRes?'Mover':'Enviar'}</span></button>`;
+      acoes += `<button class="btn green pm-full" onclick="event.stopPropagation(); finalizarPedidoMaster('${p.id}')"><span>✅</span><span>Finalizar</span></button>`;
     }
     htmlAcoes = `<div class="pm-actions">${acoes}</div>`;
   } else {
@@ -8152,7 +8166,7 @@ function cardPedido(p, idx, lista){
         const plat = getLabelPlataformaExterna(p.numero_pedido);
         btnLocalizador = `<button class="btn green btn-entregador-localizador" onclick="finalizarPedidoExterno('${p.id}')">✅ FINALIZAR (${plat})</button>`;
       }else{
-        btnLocalizador = `<button class="btn ${modo==='entregador'?'blue':'green'} btn-entregador-localizador" onclick="informarCodigo('${p.id}')">${btnConfirmarTexto}</button>`;
+        btnLocalizador = `<button class="btn green btn-entregador-localizador" onclick="informarCodigo('${p.id}')">${btnConfirmarTexto}</button>`;
       }
     } else {
       const lab = modo==='entregador' ? ('🔄 '+(p.codigo_cliente||'IFOOD')+' - RECOPIAR') : ('✏️ EDITAR CÓDIGO '+(p.codigo_cliente||''));
@@ -8196,83 +8210,143 @@ function cardPedido(p, idx, lista){
 
 /** Renderiza um grupo de pedidos (mesmo endereço) como 1 card de entrega, com ação independente por pedido. */
 function cardGrupoPedidos(item){
-  const membros = item.pedidos;
+  const membros = item.pedidos || [];
   const gid = item.id;
   const isMasterUser = !!(usuarioLogado && usuarioLogado.isMaster);
   const todosConfirmados = membros.every(p=>p.status==='codigo_informado');
   const pendentes = membros.filter(p=>p.status!=='codigo_informado').length;
-  const end = membros[0].cliente_endereco || 'Sem endereço';
-  const nomeRes = getNomeReserva(membros[0]);
-  const modo = getModoConfirmacao();
+  const end = (membros[0] && membros[0].cliente_endereco) ? membros[0].cliente_endereco : 'Sem endereço';
+  const nomeRes = membros[0] ? getNomeReserva(membros[0]) : '';
   const badgeEnt = isMasterUser
     ? (nomeRes ? `<span class="badge entregador" style="font-size:9px;padding:2px 6px">🛵 ${nomeRes}</span>` : `<span class="badge espera" style="font-size:9px;padding:2px 6px">⏳ Espera</span>`)
     : '';
   const badgeStatus = todosConfirmados
     ? '<span class="badge codigo" style="font-size:9px;padding:2px 6px">✓ Concluído</span>'
     : `<span class="badge pendente" style="font-size:9px;padding:2px 6px">${pendentes} a entregar</span>`;
+  const endEsc = String(end).replace(/'/g,"\\'").replace(/"/g,'&quot;');
+  const gidEsc = String(gid).replace(/'/g,"\\'");
 
-  const linhasMembros = membros.map(p=>{
+  // Lista compacta: nº do pedido + nome do cliente
+  const linhasNomes = membros.map(p=>{
     const okP = p.status==='codigo_informado';
-    let acaoMembro;
-    if(isMasterUser){
-      acaoMembro = okP
-        ? `<button class="btn small" style="background:#3a2a1a;color:#f0c14a;border-color:#5a4a2a;flex:1" onclick="event.stopPropagation();reativarPedido('${p.id}')"><span>↺</span><span>Reativar</span></button>`
-        : `<button class="btn small green" style="flex:1" onclick="event.stopPropagation();finalizarPedidoMaster('${p.id}')"><span>✅</span><span>Finalizar</span></button>`;
-      acaoMembro += `<button class="btn small red" style="flex:1" onclick="event.stopPropagation();removerPedidoDoGrupo('${p.id}')"><span>🔓</span><span>Tirar</span></button>`;
-    } else {
-      const _externo = isPedidoExterno(p.numero_pedido);
-      if(okP){
-        const lab = modo==='entregador' ? ('🔄 '+(p.codigo_cliente||'IFOOD')+' - RECOPIAR') : ('✏️ EDITAR '+(p.codigo_cliente||''));
-        acaoMembro = `<button class="btn small ${modo==='entregador'?'blue':''}" style="width:100%" onclick="editarCodigo('${p.id}','${(p.codigo_cliente||'').replace(/'/g,"\\'")}')">${lab}</button>`;
-      } else if(_externo){
-        const plat = getLabelPlataformaExterna(p.numero_pedido);
-        acaoMembro = `<button class="btn small green" style="width:100%" onclick="finalizarPedidoExterno('${p.id}')">✅ FINALIZAR (${plat})</button>`;
-      } else {
-        const txt = modo==='entregador' ? '📋 COPIAR LOCALIZADOR' : '🔢 INFORMAR CÓDIGO';
-        acaoMembro = `<button class="btn small ${modo==='entregador'?'blue':'green'}" style="width:100%" onclick="informarCodigo('${p.id}')">${txt}</button>`;
-      }
-    }
-    return `<div class="list-item" style="align-items:flex-start;flex-direction:column;gap:6px">
-      <div style="display:flex;justify-content:space-between;width:100%;align-items:center">
-        <span style="font-weight:800;color:#f0c14a;font-size:12px">#${p.numero_pedido}</span>
-        <span style="font-size:11px">${okP?'✅':'🟡'}</span>
-      </div>
-      ${_htmlNomeComBebida('', p.cliente_nome||'—', p, 'font-size:11px;color:#e6e8ef')}
-      ${getHtmlTempoEntrega(p)}
-      <div style="display:flex;gap:4px;flex-wrap:wrap;width:100%">${acaoMembro}</div>
+    const num = String(p.numero_pedido||'—');
+    const nome = String(p.cliente_nome||'—');
+    return `<div style="display:flex;align-items:baseline;gap:6px;font-size:11px;line-height:1.35">
+      <span style="font-weight:800;color:#f0c14a;flex-shrink:0">#${num}</span>
+      <span style="color:#e6e8ef;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nome.replace(/</g,'')}</span>
+      <span style="flex-shrink:0;font-size:10px">${okP?'✅':'🟡'}</span>
     </div>`;
   }).join('');
 
-  const acoesGrupo = isMasterUser
-    ? `<div class="master-modal-actions" style="margin-top:8px">
-        <button class="btn blue small" onclick="event.stopPropagation();abrirMapa('${end.replace(/'/g,"\'")}')"><span>📍</span><span>Mapa</span></button>
-        <button class="btn small" style="background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="event.stopPropagation();abrirModalEditarEndereco('${membros[0].id}')"><span>✏️</span><span>Editar</span></button>
-        <button class="btn blue small" onclick="event.stopPropagation();abrirModalMasterGrupo('${gid}')"><span>${nomeRes?'🔄':'📤'}</span><span>${nomeRes?'Mover':'Enviar'}</span></button>
-        <button class="btn red small pm-full" onclick="event.stopPropagation();desfazerGrupo('${gid}')"><span>🗑️</span><span>Desfazer grupo</span></button>
-      </div>`
-    : `<button class="btn blue btn-entregador-mapa" onclick="abrirMapa('${end.replace(/'/g,"\'")}')">📍 ABRIR MAPA</button>`;
-
-  const rota = (!isMasterUser)
-    ? `<div class="pm-rota" style="grid-template-columns:1fr 1fr"><button class="btn small" onclick="moverGrupoCima('${gid}')">↑ Subir</button><button class="btn small" onclick="moverGrupoBaixo('${gid}')">↓ Descer</button></div>`
-    : '';
-
-  return `<div class="pedido-mini${todosConfirmados?' ok':''}${_algumAlterado(membros)?' alterado':''}" style="border-color:#f0c14a;grid-column:span 2;min-width:260px">
+  // Card compacto; ações no modal
+  return `<div class="pedido-mini${todosConfirmados?' ok':''}${_algumAlterado(membros)?' alterado':''}" style="border-color:#f0c14a">
     <div class="pm-top">
-      <div>
+      <div style="min-width:0;flex:1">
         <div class="pm-num">🔗 Grupo · ${membros.length} pedidos</div>
         <div class="pm-meta">mesmo endereço · conta como 1 entrega</div>
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">${badgeEnt}${badgeStatus}</div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">${badgeEnt}${badgeStatus}</div>
     </div>
-    <div class="pm-end" title="${end.replace(/"/g,'&quot;')}">📍 ${end}</div>
+    <div style="display:flex;flex-direction:column;gap:3px;padding:4px 0;border-top:1px solid #2c3340;border-bottom:1px solid #2c3340;margin:2px 0">${linhasNomes}</div>
+    <div class="pm-end" title="${endEsc}">📍 ${end}</div>
     ${_htmlAlteradoEnd(membros)}
-    ${rota}
-    <div class="master-modal-list" style="max-height:none">${linhasMembros}</div>
-    ${acoesGrupo}
+    <button type="button" class="btn" style="width:100%;margin-top:4px;padding:10px;font-weight:800;font-size:12px;background:#1c1c12;border-color:#5a4a2a;color:#f0c14a" onclick="event.stopPropagation();abrirModalDetalheGrupo('${gidEsc}')">📋 Ver detalhes</button>
   </div>`;
 }
 
-/** Envolve vários cards em grid compacto (quando a lista é só HTML de cards). */
+function fecharModalDetalheGrupo(){
+  const m = document.getElementById('modalDetalheGrupo');
+  if(m) m.style.display = 'none';
+}
+
+function abrirModalDetalheGrupo(gid){
+  const membros = membrosGrupoLocal(gid);
+  if(!membros || !membros.length){
+    alert('Grupo não encontrado');
+    return;
+  }
+  const isMasterUser = !!(usuarioLogado && usuarioLogado.isMaster);
+  const modo = getModoConfirmacao();
+  const todosConfirmados = membros.every(p=>p.status==='codigo_informado');
+  const pendentes = membros.filter(p=>p.status!=='codigo_informado').length;
+  const end = membros[0].cliente_endereco || 'Sem endereço';
+  const nomeRes = getNomeReserva(membros[0]);
+  const endEsc = String(end).replace(/'/g,"\\'");
+  const gidEsc = String(gid).replace(/'/g,"\\'");
+
+  const titulo = document.getElementById('detGrupoTitulo');
+  if(titulo) titulo.textContent = '🔗 Grupo · ' + membros.length + ' pedidos';
+
+  const info = document.getElementById('detGrupoInfo');
+  if(info){
+    const statusTxt = todosConfirmados ? '✓ Concluído' : ('⏳ ' + pendentes + ' a entregar');
+    const entTxt = nomeRes ? ('🛵 ' + nomeRes) : '⏳ Espera';
+    info.innerHTML = `<div style="font-size:12px;color:#f0c14a;font-weight:800;margin-bottom:4px">mesmo endereço · conta como 1 entrega</div>
+      <div style="color:#e6e8ef;margin-bottom:4px">${isMasterUser ? entTxt + ' · ' : ''}${statusTxt}</div>
+      <div>📍 ${end}</div>`;
+  }
+
+  const lista = document.getElementById('detGrupoLista');
+  if(lista){
+    lista.innerHTML = membros.map(p=>{
+      const okP = p.status==='codigo_informado';
+      let acaoMembro = '';
+      if(isMasterUser){
+        if(okP){
+          acaoMembro = `<button class="btn small" style="background:#3a2a1a;color:#f0c14a;border-color:#5a4a2a;flex:1" onclick="event.stopPropagation();reativarPedido('${p.id}')">↺ Reativar</button>`;
+          acaoMembro += `<button class="btn small red" style="flex:1" onclick="event.stopPropagation();removerPedidoDoGrupo('${p.id}')">🔓 Tirar</button>`;
+        } else {
+          acaoMembro = `<button class="btn small red" style="flex:1" onclick="event.stopPropagation();removerPedidoDoGrupo('${p.id}')">🔓 Tirar</button>`;
+          acaoMembro += `<button class="btn small green" style="width:100%;flex:1 1 100%" onclick="event.stopPropagation();finalizarPedidoMaster('${p.id}')">✅ Finalizar</button>`;
+        }
+      } else {
+        const _externo = isPedidoExterno(p.numero_pedido);
+        if(okP){
+          const lab = modo==='entregador' ? ('🔄 '+(p.codigo_cliente||'IFOOD')+' - RECOPIAR') : ('✏️ EDITAR '+(p.codigo_cliente||''));
+          acaoMembro = `<button class="btn small ${modo==='entregador'?'blue':''}" style="width:100%" onclick="editarCodigo('${p.id}','${String(p.codigo_cliente||'').replace(/'/g,"\\'")}')">${lab}</button>`;
+        } else if(_externo){
+          const plat = getLabelPlataformaExterna(p.numero_pedido);
+          acaoMembro = `<button class="btn small green" style="width:100%" onclick="finalizarPedidoExterno('${p.id}')">✅ FINALIZAR (${plat})</button>`;
+        } else {
+          const txt = modo==='entregador' ? '✅ Finalizar' : '🔢 INFORMAR CÓDIGO';
+          acaoMembro = `<button class="btn small green" style="width:100%" onclick="informarCodigo('${p.id}')">${txt}</button>`;
+        }
+      }
+      return `<div style="background:#0e1118;border:1px solid #2c3340;border-radius:10px;padding:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-weight:800;color:#f0c14a">#${p.numero_pedido||'—'}</span>
+          <span style="font-size:12px">${okP?'✅':'🟡'}</span>
+        </div>
+        <div style="font-size:12px;color:#e6e8ef;margin-bottom:4px">${p.cliente_nome||'—'}</div>
+        ${typeof getHtmlTempoEntrega==='function' ? getHtmlTempoEntrega(p) : ''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${acaoMembro}</div>
+      </div>`;
+    }).join('');
+  }
+
+  const acoes = document.getElementById('detGrupoAcoes');
+  if(acoes){
+    let htmlA = '';
+    if(isMasterUser){
+      htmlA = `<button class="btn blue" style="width:100%" onclick="abrirMapa('${endEsc}')">📍 Mapa</button>
+        <button class="btn" style="width:100%;background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="abrirModalEditarEndereco('${membros[0].id}')">✏️ Editar endereço</button>
+        <button class="btn blue" style="width:100%" onclick="abrirModalMasterGrupo('${gidEsc}')">${nomeRes?'🔄 Mover grupo':'📤 Enviar grupo'}</button>
+        <button class="btn red" style="width:100%" onclick="desfazerGrupo('${gidEsc}')">🗑️ Desfazer grupo</button>`;
+    } else {
+      htmlA = `<button class="btn blue" style="width:100%;padding:14px;font-weight:900" onclick="abrirMapa('${endEsc}')">📍 ABRIR MAPA</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn" style="flex:1" onclick="moverGrupoCima('${gidEsc}')">↑ Subir</button>
+          <button class="btn" style="flex:1" onclick="moverGrupoBaixo('${gidEsc}')">↓ Descer</button>
+        </div>`;
+    }
+    acoes.innerHTML = htmlA;
+  }
+
+  const m = document.getElementById('modalDetalheGrupo');
+  if(m) m.style.display = 'flex';
+}
+
+
 function wrapPedidosGrid(htmlCards){
   if(!htmlCards || htmlCards.indexOf('pedido-mini')===-1) return htmlCards;
   return `<div class="pedidos-grid">${htmlCards}</div>`;
