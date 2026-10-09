@@ -429,7 +429,8 @@ body.ifood-modal-open{
     <div id="finEntCodigoExistenteValor" style="font-size:22px;font-weight:900;color:#3dcc8a;letter-spacing:0.2em"></div>
     <div id="finEntCodigoCopyFb" style="font-size:10px;color:#3dcc8a;min-height:14px;margin-top:2px"></div>
   </div>
-  <label style="font-size:11px;color:#8b93a7;font-weight:700;display:block;margin-bottom:6px">Código do cliente (4 dígitos) · opcional</label>
+  <label id="finEntErradoWrap" style="display:none;align-items:center;justify-content:center;gap:8px;margin:0 0 10px;padding:10px;border:1px solid #5a3a2a;border-radius:10px;background:#1f1410;color:#ff9b7a;font-size:13px;font-weight:800;cursor:pointer"><input type="checkbox" id="finEntCodigoErrado" style="width:20px;height:20px;accent-color:#ff6b6b;margin:0" onchange="_finEntAtualizarUI(true)"/> ❌ Código errado — informar outro</label>
+  <label id="finEntCodigoLabel" style="font-size:11px;color:#8b93a7;font-weight:700;display:block;margin-bottom:6px">Código do cliente (4 dígitos) · opcional</label>
   <input id="finEntCodigo" inputmode="numeric" maxlength="4" placeholder="Opcional — pode finalizar sem código" autocomplete="one-time-code"
     style="font-size:28px;font-weight:900;text-align:center;letter-spacing:0.35em;padding:16px;margin-bottom:8px;width:100%;border-radius:12px;border:1px solid #2c3340;background:#0e1118;color:#fff"
     oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
@@ -511,7 +512,7 @@ body.ifood-modal-open{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 081026.192708</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 081026.223801</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -1004,7 +1005,8 @@ select '06:00','15:59','16:00','05:59','07:00','23:30',5,false where not exists 
   <div style="font-size:10px;color:#8b93a7;font-weight:700;letter-spacing:0.06em;margin-bottom:4px;text-align:center">CÓDIGO</div>
   <div id="autoCodigoExistenteValor" style="font-size:28px;font-weight:900;color:#3dcc8a;letter-spacing:0.25em;text-align:center"></div>
 </div>
-<label style="font-size:11px;color:#8b93a7;font-weight:700;display:block;margin-bottom:6px">Código do cliente (4 dígitos)</label>
+<label id="autoErradoWrap" style="display:none;align-items:center;justify-content:center;gap:8px;margin:0 0 10px;padding:10px;border:1px solid #5a3a2a;border-radius:10px;background:#1f1410;color:#ff9b7a;font-size:13px;font-weight:800;cursor:pointer"><input type="checkbox" id="autoCodigoErrado" style="width:20px;height:20px;accent-color:#ff6b6b;margin:0" onchange="_autoAtualizarUI(true)"/> ❌ Código errado — informar outro</label>
+<label id="autoCodigoLabel" style="font-size:11px;color:#8b93a7;font-weight:700;display:block;margin-bottom:6px">Código do cliente (4 dígitos)</label>
 <input id="autoModalCodigo" inputmode="numeric" maxlength="4" placeholder="Ex: 1234" autocomplete="one-time-code"
   style="font-size:28px;font-weight:900;text-align:center;letter-spacing:0.35em;padding:16px;margin-bottom:8px"
   oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
@@ -9056,8 +9058,41 @@ async function mostrarCodigoEntregadorNoModal(prefix, pedido){
   if(cod){
     if(valEl) valEl.textContent = cod;
     box.style.display = 'block';
+    if(prefix === 'auto'){ try{ _autoAtualizarUI(false); }catch(e){} }
   }
 }
+
+
+/* ===== Código já existente: o entregador NÃO digita de novo. Só digita se marcar "Código errado". ===== */
+function _codExistenteDoModal(valId, boxId){
+  try{
+    const b=document.getElementById(boxId), v=document.getElementById(valId);
+    const t=v ? String(v.textContent||'').replace(/\D/g,'').slice(0,4) : '';
+    return (b && b.style.display!=='none' && t.length===4) ? t : '';
+  }catch(e){ return ''; }
+}
+function _finEntTemExistente(){ return _codExistenteDoModal('finEntCodigoExistenteValor','finEntCodigoExistente'); }
+function _autoTemExistente(){ return _codExistenteDoModal('autoCodigoExistenteValor','autoCodigoExistente'); }
+function _atualizarUICodigoExistente(ex, wrapId, chkId, labId, inpId, focar){
+  const wrap=document.getElementById(wrapId), chk=document.getElementById(chkId), lab=document.getElementById(labId), inp=document.getElementById(inpId);
+  if(!inp) return;
+  if(!ex){
+    if(wrap) wrap.style.display='none';
+    if(chk) chk.checked=false;
+    if(lab) lab.style.display='';
+    inp.style.display=''; inp.disabled=false;
+    return;
+  }
+  if(wrap) wrap.style.display='flex';
+  const errado=!!(chk && chk.checked);
+  if(lab) lab.style.display=errado?'':'none';
+  inp.style.display=errado?'':'none';
+  inp.disabled=!errado;
+  if(!errado) inp.value='';
+  else if(focar){ try{ inp.focus(); }catch(e){} }
+}
+function _finEntAtualizarUI(focar){ _atualizarUICodigoExistente(_finEntTemExistente(),'finEntErradoWrap','finEntCodigoErrado','finEntCodigoLabel','finEntCodigo',focar); }
+function _autoAtualizarUI(focar){ _atualizarUICodigoExistente(_autoTemExistente(),'autoErradoWrap','autoCodigoErrado','autoCodigoLabel','autoModalCodigo',focar); }
 
 function abrirConfirmacaoEntregador(pedido){
   pedidoConfirmAtual = pedido;
@@ -9282,9 +9317,20 @@ async function gravarConfirmacaoEntregadorNoSupabase({pedido, localizador, nomeE
   const client = getSb();
   if(!client) return false;
   try{
-    const _codSalvar = (codigoCliente != null && codigoCliente !== '')
+    let _codSalvar = (codigoCliente != null && codigoCliente !== '')
       ? String(codigoCliente)
       : 'IFOOD';
+    // Nunca troca um código válido já existente por IFOOD/vazio
+    if(_codSalvar === 'IFOOD'){
+      try{
+        let ex = codigoClienteOferecer(pedido.codigo_cliente) || '';
+        if(!ex){
+          const {data: _atual} = await client.from('pedidos_entrega_dia').select('codigo_cliente').eq('id', pedido.id).maybeSingle();
+          ex = codigoClienteOferecer(_atual && _atual.codigo_cliente) || '';
+        }
+        if(ex) _codSalvar = ex;
+      }catch(eEx){}
+    }
     // 1) Histórico (só se ainda não enviamos este pedido_id nesta sessão/dispositivo)
     if(!jaConfirmadoLocal(pedido.id)){
       await registrarConfirmacaoSupabase({
@@ -9336,7 +9382,8 @@ async function processarFilaConfirmacoesOffline(){
         localizador: item.localizador
       };
       let ok = false;
-      if(item.modo === 'automatico' || item.codigo_cliente){
+      const _modoItem = item.modo || (/^\d{4}$/.test(String(item.codigo_cliente||'')) ? 'automatico' : 'entregador');
+      if(_modoItem === 'automatico'){
         ok = await gravarConfirmacaoAutomaticoNoSupabase({
           pedido,
           codigo: String(item.codigo_cliente || item.localizador || '').replace(/\D/g,'').slice(0,4) || '0000',
@@ -10132,12 +10179,14 @@ function abrirModalFinalizarEntrega(){
           const v = document.getElementById('finEntCodigoExistenteValor');
           if(v) v.textContent = h;
           if(b) b.style.display = 'block';
+          try{ _finEntAtualizarUI(false); }catch(e){}
         }).catch(()=>{});
       }catch(e){}
     }
   }
+  try{ const _ck=document.getElementById('finEntCodigoErrado'); if(_ck) _ck.checked=false; _finEntAtualizarUI(false); }catch(e){}
   if(m) m.style.display = 'flex';
-  setTimeout(()=>{ try{ inp && inp.focus(); }catch(e){} }, 200);
+  setTimeout(()=>{ try{ if(inp && inp.style.display!=='none') inp.focus(); }catch(e){} }, 200);
 }
 
 async function confirmarFinalizarEntrega(){
@@ -10149,19 +10198,24 @@ async function confirmarFinalizarEntrega(){
   const inp = document.getElementById('finEntCodigo');
   const st = document.getElementById('finEntStatus');
   const btn = document.getElementById('btnFinalizarEntrega');
-  let cod = inp ? String(inp.value||'').replace(/\D/g,'').slice(0,4) : '';
-  // Código opcional: se vazio ou incompleto, usa cadastrado ou IFOOD
-  if(cod.length !== 4){
-    let existente = '';
-    try{ existente = codigoClienteOferecer(pedido.codigo_cliente) || ''; }catch(e){}
-    if(!existente){
-      try{
-        const valEx = document.getElementById('finEntCodigoExistenteValor');
-        const t = valEx ? String(valEx.textContent||'').replace(/\D/g,'').slice(0,4) : '';
-        if(t.length === 4) existente = t;
-      }catch(e){}
+  // Código já existente é MANTIDO (sem digitar). Só troca se marcar "Código errado" e digitar os 4 dígitos novos.
+  let exCod = _finEntTemExistente();
+  if(!exCod){ try{ exCod = codigoClienteOferecer(pedido.codigo_cliente) || ''; }catch(e){} }
+  const _chkErr = document.getElementById('finEntCodigoErrado');
+  const errado = !!(exCod && _chkErr && _chkErr.checked);
+  const digitado = inp ? String(inp.value||'').replace(/\D/g,'').slice(0,4) : '';
+  let cod = '';
+  if(exCod && !errado){
+    cod = exCod;                       // mantém o código existente
+  } else if(errado){
+    if(digitado.length !== 4){
+      if(st){ st.textContent = 'Informe os 4 dígitos do código correto'; st.style.color = '#ff6b6b'; }
+      try{ inp && inp.focus(); }catch(e){}
+      return;
     }
-    cod = existente || 'IFOOD';
+    cod = digitado;
+  } else {
+    cod = (digitado.length === 4) ? digitado : 'IFOOD';   // sem código existente: opcional, vazio = IFOOD
   }
   if(btn){ btn.disabled = true; btn.textContent = '⏳ Finalizando…'; }
   if(st){ st.textContent = 'Gravando…'; st.style.color = '#f0c14a'; }
@@ -10305,9 +10359,6 @@ async function copiarCodigoClienteFinEnt(){
     fb.style.color = ok ? '#3dcc8a' : '#ff6b6b';
     setTimeout(()=>{ try{ fb.textContent = ''; }catch(e){} }, 2000);
   }
-  // opcional: preenche o input se estiver vazio
-  const inp = document.getElementById('finEntCodigo');
-  if(inp && !String(inp.value||'').trim()) inp.value = v;
 }
 
 // Mantém nome antigo caso algum HTML antigo chame — redireciona para COPIAR
@@ -10335,6 +10386,7 @@ function abrirConfirmacaoAutomatico(pedido, opts){
     inp.value = '';
     inp.disabled = false;
   }
+  try{ const _ck=document.getElementById('autoCodigoErrado'); if(_ck) _ck.checked=false; _autoAtualizarUI(false); }catch(e){}
   try{ mostrarCodigoEntregadorNoModal('auto', pedido); }catch(e){}
   const st = document.getElementById('autoModalStatus');
   if(st){ st.textContent = ''; st.style.color = '#8b93a7'; }
@@ -10368,6 +10420,7 @@ function fecharConfirmAutomatico(fromUser){
   if(inp){ inp.value = ''; inp.disabled = false; }
   const _ce = document.getElementById('autoCodigoExistente'); if(_ce){ _ce.style.display='none'; }
   const _cv = document.getElementById('autoCodigoExistenteValor'); if(_cv) _cv.textContent='';
+  try{ const _ck=document.getElementById('autoCodigoErrado'); if(_ck) _ck.checked=false; _autoAtualizarUI(false); }catch(e){}
   // Se fechou pelo X/Cancelar e tinha history state, volta sem sair do app
   if(fromUser && _confirmAutoHistoryPushed){
     _confirmAutoHistoryPushed = false;
@@ -10444,11 +10497,16 @@ async function confirmarCodigoAutomatico(){
   }
   const inp = document.getElementById('autoModalCodigo');
   const raw = (inp && inp.value) ? String(inp.value) : '';
-  const c = raw.replace(/\D/g,'').slice(0,4);
+  // Código já existente é MANTIDO (sem digitar). Só troca se marcar "Código errado" e digitar o novo.
+  let exCod = _autoTemExistente();
+  if(!exCod){ try{ exCod = codigoClienteOferecer(pedido.codigo_cliente) || ''; }catch(e){} }
+  const _chkErr = document.getElementById('autoCodigoErrado');
+  const errado = !!(exCod && _chkErr && _chkErr.checked);
+  const c = (exCod && !errado) ? exCod : raw.replace(/\D/g,'').slice(0,4);
   const st = document.getElementById('autoModalStatus');
   const btn = document.getElementById('btnConfirmarCodigoAuto');
   if(c.length !== 4){
-    if(st){ st.textContent = 'Informe os 4 dígitos do código'; st.style.color = '#ff6b6b'; }
+    if(st){ st.textContent = errado ? 'Informe os 4 dígitos do código correto' : 'Informe os 4 dígitos do código'; st.style.color = '#ff6b6b'; }
     try{ inp && inp.focus(); }catch(e){}
     return;
   }
