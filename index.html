@@ -512,7 +512,7 @@ body.ifood-modal-open{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 081026.223801</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 101026.142626</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -656,6 +656,9 @@ create table if not exists confirmacoes_entregas (
 );
 alter table confirmacoes_entregas enable row level security;
 create policy "libera tudo anon 2" on confirmacoes_entregas for all using (true) with check (true);
+-- Endereço do cliente (desempate entre clientes com o mesmo nome ao sugerir o código de confirmação)
+alter table confirmacoes_entregas add column if not exists cliente_endereco text;
+create index if not exists idx_confirm_cliente_nome on confirmacoes_entregas (cliente_nome);
 
 -- Tabela de configuração global (modo para todos)
 create table if not exists app_config (
@@ -4548,10 +4551,18 @@ function carregarModo(){ carregarModoGlobal(); }
 
 
 
-async function registrarConfirmacaoSupabase({numero_pedido, codigo_cliente, localizador, nome_entregador, modo, cliente_nome, loja}){
+async function registrarConfirmacaoSupabase({numero_pedido, codigo_cliente, localizador, nome_entregador, modo, cliente_nome, cliente_endereco, loja}){
   const client = getSb();
   const {data: dataSep, hora: horaSep} = getDataHoraSPSeparados();
   try{
+    // endereço do cliente: usa o informado ou procura o pedido já carregado (ex.: fila offline não traz endereço)
+    let endereco = cliente_endereco;
+    if(!endereco){
+      try{
+        const pp = (todosPedidos||[]).find(x=> String(x.numero_pedido||'') === String(numero_pedido||'') && (!cliente_nome || String(x.cliente_nome||'') === String(cliente_nome||'')));
+        if(pp) endereco = pp.cliente_endereco;
+      }catch(e){}
+    }
     // No modo entregador codigo_cliente será NULL - isso é proposital e não pode causar erro
     const payload = {
       numero_pedido: String(numero_pedido||''),
@@ -4562,15 +4573,22 @@ async function registrarConfirmacaoSupabase({numero_pedido, codigo_cliente, loca
       hora: horaSep,
       modo: String(modo||''),
       cliente_nome: cliente_nome ? String(cliente_nome) : null,
+      cliente_endereco: endereco ? String(endereco) : null,
       loja: loja ? String(loja) : null
     };
-    const {error} = await client.from('confirmacoes_entregas').insert(payload);
+    _limparCacheCodigosHist();
+    let {error} = await client.from('confirmacoes_entregas').insert(payload);
     if(error){
-      console.warn('Erro ao registrar confirmação, tentando fallback:', error.message);
+      // 2ª tentativa: coluna cliente_endereco pode não existir ainda — mantém código e nome do cliente
+      console.warn('Erro ao registrar confirmação, tentando sem endereço:', error.message);
+      const {cliente_endereco:_ce, ...semEnd} = payload;
+      ({error} = await client.from('confirmacoes_entregas').insert(semEnd));
+    }
+    if(error){
+      console.warn('Erro ao registrar confirmação, tentando fallback mínimo:', error.message);
       const fallback = {numero_pedido: payload.numero_pedido, nome_entregador: payload.nome_entregador, data: payload.data, hora: payload.hora, modo: payload.modo, localizador: payload.localizador};
-      // fallback sem codigo_cliente para garantir que não quebre no modo entregador
-      const {error:err2} = await client.from('confirmacoes_entregas').insert(fallback);
-      if(err2) console.warn('Fallback falhou:', err2.message);
+      const {error:err3} = await client.from('confirmacoes_entregas').insert(fallback);
+      if(err3) console.warn('Fallback falhou:', err3.message);
     }
   }catch(e){ console.warn('registrarConfirmacao exceção', e); }
 }
@@ -8916,17 +8934,108 @@ function codigoClienteOferecer(c){
   return dig;
 }
 
-/** Cache: numero_pedido → último código 4 dígitos válido (histórico). */
-const _cacheCodigosHist = {};
+/** Cache do histórico: chave = nome|endereço do cliente (curta duração; limpo a cada gravação). */
+let _cacheCodigosHist = {};
+const _CACHE_COD_TTL_MS = 60000;
+function _limparCacheCodigosHist(){ _cacheCodigosHist = {}; }
 
+/** Nome do cliente normalizado (sem acento, minúsculo, espaços únicos) — chave do código. */
+function _normNomeCliente(n){
+  return String(n||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+}
+/** Dois endereços são o "mesmo" se iguais ou se um é o outro acrescido de complemento/bairro. */
+function _mesmoEnderecoCliente(a, b){
+  const x = normalizarEndereco(a), y = normalizarEndereco(b);
+  if(!x || !y) return false;
+  if(x === y) return true;
+  if(x.startsWith(y + ' ') || y.startsWith(x + ' ')) return true; // um é o outro + complemento
+  return false;
+}
+/** Padrão ILIKE a partir do nome: espaços/pontuação viram %, letras acentuadas viram _ (casa com acento ou sem). */
+function _padraoIlikeNome(nome){
+  let out = '';
+  let ultimoCoringa = false;
+  for(const ch of String(nome||'').trim()){
+    if(/[A-Za-z0-9]/.test(ch)){ out += ch; ultimoCoringa = false; }
+    else if(/[\s.,;:'"\-_\/\\()]/.test(ch)){ if(!ultimoCoringa){ out += '%'; ultimoCoringa = true; } }
+    else { out += '_'; ultimoCoringa = false; }
+  }
+  return out;
+}
+
+/**
+ * Código de confirmação (4 dígitos) ligado ao CLIENTE (nome), não ao nº do pedido.
+ * - Procura o último código válido desse nome em confirmacoes_entregas e pedidos_entrega_dia (todas as datas).
+ * - Se o mesmo nome aparece com endereços diferentes (homônimos), usa o endereço do pedido para escolher.
+ * - Se o Master marcou o código como errado (marcador mais recente), não sugere nada.
+ */
 async function buscarCodigoHistoricoPedido(pedido){
   if(!pedido) return '';
   const direto = codigoClienteOferecer(pedido.codigo_cliente);
   if(direto) return direto;
+  const nomeKey = _normNomeCliente(pedido.cliente_nome);
+  if(!nomeKey) return await _buscarCodigoHistoricoPorNumero(pedido);
+  const endKey = normalizarEndereco(pedido.cliente_endereco);
+  const chaveCache = nomeKey + '|' + endKey;
+  const hit = _cacheCodigosHist[chaveCache];
+  if(hit && (Date.now() - hit.t) < _CACHE_COD_TTL_MS) return hit.v;
+  const client = getSb();
+  if(!client || !navigator.onLine) return '';
+  try{
+    const pat = _padraoIlikeNome(pedido.cliente_nome);
+    const recs = [];
+    // 1) Histórico de confirmações
+    try{
+      let r = await client.from('confirmacoes_entregas')
+        .select('codigo_cliente,cliente_nome,cliente_endereco,modo,created_at')
+        .ilike('cliente_nome', pat).order('created_at',{ascending:false}).limit(200);
+      if(r.error){ // coluna cliente_endereco ainda não criada
+        r = await client.from('confirmacoes_entregas')
+          .select('codigo_cliente,cliente_nome,modo,created_at')
+          .ilike('cliente_nome', pat).order('created_at',{ascending:false}).limit(200);
+      }
+      (r.data||[]).forEach(x=>{
+        if(_normNomeCliente(x.cliente_nome) !== nomeKey) return;
+        const invalido = String(x.modo||'') === 'codigo_errado';
+        const cod = invalido ? '' : codigoClienteOferecer(x.codigo_cliente);
+        if(!cod && !invalido) return;
+        recs.push({cod, invalido, end: x.cliente_endereco||'', ts: Date.parse(x.created_at)||0});
+      });
+    }catch(e1){ console.warn('hist confirmacoes', e1); }
+    // 2) Pedidos já finalizados (têm nome + endereço)
+    try{
+      const r2 = await client.from('pedidos_entrega_dia')
+        .select('cliente_nome,cliente_endereco,codigo_cliente,codigo_informado_em,created_at')
+        .ilike('cliente_nome', pat).not('codigo_cliente','is',null)
+        .order('created_at',{ascending:false}).limit(200);
+      (r2.data||[]).forEach(x=>{
+        if(_normNomeCliente(x.cliente_nome) !== nomeKey) return;
+        const cod = codigoClienteOferecer(x.codigo_cliente);
+        if(!cod) return;
+        recs.push({cod, invalido:false, end: x.cliente_endereco||'', ts: Date.parse(x.codigo_informado_em||x.created_at)||0});
+      });
+    }catch(e2){ console.warn('hist pedidos', e2); }
+
+    let pool = recs;
+    // Homônimos: mesmo nome com endereços diferentes → decide pelo endereço do pedido
+    const enderecos = [];
+    recs.forEach(r=>{ if(r.end && !enderecos.some(e=>_mesmoEnderecoCliente(e, r.end))) enderecos.push(r.end); });
+    if(enderecos.length > 1){
+      pool = endKey ? recs.filter(r=> r.end && _mesmoEnderecoCliente(r.end, pedido.cliente_endereco)) : [];
+    }
+    pool.sort((a,b)=> b.ts - a.ts);
+    const topo = pool[0];
+    const res = (topo && !topo.invalido) ? topo.cod : '';
+    _cacheCodigosHist[chaveCache] = {v:res, t:Date.now()};
+    return res;
+  }catch(e){ console.warn('buscarCodigoHistoricoPedido', e); }
+  return '';
+}
+
+/** Fallback (pedido sem nome de cliente): último código pelo nº do pedido. */
+async function _buscarCodigoHistoricoPorNumero(pedido){
   const num = String(pedido.numero_pedido||'').replace(/^#/,'').trim();
   if(!num) return '';
-  const chaveCache = num + '|' + String(pedido.data||'').slice(0,10);
-  if(_cacheCodigosHist[chaveCache]) return _cacheCodigosHist[chaveCache];
   const client = getSb();
   if(!client || !navigator.onLine) return '';
   try{
@@ -8934,29 +9043,16 @@ async function buscarCodigoHistoricoPedido(pedido){
       num, num.toUpperCase(), num.toLowerCase(),
       String(num).replace(/^0+/,''), '#'+num
     ].filter(Boolean)));
-    let rows = [];
-    const {data, error} = await client.from('confirmacoes_entregas')
-      .select('codigo_cliente,numero_pedido,created_at,data')
+    const {data} = await client.from('confirmacoes_entregas')
+      .select('codigo_cliente,numero_pedido,created_at')
       .in('numero_pedido', variantes)
       .order('created_at', {ascending:false})
       .limit(30);
-    if(error){
-      const {data: d2} = await client.from('confirmacoes_entregas')
-        .select('codigo_cliente,numero_pedido,created_at,data')
-        .in('numero_pedido', variantes)
-        .limit(30);
-      rows = d2 || [];
-    } else {
-      rows = data || [];
-    }
-    for(const r of rows){
+    for(const r of (data||[])){
       const cod = codigoClienteOferecer(r && r.codigo_cliente);
-      if(cod){
-        _cacheCodigosHist[chaveCache] = cod;
-        return cod;
-      }
+      if(cod) return cod;
     }
-  }catch(e){ console.warn('buscarCodigoHistoricoPedido', e); }
+  }catch(e){ console.warn('_buscarCodigoHistoricoPorNumero', e); }
   return '';
 }
 
@@ -9022,11 +9118,15 @@ async function onMasterCodigoErradoToggle(){
     if(idx>=0) todosPedidos[idx].codigo_cliente = '0000';
     if(valEl) valEl.textContent = '0000';
     if(st){ st.textContent = '✓'; st.style.color = '#3dcc8a'; }
-    // invalida cache histórico deste número
+    // marcador "código errado": o histórico deste cliente deixa de sugerir o código antigo
     try{
-      const num = String(p.numero_pedido||'').replace(/^#/,'').trim();
-      Object.keys(_cacheCodigosHist).forEach(k=>{ if(k.startsWith(num+'|')) delete _cacheCodigosHist[k]; });
+      await registrarConfirmacaoSupabase({
+        numero_pedido: p.numero_pedido, codigo_cliente: '0000', localizador: p.localizador,
+        nome_entregador: 'Master', modo: 'codigo_errado',
+        cliente_nome: p.cliente_nome, cliente_endereco: p.cliente_endereco, loja: p.loja
+      });
     }catch(e){}
+    _limparCacheCodigosHist();
   }catch(e){
     console.warn('onMasterCodigoErradoToggle', e);
     if(st){ st.textContent = '❌ '+(e.message||e); st.style.color = '#ff6b6b'; }
