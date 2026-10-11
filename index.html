@@ -512,7 +512,7 @@ body.ifood-modal-open{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 101026.142626</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 111026.200057</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -604,6 +604,7 @@ Pedidos <b>finalizados</b> em <b style="color:#ff6b6b">DINHEIRO</b> que ainda n�
 <button class="tab" id="tabBtnCusto" onclick="trocarAba('custo')">Custo de Entregas</button>
 <button class="tab" id="tabBtnHorarios" onclick="trocarAba('horarios')">⏰ Horários</button>
 <button class="tab" id="tabBtnFuncoes" onclick="trocarAba('funcoes')">👁️ Mostrar funções</button>
+<button class="tab" id="tabBtnClientes" onclick="trocarAba('clientes')">👤 Clientes</button>
 </div>
 <div id="abaSupabase">
 <label>Supabase URL</label><input id="cfgUrl" style="margin:6px 0 10px"/>
@@ -842,6 +843,19 @@ Cadastro na tabela <b style="color:#f0c14a">config_custo_entregas</b>. O <b>ID</
 );
 alter table config_custo_entregas enable row level security;
 create policy "libera tudo anon custo entregas" on config_custo_entregas for all using (true) with check (true);</code>
+</div>
+</div>
+<div id="abaClientes" style="display:none">
+<div style="display:flex;gap:8px;margin-bottom:8px">
+<input id="cliBusca" placeholder="Buscar por nome, endereço ou código..." oninput="clientesBuscaDigitou()" style="flex:1;min-width:0"/>
+<button class="btn" onclick="carregarClientesCodigos(true)" title="Atualizar lista">🔄</button>
+</div>
+<div id="cliStatus" style="font-size:11px;color:#8b93a7;margin-bottom:8px"></div>
+<div id="cliLista"></div>
+<div id="cliPag" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px">
+<button class="btn" id="cliPrev" onclick="clientesPagina(-1)">‹ Anterior</button>
+<span id="cliPagInfo" style="font-size:12px;color:#8b93a7;text-align:center"></span>
+<button class="btn" id="cliNext" onclick="clientesPagina(1)">Próxima ›</button>
 </div>
 </div>
 <div id="abaFuncoes" style="display:none">
@@ -2310,7 +2324,7 @@ function abrirCfg(){
 function abrirCfgProtegida(){ abrirCfg(); }
 function verificarSenhaCfg(){ /* senha removida - acesso direto para master */ abrirCfg(); }
 function trocarAba(aba){
-  const abas=['supabase','entregadores','modo','custo','horarios','funcoes'];
+  const abas=['supabase','entregadores','modo','custo','horarios','funcoes','clientes'];
   abas.forEach(a=>{
     const cap = a.charAt(0).toUpperCase()+a.slice(1);
     const el=document.getElementById('aba'+cap);
@@ -2321,6 +2335,157 @@ function trocarAba(aba){
   if(aba==='modo'){ carregarModoGlobal(); }
   if(aba==='custo'){ carregarCustosEntrega(); }
   if(aba==='horarios' || aba==='funcoes'){ carregarHorarios(); }
+  if(aba==='clientes'){ carregarClientesCodigos(false); }
+}
+
+// ===================== CLIENTES E CÓDIGOS (Master) =====================
+const CLI_POR_PAGINA = 30;
+let _cliTodos = [];        // [{nome, end, cod, errado, ts}]
+let _cliFiltrados = [];
+let _cliPagina = 1;
+let _cliCarregado = false;
+let _cliBuscaTimer = null;
+
+/** Lê todas as linhas de uma tabela em blocos de 1000 (limite do Supabase). */
+async function _cliLerTudo(montar){
+  const out = [];
+  for(let i=0; i<30; i++){
+    const {data, error} = await montar().range(i*1000, i*1000+999);
+    if(error) throw error;
+    out.push(...(data||[]));
+    if(!data || data.length < 1000) break;
+  }
+  return out;
+}
+
+async function carregarClientesCodigos(forcar){
+  if(!usuarioLogado?.isMaster) return;
+  const st = document.getElementById('cliStatus');
+  if(_cliCarregado && !forcar){ clientesAplicarFiltro(false); return; }
+  const client = getSb();
+  if(!client){ if(st){ st.textContent='Supabase não configurado'; st.style.color='#ff6b6b'; } return; }
+  if(st){ st.textContent='Carregando clientes...'; st.style.color='#8b93a7'; }
+  try{
+    const recs = [];
+    // 1) pedidos (têm nome + endereço)
+    const ped = await _cliLerTudo(()=> client.from('pedidos_entrega_dia')
+      .select('cliente_nome,cliente_endereco,codigo_cliente,codigo_informado_em,created_at')
+      .not('codigo_cliente','is',null).not('cliente_nome','is',null)
+      .order('created_at',{ascending:false}));
+    ped.forEach(x=>{
+      const cod = codigoClienteOferecer(x.codigo_cliente);
+      if(!cod || !_normNomeCliente(x.cliente_nome)) return;
+      recs.push({nome:String(x.cliente_nome).trim(), end:x.cliente_endereco||'', cod, errado:false, ts:Date.parse(x.codigo_informado_em||x.created_at)||0});
+    });
+    // 2) histórico de confirmações (inclui marcações de "código errado")
+    let conf = [];
+    try{
+      conf = await _cliLerTudo(()=> client.from('confirmacoes_entregas')
+        .select('cliente_nome,cliente_endereco,codigo_cliente,modo,created_at')
+        .not('cliente_nome','is',null).order('created_at',{ascending:false}));
+    }catch(e){ // coluna cliente_endereco ainda não existe
+      conf = await _cliLerTudo(()=> client.from('confirmacoes_entregas')
+        .select('cliente_nome,codigo_cliente,modo,created_at')
+        .not('cliente_nome','is',null).order('created_at',{ascending:false}));
+    }
+    conf.forEach(x=>{
+      if(!_normNomeCliente(x.cliente_nome)) return;
+      const errado = String(x.modo||'')==='codigo_errado';
+      const cod = errado ? '' : codigoClienteOferecer(x.codigo_cliente);
+      if(!cod && !errado) return;
+      recs.push({nome:String(x.cliente_nome).trim(), end:x.cliente_endereco||'', cod, errado, ts:Date.parse(x.created_at)||0});
+    });
+    _cliTodos = _cliAgruparClientes(recs);
+    _cliCarregado = true;
+    clientesAplicarFiltro(true);
+  }catch(e){
+    console.warn('carregarClientesCodigos', e);
+    if(st){ st.textContent='❌ Erro ao carregar: '+(e.message||e); st.style.color='#ff6b6b'; }
+  }
+}
+
+/** Um item por cliente (nome; se o mesmo nome tem endereços diferentes, um item por endereço). Vale o registro mais recente. */
+function _cliAgruparClientes(recs){
+  const porNome = {};
+  recs.forEach(r=>{ (porNome[_normNomeCliente(r.nome)] = porNome[_normNomeCliente(r.nome)] || []).push(r); });
+  const itens = [];
+  Object.values(porNome).forEach(lista=>{
+    const clusters = [];
+    lista.forEach(r=>{
+      if(!r.end) return;
+      let c = clusters.find(c=> _mesmoEnderecoCliente(c.end, r.end));
+      if(!c){ c = {end:r.end, regs:[]}; clusters.push(c); }
+      c.regs.push(r);
+    });
+    const semEnd = lista.filter(r=>!r.end);
+    if(semEnd.length){
+      if(clusters.length === 1) clusters[0].regs.push(...semEnd);   // um só cliente com esse nome
+      else clusters.push({end:'', regs:semEnd});
+    }
+    clusters.forEach(c=>{
+      c.regs.sort((a,b)=> b.ts - a.ts);
+      const topo = c.regs[0];
+      const comEnd = c.regs.find(r=>r.end);
+      itens.push({ nome: topo.nome, end: comEnd ? comEnd.end : '', cod: topo.errado ? '' : topo.cod, errado: topo.errado, ts: topo.ts });
+    });
+  });
+  itens.sort((a,b)=> a.nome.localeCompare(b.nome,'pt-BR',{sensitivity:'base'}) || a.end.localeCompare(b.end,'pt-BR'));
+  return itens;
+}
+
+function clientesBuscaDigitou(){
+  clearTimeout(_cliBuscaTimer);
+  _cliBuscaTimer = setTimeout(()=> clientesAplicarFiltro(true), 200);
+}
+function clientesAplicarFiltro(voltarPrimeira){
+  const q = _normNomeCliente((document.getElementById('cliBusca')||{}).value||'');
+  _cliFiltrados = !q ? _cliTodos.slice() : _cliTodos.filter(c=>
+    (_normNomeCliente(c.nome)+' '+_normNomeCliente(c.end)+' '+c.cod).includes(q));
+  if(voltarPrimeira) _cliPagina = 1;
+  clientesRender();
+}
+function clientesPagina(delta){
+  const total = Math.max(1, Math.ceil(_cliFiltrados.length / CLI_POR_PAGINA));
+  _cliPagina = Math.min(total, Math.max(1, _cliPagina + delta));
+  clientesRender();
+}
+function clientesRender(){
+  const lista = document.getElementById('cliLista');
+  const st = document.getElementById('cliStatus');
+  const info = document.getElementById('cliPagInfo');
+  const prev = document.getElementById('cliPrev');
+  const next = document.getElementById('cliNext');
+  const total = Math.max(1, Math.ceil(_cliFiltrados.length / CLI_POR_PAGINA));
+  if(_cliPagina > total) _cliPagina = total;
+  const ini = (_cliPagina-1) * CLI_POR_PAGINA;
+  const fatia = _cliFiltrados.slice(ini, ini + CLI_POR_PAGINA);
+  if(st){
+    st.style.color = '#8b93a7';
+    st.textContent = _cliFiltrados.length === _cliTodos.length
+      ? (_cliTodos.length + ' cliente(s) com código cadastrado')
+      : (_cliFiltrados.length + ' de ' + _cliTodos.length + ' cliente(s)');
+  }
+  if(lista){
+    if(!fatia.length){
+      lista.innerHTML = '<div style="color:#8b93a7;font-size:12px;text-align:center;padding:16px">Nenhum cliente encontrado</div>';
+    } else {
+      lista.innerHTML = fatia.map(c=>{
+        const data = c.ts ? new Date(c.ts).toLocaleDateString('pt-BR',{timeZone:'America/Sao_Paulo'}) : '—';
+        const codHtml = c.errado
+          ? '<span style="color:#ff6b6b;font-weight:800;font-size:11px;text-align:right">MARCADO<br>ERRADO</span>'
+          : '<span style="color:#3dcc8a;font-weight:800;font-size:20px;letter-spacing:.12em">'+_escAttrTxt(c.cod)+'</span>';
+        return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 10px;border:1px solid #2c3340;border-radius:10px;margin-bottom:6px;background:#0e1118">'
+          + '<div style="min-width:0;flex:1">'
+          + '<div style="font-weight:700;font-size:13px;color:#e6e8ef;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+_escAttrTxt(c.nome)+'</div>'
+          + '<div style="font-size:11px;color:#8b93a7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📍 '+_escAttrTxt(c.end||'sem endereço registrado')+'</div>'
+          + '<div style="font-size:10px;color:#5a657a">atualizado em '+data+'</div>'
+          + '</div>'+codHtml+'</div>';
+      }).join('');
+    }
+  }
+  if(info) info.textContent = 'Página ' + _cliPagina + ' de ' + total;
+  if(prev) prev.disabled = _cliPagina <= 1;
+  if(next) next.disabled = _cliPagina >= total;
 }
 
 // ===================== CUSTO DE ENTREGAS (Master) =====================
