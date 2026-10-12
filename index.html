@@ -512,7 +512,7 @@ body.ifood-modal-open{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 121026.185918</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 121026.190526</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -605,6 +605,7 @@ Pedidos <b>finalizados</b> em <b style="color:#ff6b6b">DINHEIRO</b> que ainda n�
 <button class="tab" id="tabBtnHorarios" onclick="trocarAba('horarios')">⏰ Horários</button>
 <button class="tab" id="tabBtnFuncoes" onclick="trocarAba('funcoes')">👁️ Mostrar funções</button>
 <button class="tab" id="tabBtnClientes" onclick="trocarAba('clientes')">👤 Clientes</button>
+<button class="tab" id="tabBtnEnderecos" onclick="trocarAba('enderecos')">📍 Endereços</button>
 </div>
 <div id="abaSupabase">
 <label>Supabase URL</label><input id="cfgUrl" style="margin:6px 0 10px"/>
@@ -877,6 +878,19 @@ create policy "libera tudo anon custo entregas" on config_custo_entregas for all
 <button class="btn" id="cliPrev" onclick="clientesPagina(-1)">‹ Anterior</button>
 <span id="cliPagInfo" style="font-size:12px;color:#8b93a7;text-align:center"></span>
 <button class="btn" id="cliNext" onclick="clientesPagina(1)">Próxima ›</button>
+</div>
+</div>
+<div id="abaEnderecos" style="display:none">
+<div style="display:flex;gap:8px;margin-bottom:8px">
+<input id="endBusca" placeholder="Buscar rua..." oninput="enderecosBuscaDigitou()" style="flex:1;min-width:0"/>
+<button class="btn" onclick="carregarEnderecosConfig(true)" title="Atualizar lista">🔄</button>
+</div>
+<div id="endStatus" style="font-size:11px;color:#8b93a7;margin-bottom:8px"></div>
+<div id="endLista"></div>
+<div id="endPag" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px">
+<button class="btn" id="endPrev" onclick="enderecosPagina(-1)">‹ Anterior</button>
+<span id="endPagInfo" style="font-size:12px;color:#8b93a7;text-align:center"></span>
+<button class="btn" id="endNext" onclick="enderecosPagina(1)">Próxima ›</button>
 </div>
 </div>
 <div id="abaFuncoes" style="display:none">
@@ -2540,7 +2554,7 @@ function abrirCfg(){
 function abrirCfgProtegida(){ abrirCfg(); }
 function verificarSenhaCfg(){ /* senha removida - acesso direto para master */ abrirCfg(); }
 function trocarAba(aba){
-  const abas=['supabase','entregadores','modo','custo','horarios','funcoes','clientes'];
+  const abas=['supabase','entregadores','modo','custo','horarios','funcoes','clientes','enderecos'];
   abas.forEach(a=>{
     const cap = a.charAt(0).toUpperCase()+a.slice(1);
     const el=document.getElementById('aba'+cap);
@@ -2553,6 +2567,7 @@ function trocarAba(aba){
   if(aba==='horarios'){ carregarHorarios(); }
   if(aba==='funcoes'){ carregarListaFuncoesAbas(); }
   if(aba==='clientes'){ carregarClientesCodigos(false); }
+  if(aba==='enderecos'){ carregarEnderecosConfig(false); }
 }
 
 // ===================== CLIENTES E CÓDIGOS (Master) =====================
@@ -2703,6 +2718,129 @@ function clientesRender(){
   if(info) info.textContent = 'Página ' + _cliPagina + ' de ' + total;
   if(prev) prev.disabled = _cliPagina <= 1;
   if(next) next.disabled = _cliPagina >= total;
+}
+
+// ===================== ENDEREÇOS / VALOR POR RUA (Master) — tabela config_ruas_custo =====================
+const END_POR_PAGINA = 30;
+let _endTodos = [];       // [{id, rua, valor}]
+let _endFiltrados = [];
+let _endPagina = 1;
+let _endCarregado = false;
+let _endBuscaTimer = null;
+
+async function carregarEnderecosConfig(forcar){
+  if(!usuarioLogado?.isMaster) return;
+  const st = document.getElementById('endStatus');
+  if(_endCarregado && !forcar){ enderecosAplicarFiltro(false); return; }
+  const client = getSb();
+  if(!client){ if(st){ st.textContent='Supabase não configurado'; st.style.color='#ff6b6b'; } return; }
+  if(st){ st.textContent='Carregando endereços...'; st.style.color='#8b93a7'; }
+  try{
+    const rows = await _cliLerTudo(()=> client.from('config_ruas_custo')
+      .select('id,rua,valor_normal').order('rua',{ascending:true}));
+    _endTodos = rows.map(r=>({ id: String(r.id), rua: String(r.rua||''), valor: Number(r.valor_normal) }));
+    _endCarregado = true;
+    enderecosAplicarFiltro(true);
+  }catch(e){
+    console.warn('carregarEnderecosConfig', e);
+    if(st){ st.textContent='Erro ao carregar: ' + (e && e.message ? e.message : e); st.style.color='#ff6b6b'; }
+  }
+}
+function enderecosBuscaDigitou(){
+  clearTimeout(_endBuscaTimer);
+  _endBuscaTimer = setTimeout(()=> enderecosAplicarFiltro(true), 200);
+}
+function enderecosAplicarFiltro(voltarPrimeira){
+  const q = _normNomeRuaCusto((document.getElementById('endBusca')||{}).value||'');
+  _endFiltrados = !q ? _endTodos.slice() : _endTodos.filter(r => _normNomeRuaCusto(r.rua).includes(q));
+  if(voltarPrimeira) _endPagina = 1;
+  enderecosRender();
+}
+function enderecosPagina(delta){
+  const total = Math.max(1, Math.ceil(_endFiltrados.length / END_POR_PAGINA));
+  _endPagina = Math.min(total, Math.max(1, _endPagina + delta));
+  enderecosRender();
+}
+function enderecosRender(){
+  const lista = document.getElementById('endLista');
+  const st = document.getElementById('endStatus');
+  const info = document.getElementById('endPagInfo');
+  const prev = document.getElementById('endPrev');
+  const next = document.getElementById('endNext');
+  const total = Math.max(1, Math.ceil(_endFiltrados.length / END_POR_PAGINA));
+  if(_endPagina > total) _endPagina = total;
+  const ini = (_endPagina-1) * END_POR_PAGINA;
+  const fatia = _endFiltrados.slice(ini, ini + END_POR_PAGINA);
+  if(st){
+    st.style.color = '#8b93a7';
+    st.textContent = _endFiltrados.length === _endTodos.length
+      ? (_endTodos.length + ' rua(s) cadastrada(s)')
+      : (_endFiltrados.length + ' de ' + _endTodos.length + ' rua(s)');
+  }
+  if(lista){
+    if(!fatia.length){
+      lista.innerHTML = '<div style="color:#8b93a7;font-size:12px;text-align:center;padding:16px">Nenhuma rua encontrada</div>';
+    } else {
+      lista.innerHTML = fatia.map(r=>{
+        const v = isNaN(r.valor) ? '' : r.valor;
+        return '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #2c3340;border-radius:10px;margin-bottom:6px;background:#0e1118">'
+          + '<div style="min-width:0;flex:1">'
+          + '<div style="font-weight:700;font-size:13px;color:#e6e8ef;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:capitalize" title="'+_escAttrTxt(r.rua).replace(/"/g,'&quot;')+'">📍 '+_escAttrTxt(r.rua)+'</div>'
+          + '<div id="endSt_'+_escAttrTxt(r.id)+'" style="font-size:10px;color:#5a657a;min-height:12px"></div>'
+          + '</div>'
+          + '<span style="font-size:12px;color:#8b93a7">R$</span>'
+          + '<input id="endVal_'+_escAttrTxt(r.id)+'" type="number" inputmode="decimal" min="0" step="0.01" value="'+v+'" oninput="enderecoMarcar(\''+_escAttrTxt(r.id)+'\')" style="width:84px;flex:none;padding:8px;text-align:right"/>'
+          + '<button class="btn primary" id="endBtn_'+_escAttrTxt(r.id)+'" onclick="enderecoSalvar(\''+_escAttrTxt(r.id)+'\')" disabled style="flex:none;padding:8px 10px;font-size:11px;opacity:.5">💾</button>'
+          + '</div>';
+      }).join('');
+    }
+  }
+  if(info) info.textContent = 'Página ' + _endPagina + ' de ' + total;
+  if(prev) prev.disabled = _endPagina <= 1;
+  if(next) next.disabled = _endPagina >= total;
+}
+function enderecoMarcar(id){
+  const r = _endTodos.find(x=>x.id===id);
+  const inp = document.getElementById('endVal_'+id);
+  const btn = document.getElementById('endBtn_'+id);
+  const st = document.getElementById('endSt_'+id);
+  if(!r || !inp || !btn) return;
+  const novo = parseFloat(String(inp.value).replace(',','.'));
+  const mudou = !isNaN(novo) && Math.abs(novo - r.valor) > 0.0001;
+  btn.disabled = !mudou;
+  btn.style.opacity = mudou ? '1' : '.5';
+  if(st){ st.textContent = mudou ? 'alterado — toque em 💾 para salvar' : ''; st.style.color = '#f0c14a'; }
+}
+async function enderecoSalvar(id){
+  if(!usuarioLogado?.isMaster) return;
+  const r = _endTodos.find(x=>x.id===id);
+  const inp = document.getElementById('endVal_'+id);
+  const btn = document.getElementById('endBtn_'+id);
+  const st = document.getElementById('endSt_'+id);
+  if(!r || !inp) return;
+  const novo = parseFloat(String(inp.value).replace(',','.'));
+  if(isNaN(novo) || novo < 0){
+    if(st){ st.textContent = 'Valor inválido'; st.style.color = '#ff6b6b'; }
+    return;
+  }
+  const client = getSb();
+  if(!client){ if(st){ st.textContent = 'Supabase não configurado'; st.style.color = '#ff6b6b'; } return; }
+  if(btn){ btn.disabled = true; btn.textContent = '⏳'; }
+  try{
+    const {error} = await client.from('config_ruas_custo')
+      .update({ valor_normal: novo, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if(error) throw error;
+    r.valor = novo;
+    if(st){ st.textContent = '✓ salvo'; st.style.color = '#3dcc8a'; }
+    if(btn){ btn.style.opacity = '.5'; }
+  }catch(e){
+    console.warn('enderecoSalvar', e);
+    if(st){ st.textContent = 'Erro ao salvar: ' + (e && e.message ? e.message : e); st.style.color = '#ff6b6b'; }
+    if(btn){ btn.disabled = false; btn.style.opacity = '1'; }
+  }finally{
+    if(btn) btn.textContent = '💾';
+  }
 }
 
 // ===================== CUSTO DE ENTREGAS (Master) =====================
