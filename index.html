@@ -512,7 +512,7 @@ body.ifood-modal-open{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 121026.134600</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 121026.185918</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -1517,7 +1517,9 @@ Após confirmar, os valores das entregas serão gravados e <b style="color:#ff6b
 <button class="btn small" id="btnCustoOntem" onclick="setFiltroCustoEnt('ontem')" style="font-size:11px;padding:8px 12px">Ontem</button>
 <input type="date" id="inputDataCustoEnt" onchange="setFiltroCustoEnt('data')" style="width:auto;padding:8px 10px;border-radius:10px;border:1px solid #2c3340;background:#0e1118;color:#fff;font-size:12px"/>
 <button class="btn small" style="font-size:11px;padding:8px 12px" onclick="renderAbaCusto()">🔄 Atualizar</button>
+<button class="btn small" id="btnSugerirValores" onclick="sugerirValoresCusto()" style="font-size:11px;padding:8px 12px;background:#1a2a3a;border-color:#2a4a5a;color:#6ab7ff;font-weight:800" title="Preenche as entregas sem valor com o valor cadastrado para a mesma rua">💡 Sugerir valores</button>
 </div>
+<div id="custoSugerirStatus" style="font-size:11px;color:#8b93a7;margin-bottom:8px;min-height:14px"></div>
 <div style="font-size:11px;color:#8b93a7;line-height:1.35">Escolha o valor de cada entrega. Envie <b style="color:#f0c14a">por turno</b> (Jantar ou Almoço). Após enviar um turno, só aquele fica bloqueado — o outro continua livre. Toque no cabeçalho do turno para mostrar/ocultar.</div>
 </div>
 <div id="listaCustoEntregador"></div>
@@ -4536,6 +4538,139 @@ async function renderAbaCusto(){
   _atualizarResumoEnvioCusto();
 }
 
+/** Normaliza um NOME DE RUA (sem acento/pontuação; "R." = "Rua", "Av." = "Avenida") — usado como chave única. */
+function _normNomeRuaCusto(rua){
+  let k = String(rua||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+  if(!k) return '';
+  k = k.replace(/^(r|rua)\b/,'rua').replace(/^(av|avenida)\b/,'avenida').replace(/^(tv|trav|travessa)\b/,'travessa')
+       .replace(/^(al|alameda)\b/,'alameda').replace(/^(rod|rodovia)\b/,'rodovia').replace(/^(est|estrada)\b/,'estrada')
+       .replace(/^(pc|praca)\b/,'praca');
+  return k.replace(/\s+/g,' ').trim();
+}
+
+/** SUGERIR VALORES: extrai só o NOME DA RUA de um endereço completo (sem número, complemento, bairro ou cidade)
+ *  e devolve a chave normalizada usada para buscar/gravar o valor da rua. */
+function _chaveRuaCusto(end){
+  let e = String(end||'').trim();
+  if(!e || /^sem\s*endere/i.test(e)) return '';
+  const principal = (e.split(/\s+[-–—]\s+/)[0] || e).trim();
+  let rua = principal;
+  let m = principal.match(/^(.+?),\s*(\d|s\/?n\b)/i);
+  if(m) rua = m[1];
+  else {
+    m = principal.match(/^(.+?)\s+(\d+[A-Za-z]?|s\/?n)\s*$/i);
+    // "Rua 1" (sem número do imóvel): o "1" faz parte do nome — só corta se sobrar um nome além do tipo (Rua/Av...)
+    if(m && _normNomeRuaCusto(m[1]).split(' ').length > 1) rua = m[1];
+    else if(!m) rua = principal.split(',')[0];
+  }
+  return _normNomeRuaCusto(rua);
+}
+
+let _sugerindoCusto = false;
+/** Botão "Sugerir valores": preenche as entregas SEM valor do dia.
+ *  Ordem de busca: 1) tabela config_ruas_custo  2) pedidos_entrega_dia (maior valor da rua).
+ *  Ruas novas encontradas nos pedidos são gravadas em config_ruas_custo (nunca substitui rua já cadastrada).
+ *  Os valores no card ficam como rascunho; só vão para os pedidos ao "Enviar entregas". */
+async function sugerirValoresCusto(){
+  if(_sugerindoCusto) return;
+  if(!usuarioLogado || usuarioLogado.isMaster) return;
+  const st = document.getElementById('custoSugerirStatus');
+  const btn = document.getElementById('btnSugerirValores');
+  const msg = (t,c)=>{ if(st){ st.textContent = t; st.style.color = c || '#8b93a7'; } };
+  const client = getSb();
+  if(!client){ msg('Supabase não configurado','#ff6b6b'); return; }
+  _sugerindoCusto = true;
+  if(btn){ btn.disabled = true; btn.style.opacity = '0.6'; }
+  msg('Buscando valores cadastrados por rua...');
+  try{
+    // 1) Tabela de ruas já cadastradas (valor_normal)
+    const cfg = {};
+    let cfgOk = true;
+    try{
+      const rowsCfg = await _cliLerTudo(()=> client.from('config_ruas_custo').select('rua,valor_normal').order('rua',{ascending:true}));
+      rowsCfg.forEach(r=>{
+        const k = _normNomeRuaCusto(r.rua);
+        const v = Number(r.valor_normal);
+        if(!k || isNaN(v)) return;
+        if(!(k in cfg)) cfg[k] = v; // 1 valor por rua (se houver duplicata antiga, mantém o primeiro)
+      });
+    }catch(eCfg){
+      cfgOk = false;
+      console.warn('config_ruas_custo (leitura)', eCfg);
+    }
+
+    // 2) Histórico de pedidos: MAIOR valor por rua
+    const hist = await _cliLerTudo(()=> client.from('pedidos_entrega_dia')
+      .select('cliente_endereco,valor_entrega')
+      .not('valor_entrega','is',null)
+      .order('created_at',{ascending:false}));
+    (todosPedidos||[]).forEach(p=>{
+      if(p && p.valor_entrega != null && p.valor_entrega !== '') hist.push({cliente_endereco:p.cliente_endereco, valor_entrega:p.valor_entrega});
+    });
+    const ped = {};
+    hist.forEach(r=>{
+      const v = Number(r.valor_entrega);
+      if(isNaN(v)) return;
+      const k = _chaveRuaCusto(r.cliente_endereco);
+      if(!k) return;
+      if(!(k in ped) || v > ped[k]) ped[k] = v;
+    });
+
+    // 3) Aplica nas entregas abertas (sem valor e não bloqueadas): primeiro config_ruas_custo, depois pedidos
+    const lista = getPedidosAbaCusto();
+    const itens = _itensCustoEntrega(lista);
+    let preenchidas = 0, semHistorico = 0, daConfig = 0, dosPedidos = 0;
+    const turnosPreenchidos = new Set();
+    itens.forEach(it=>{
+      if(it.valor != null) return; // já tem valor — não sobrescreve
+      const membros = it.pedidos || [];
+      if(membros.some(m => isCustoTurnoBloqueado(getTurno(m)) || isPedidoCustoBloqueado(m))) return;
+      let val = null, fonte = '';
+      for(const m of membros){
+        const k = _chaveRuaCusto(m.cliente_endereco);
+        if(!k) continue;
+        if(k in cfg){ val = cfg[k]; fonte = 'cfg'; break; }
+        if(k in ped){ val = ped[k]; fonte = 'ped'; break; }
+      }
+      if(val == null){ semHistorico++; return; }
+      membros.forEach(m=>{ rascunhoCusto[m.id] = val; });
+      turnosPreenchidos.add(getTurno(membros[0]));
+      preenchidas++;
+      if(fonte === 'cfg') daConfig++; else dosPedidos++;
+    });
+    turnosPreenchidos.forEach(t=>{ turnosCustoVisiveis[t === 'almoco' ? 'almoco' : 'jantar'] = true; });
+
+    // 4) Grava em config_ruas_custo as ruas novas (vindas dos pedidos). Nunca substitui rua já cadastrada.
+    let novas = 0, erroGravar = '';
+    if(cfgOk){
+      const novasLinhas = Object.keys(ped).filter(k => !(k in cfg)).map(k => ({ rua: k, valor_normal: ped[k] }));
+      for(let i=0; i<novasLinhas.length; i+=200){
+        const bloco = novasLinhas.slice(i, i+200);
+        // ignoreDuplicates => "ON CONFLICT DO NOTHING": se a rua já existir, mantém o cadastro atual
+        const {error} = await client.from('config_ruas_custo').upsert(bloco, { onConflict: 'rua', ignoreDuplicates: true });
+        if(error){ erroGravar = error.message || String(error); console.warn('config_ruas_custo (gravação)', error); break; }
+        novas += bloco.length;
+      }
+    }
+
+    await renderAbaCusto();
+    // Sucesso: sem mensagem (limpa o "Buscando..."). Só avisa quando algo deu errado.
+    let aviso = '';
+    if(!preenchidas && !semHistorico) aviso = 'Nenhuma entrega aberta sem valor.';
+    else if(!preenchidas) aviso = 'Nenhuma rua com valor cadastrado (' + semHistorico + ' sem histórico).';
+    if(!cfgOk) aviso += (aviso ? ' ' : '') + '⚠️ Não consegui ler a tabela config_ruas_custo (usei só os pedidos).';
+    if(erroGravar) aviso += (aviso ? ' ' : '') + '⚠️ Não consegui salvar ruas novas: ' + erroGravar;
+    if(aviso) msg(aviso, '#f0c14a'); else msg('');
+  }catch(e){
+    console.warn('sugerirValoresCusto', e);
+    msg('Erro ao buscar valores: ' + (e && e.message ? e.message : e),'#ff6b6b');
+  }finally{
+    _sugerindoCusto = false;
+    const b2 = document.getElementById('btnSugerirValores');
+    if(b2){ b2.disabled = false; b2.style.opacity = ''; }
+  }
+}
+
 /** Grupo = 1 entrega: o valor escolhido em um pedido vale para todos os pedidos do mesmo grupo. */
 function _propagarCustoGrupo(pedidoId, valor){
   const p = (todosPedidos||[]).find(x=>x.id===pedidoId);
@@ -4716,6 +4851,35 @@ function enviarCalcEntregas(turno){
 async function executarEnvioCalcEntregas(){
   await _executarEnvioCalcEntregasInterno();
 }
+/** Ao ENVIAR os custos: grava em config_ruas_custo as ruas (nome da rua) e seus valores.
+ *  Mesmas regras do "Sugerir valores": 1 rua = 1 valor (maior valor entre as entregas enviadas),
+ *  e NUNCA substitui rua já cadastrada. Falha aqui não impede o envio. */
+async function _salvarRuasConfigCusto(itens){
+  try{
+    const client = getSb();
+    if(!client || !itens || !itens.length) return;
+    const mapa = {};
+    itens.forEach(r=>{
+      const v = Number(r.valor);
+      if(isNaN(v)) return;
+      const k = _chaveRuaCusto(r.end);
+      if(!k) return;
+      if(!(k in mapa) || v > mapa[k]) mapa[k] = v;
+    });
+    const chaves = Object.keys(mapa);
+    if(!chaves.length) return;
+    const existentes = new Set();
+    const rows = await _cliLerTudo(()=> client.from('config_ruas_custo').select('rua').order('rua',{ascending:true}));
+    rows.forEach(r=>{ const k = _normNomeRuaCusto(r.rua); if(k) existentes.add(k); });
+    const novas = chaves.filter(k => !existentes.has(k)).map(k => ({ rua: k, valor_normal: mapa[k] }));
+    for(let i=0; i<novas.length; i+=200){
+      const {error} = await client.from('config_ruas_custo').upsert(novas.slice(i,i+200), { onConflict: 'rua', ignoreDuplicates: true });
+      if(error){ console.warn('config_ruas_custo (gravação no envio)', error); break; }
+    }
+  }catch(e){
+    console.warn('_salvarRuasConfigCusto', e);
+  }
+}
 function _montarTextoWhatsEnvioCusto(turno, dia, rows){
   const lab = turno === 'almoco' ? 'Almoço' : 'Jantar';
   const nome = nomeEntregadorAtual() || (usuarioLogado && usuarioLogado.nome) || 'Entregador';
@@ -4808,11 +4972,13 @@ async function _executarEnvioCalcEntregasInterno(){
   if(btnModal){ btnModal.disabled = true; btnModal.textContent = '⏳ Enviando...'; }
   if(stModal){ stModal.textContent = 'Gravando valores do turno e enviando...'; stModal.style.color = '#8b93a7'; }
 
+  const ruasEnvio = [];
   try{
     // 1) Grava valor_entrega só dos pedidos deste turno
     for(const p of lista){
       const custo = _valorCustoEfetivo(p);
       if(custo == null) continue;
+      ruasEnvio.push({ end: p.cliente_endereco, valor: custo });
       const {error} = await client.from('pedidos_entrega_dia')
         .update({
           valor_entrega: custo,
@@ -4872,6 +5038,9 @@ async function _executarEnvioCalcEntregasInterno(){
       }
       throw errIns;
     }
+
+    // Salva ruas + valores em config_ruas_custo (não substitui ruas já cadastradas; não bloqueia o envio)
+    await _salvarRuasConfigCusto(ruasEnvio);
 
     custoTurnoBloqueado[t] = true;
     custoDiaBloqueado = !!(custoTurnoBloqueado.jantar && custoTurnoBloqueado.almoco);
