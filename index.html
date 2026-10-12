@@ -512,7 +512,7 @@ body.ifood-modal-open{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 111026.200057</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 121026.134600</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -621,8 +621,10 @@ create table if not exists entregadores (
   senha text not null,
   is_master boolean default false,
   ativo boolean default true,
+  abas_visiveis jsonb default '{"rota":true,"pedidos":true,"custo":true,"faturamento":true}'::jsonb,
   created_at timestamp default now()
 );
+alter table entregadores add column if not exists abas_visiveis jsonb default '{"rota":true,"pedidos":true,"custo":true,"faturamento":true}'::jsonb;
 alter table entregadores enable row level security;
 create policy "libera tudo anon entregadores" on entregadores for all using (true) with check (true);
 -- Cadastre usuários apenas pela tela Configurações → Entregadores (Master).
@@ -879,16 +881,13 @@ create policy "libera tudo anon custo entregas" on config_custo_entregas for all
 </div>
 <div id="abaFuncoes" style="display:none">
 <div style="font-size:11px;color:#8b93a7;margin-bottom:12px;line-height:1.4">
-Escolha quais funções os entregadores veem. Salvo na tabela <b style="color:#f0c14a">config_horarios</b> e vale para todos.
+Controle quais <b style="color:#f0c14a">abas</b> cada entregador vê no app. Marque para exibir e desmarque para ocultar. Salvo na tabela <b style="color:#f0c14a">entregadores</b> (coluna <code style="color:#f0c14a">abas_visiveis</code>).
 </div>
-<label style="display:flex;align-items:center;gap:10px;padding:12px;background:#0e1118;border:1px solid #2c3340;border-radius:10px;font-size:13px;color:#e6e8ef;cursor:pointer">
-<input type="checkbox" id="cfgOcultarFaturamento" style="width:auto" onchange="salvarMostrarFuncoes()"/> 🙈 Ocultar faturamento
-</label>
-<div style="font-size:10px;color:#8b93a7;margin-top:6px;line-height:1.4">Marcado: o quadro "Faturamento estimado da semana" não aparece em Custo dos entregadores.</div>
-<div id="funcoesStatus" style="font-size:11px;color:#8b93a7;text-align:center;margin:10px 0;min-height:16px"></div>
-<div style="margin-top:10px;padding:10px;background:#0e1118;border:1px solid #2c3340;border-radius:8px;font-size:10px;color:#8b93a7">
+<div id="funcoesStatus" style="font-size:11px;color:#8b93a7;text-align:center;margin:0 0 10px;min-height:16px"></div>
+<div id="listaFuncoesAbas" style="display:flex;flex-direction:column;gap:10px;max-height:55vh;overflow:auto"></div>
+<div style="margin-top:12px;padding:10px;background:#0e1118;border:1px solid #2c3340;border-radius:8px;font-size:10px;color:#8b93a7">
 <b style="color:#f0c14a">SQL - rode uma vez no Supabase:</b><br/>
-<code style="color:#fff;display:block;margin-top:6px;white-space:pre-wrap">alter table config_horarios add column if not exists ocultar_faturamento boolean not null default false;</code>
+<code style="color:#fff;display:block;margin-top:6px;white-space:pre-wrap">alter table entregadores add column if not exists abas_visiveis jsonb default '{"rota":true,"pedidos":true,"custo":true,"faturamento":true}'::jsonb;</code>
 </div>
 </div>
 <div id="abaHorarios" style="display:none">
@@ -1395,6 +1394,7 @@ Remove a finalização e a reserva. O pedido volta para <b style="color:#f0c14a"
 <button class="tab active" id="btnAbaRota" onclick="setAbaEntregador('rota')" title="Em rota" aria-label="Em rota"><span class="ico">🛵</span><span class="lbl">Em rota</span></button>
 <button class="tab" id="btnAbaPedidos" onclick="setAbaEntregador('pedidos')" title="Pedidos" aria-label="Pedidos"><span class="ico">📋</span><span class="lbl">Pedidos</span></button>
 <button class="tab" id="btnAbaCusto" onclick="setAbaEntregador('custo')" title="Custo" aria-label="Custo"><span class="ico">💵</span><span class="lbl" id="lblAbaCusto">Custo</span></button>
+<button class="tab" id="btnAbaFaturamento" onclick="setAbaEntregador('faturamento')" title="Faturamento" aria-label="Faturamento"><span class="ico">📊</span><span class="lbl" id="lblAbaFaturamento">Faturamento</span></button>
 </div>
 
 <!-- Filtro de dia sempre visível na aba Pedidos (não depende da barra de pesquisa) -->
@@ -1507,7 +1507,6 @@ Após confirmar, os valores das entregas serão gravados e <b style="color:#ff6b
 
 <!-- ABA CUSTO (entregador) -->
 <div id="viewCustoEntregador" style="display:none">
-<div id="quadroFaturamentoSemana" style="display:none"></div>
 <div class="card" style="margin:10px 12px">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
 <div id="tituloAbaCusto" style="font-size:13px;color:#3dcc8a;font-weight:900">💵 CUSTO DAS ENTREGAS</div>
@@ -1552,6 +1551,16 @@ Os valores enviados deste dia serão desbloqueados. O entregador poderá alterar
 </div>
 </div>
 
+
+<!-- VIEW FATURAMENTO (entregador) -->
+<div id="viewFaturamentoEntregador" style="display:none">
+<div id="quadroFaturamentoSemana" style="display:none"></div>
+<div class="card" style="margin:10px 12px" id="faturamentoHintCard">
+<div style="font-size:13px;color:#3dcc8a;font-weight:900;margin-bottom:6px">📊 FATURAMENTO</div>
+<div style="font-size:11px;color:#8b93a7;line-height:1.4">Valores calculados das entregas da semana (bruto, consumos e reembolsos). Atualiza automaticamente conforme os custos enviados.</div>
+<button class="btn small" style="margin-top:10px;font-size:11px;padding:8px 12px" onclick="renderQuadroFaturamentoSemana()">🔄 Atualizar</button>
+</div>
+</div>
 
 <!-- MODAL RELATÓRIO DE CUSTO POR TURNO -->
 <div id="modalRelatorioCustoTurno" class="overlay" style="display:none;z-index:286">
@@ -1950,8 +1959,7 @@ async function carregarHorarios(){
     setVal('cfgPedidosAte', configHorarios.pedidos_ate);
     setVal('cfgHorasBloqueio', configHorarios.horas_bloqueio_edicao);
     const chk=document.getElementById('cfgAutoFinalizar'); if(chk) chk.checked=!!configHorarios.auto_finalizar_apos_horas;
-    const chkF=document.getElementById('cfgOcultarFaturamento'); if(chkF) chkF.checked=!!configHorarios.ocultar_faturamento;
-    try{ if(typeof abaEntregadorAtual!=='undefined' && abaEntregadorAtual==='custo') renderQuadroFaturamentoSemana(); }catch(e){}
+    try{ if(typeof abaEntregadorAtual!=='undefined' && abaEntregadorAtual==='faturamento') renderQuadroFaturamentoSemana(); }catch(e){}
     if(st){ st.textContent='✅ Carregado'; st.style.color='#3dcc8a'; setTimeout(()=>{if(st) st.textContent='';},2000); }
     atualizarInfoRegra();
   }catch(e){
@@ -1960,30 +1968,162 @@ async function carregarHorarios(){
     atualizarInfoRegra();
   }
 }
-async function salvarMostrarFuncoes(){
-  const st=document.getElementById('funcoesStatus');
-  const chk=document.getElementById('cfgOcultarFaturamento');
-  const client=getSb();
-  if(!client){ if(st){ st.textContent='Supabase não configurado'; st.style.color='#ff6b6b'; } return; }
-  if(!usuarioLogado?.isMaster){ alert('Apenas Master'); return; }
-  const valor = !!(chk && chk.checked);
-  if(!configHorariosId){
-    if(chk) chk.checked = !valor;
-    if(st){ st.textContent='Salve os Horários uma vez antes (cria a linha de configuração).'; st.style.color='#f0c14a'; }
+const ABAS_ENTREGADOR_KEYS = [
+  { key: 'rota', label: '🛵 Em rota' },
+  { key: 'pedidos', label: '📋 Pedidos' },
+  { key: 'custo', label: '💵 Custo' },
+  { key: 'faturamento', label: '📊 Faturamento' }
+];
+const ABAS_DEFAULT = { rota: true, pedidos: true, custo: true, faturamento: true };
+
+function normalizarAbasVisiveis(raw){
+  const out = Object.assign({}, ABAS_DEFAULT);
+  if(!raw) return out;
+  let obj = raw;
+  if(typeof raw === 'string'){
+    try{ obj = JSON.parse(raw); }catch(e){ return out; }
+  }
+  if(typeof obj !== 'object' || !obj) return out;
+  ABAS_ENTREGADOR_KEYS.forEach(({key})=>{
+    if(Object.prototype.hasOwnProperty.call(obj, key)) out[key] = !!obj[key];
+  });
+  return out;
+}
+
+function getAbasVisiveisUsuario(){
+  if(!usuarioLogado) return Object.assign({}, ABAS_DEFAULT);
+  if(usuarioLogado.isMaster) return Object.assign({}, ABAS_DEFAULT);
+  return normalizarAbasVisiveis(usuarioLogado.abas_visiveis);
+}
+
+function abaVisivelParaUsuario(aba){
+  if(!usuarioLogado || usuarioLogado.isMaster) return true;
+  const abas = getAbasVisiveisUsuario();
+  if(!(aba in abas)) return true;
+  return !!abas[aba];
+}
+
+function aplicarVisibilidadeAbasEntregador(){
+  const isMaster = !!(usuarioLogado && usuarioLogado.isMaster);
+  const map = {
+    rota: document.getElementById('btnAbaRota'),
+    pedidos: document.getElementById('btnAbaPedidos'),
+    custo: document.getElementById('btnAbaCusto'),
+    faturamento: document.getElementById('btnAbaFaturamento')
+  };
+  const abas = isMaster ? ABAS_DEFAULT : getAbasVisiveisUsuario();
+  Object.keys(map).forEach(k=>{
+    const el = map[k];
+    if(!el) return;
+    el.style.display = (isMaster || abas[k]) ? '' : 'none';
+  });
+  // Se a aba atual ficou oculta, aponta para a primeira visível (setAba é chamado pelo caller)
+  if(!isMaster && usuarioLogado && !abas[abaEntregadorAtual]){
+    const primeira = ABAS_ENTREGADOR_KEYS.find(a => abas[a.key]);
+    if(primeira) abaEntregadorAtual = primeira.key;
+  }
+}
+
+async function carregarListaFuncoesAbas(){
+  const lista = document.getElementById('listaFuncoesAbas');
+  const st = document.getElementById('funcoesStatus');
+  if(!lista) return;
+  const client = getSb();
+  if(!client){
+    lista.innerHTML = '<div style="color:#ff6b6b;font-size:12px;text-align:center">Supabase não configurado</div>';
     return;
   }
-  if(st){ st.textContent='Salvando...'; st.style.color='#8b93a7'; }
+  if(st){ st.textContent = '⏳ Carregando entregadores…'; st.style.color = '#8b93a7'; }
   try{
-    const {error} = await client.from('config_horarios').update({ ocultar_faturamento: valor, updated_at: new Date().toISOString() }).eq('id', configHorariosId);
+    let data = null, error = null;
+    ({data, error} = await client.from('entregadores').select('id,nome,is_master,ativo,abas_visiveis').order('nome'));
+    if(error && /abas_visiveis|column/i.test(error.message||'')){
+      ({data, error} = await client.from('entregadores').select('id,nome,is_master,ativo').order('nome'));
+      if(!error && data) data = data.map(e => Object.assign({}, e, { abas_visiveis: null }));
+    }
     if(error) throw error;
-    configHorarios.ocultar_faturamento = valor;
-    if(st){ st.textContent = valor ? '✅ Faturamento oculto para os entregadores' : '✅ Faturamento visível para os entregadores'; st.style.color='#3dcc8a'; }
+    const ents = (data||[]).filter(e => e && e.nome && !e.is_master);
+    if(!ents.length){
+      lista.innerHTML = '<div style="text-align:center;color:#5a657a;padding:12px;font-size:12px">Nenhum entregador cadastrado (não-Master).</div>';
+      if(st) st.textContent = '';
+      return;
+    }
+    lista.innerHTML = ents.map(e=>{
+      const abas = normalizarAbasVisiveis(e.abas_visiveis);
+      const id = String(e.id||'');
+      const nome = String(e.nome||'');
+      const nomeEsc = nome.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+      const ativoBadge = e.ativo === false ? ' <span style="font-size:10px;color:#ff6b6b">(inativo)</span>' : '';
+      const checks = ABAS_ENTREGADOR_KEYS.map(({key,label})=>{
+        const checked = abas[key] ? 'checked' : '';
+        return `<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#e6e8ef;cursor:pointer;padding:6px 8px;background:#0e1118;border:1px solid #2c3340;border-radius:8px;flex:1;min-width:110px">
+          <input type="checkbox" data-ent-id="${id.replace(/"/g,'&quot;')}" data-aba="${key}" ${checked} onchange="salvarAbaVisivelEntregador(this)" style="width:auto"/>
+          <span>${label}</span>
+        </label>`;
+      }).join('');
+      return `<div style="background:#161a22;border:1px solid #2c3340;border-radius:12px;padding:12px">
+        <div style="font-weight:900;color:#f0c14a;margin-bottom:8px;font-size:14px">🛵 ${nomeEsc}${ativoBadge}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">${checks}</div>
+      </div>`;
+    }).join('');
+    if(st){ st.textContent = ents.length+' entregador(es)'; st.style.color = '#8b93a7'; }
   }catch(e){
-    console.warn('salvarMostrarFuncoes', e);
-    if(chk) chk.checked = !valor;
+    console.warn('carregarListaFuncoesAbas', e);
     const msg = String(e.message||e);
-    if(st){ st.textContent = /ocultar_faturamento|column/i.test(msg) ? 'Rode o SQL abaixo no Supabase (coluna ainda não existe).' : 'Erro: '+msg; st.style.color='#ff6b6b'; }
+    lista.innerHTML = `<div style="color:#ff6b6b;font-size:12px;padding:10px">Erro: ${msg.replace(/</g,'')}<br><span style="color:#8b93a7;font-size:11px">Se a coluna abas_visiveis não existir, rode o SQL abaixo.</span></div>`;
+    if(st){ st.textContent = 'Erro ao carregar'; st.style.color = '#ff6b6b'; }
   }
+}
+
+async function salvarAbaVisivelEntregador(chk){
+  if(!chk || !usuarioLogado || !usuarioLogado.isMaster) return;
+  const entId = chk.getAttribute('data-ent-id');
+  const abaKey = chk.getAttribute('data-aba');
+  const st = document.getElementById('funcoesStatus');
+  const client = getSb();
+  if(!client || !entId || !abaKey) return;
+  // Monta objeto a partir de todos os checkboxes deste entregador
+  const boxes = document.querySelectorAll('input[data-ent-id="'+entId.replace(/"/g,'\"')+'"]');
+  const abas = Object.assign({}, ABAS_DEFAULT);
+  boxes.forEach(b=>{
+    const k = b.getAttribute('data-aba');
+    if(k) abas[k] = !!b.checked;
+  });
+  // Garante ao menos uma aba visível
+  if(!Object.values(abas).some(Boolean)){
+    chk.checked = true;
+    abas[abaKey] = true;
+    if(st){ st.textContent = '⚠️ Deixe pelo menos uma aba visível'; st.style.color = '#f0c14a'; }
+    return;
+  }
+  if(st){ st.textContent = 'Salvando…'; st.style.color = '#8b93a7'; }
+  try{
+    const {error} = await client.from('entregadores').update({ abas_visiveis: abas }).eq('id', entId);
+    if(error) throw error;
+    if(st){ st.textContent = '✅ Abas atualizadas'; st.style.color = '#3dcc8a'; setTimeout(()=>{ if(st && st.textContent==='✅ Abas atualizadas') st.textContent=''; }, 2000); }
+    // Atualiza cache local se for o próprio usuário (improvável master)
+    try{
+      if(usuarioLogado && String(usuarioLogado.id) === String(entId)){
+        usuarioLogado.abas_visiveis = abas;
+        aplicarVisibilidadeAbasEntregador();
+      }
+    }catch(e){}
+  }catch(e){
+    console.warn('salvarAbaVisivelEntregador', e);
+    chk.checked = !chk.checked;
+    const msg = String(e.message||e);
+    if(st){
+      st.textContent = /abas_visiveis|column/i.test(msg)
+        ? 'Rode o SQL da aba Mostrar funcoes (coluna abas_visiveis ainda nao existe).'
+        : ('Erro: '+msg);
+      st.style.color = '#ff6b6b';
+    }
+  }
+}
+
+/** Mantido por compatibilidade — agora carrega a lista de abas por entregador */
+async function salvarMostrarFuncoes(){
+  await carregarListaFuncoesAbas();
 }
 async function salvarHorarios(){
   const st=document.getElementById('horariosStatus');
@@ -2353,7 +2493,8 @@ function trocarAba(aba){
   });
   if(aba==='modo'){ carregarModoGlobal(); }
   if(aba==='custo'){ carregarCustosEntrega(); }
-  if(aba==='horarios' || aba==='funcoes'){ carregarHorarios(); }
+  if(aba==='horarios'){ carregarHorarios(); }
+  if(aba==='funcoes'){ carregarListaFuncoesAbas(); }
   if(aba==='clientes'){ carregarClientesCodigos(false); }
 }
 
@@ -2611,7 +2752,7 @@ async function removerCustoEntrega(id){
 }
 
 
-// ===================== QUADRO: FATURAMENTO ESTIMADO DA SEMANA (aba Custo do entregador) =====================
+// ===================== QUADRO: FATURAMENTO ESTIMADO DA SEMANA (aba Faturamento do entregador) =====================
 // Semana = segunda a domingo. Numeração ISO (Semana 41, 42…).
 // Saldo da SEMANA ANTERIOR permanece visível até QUARTA 22:00 (pagamento na quarta).
 // Bruto = soma das entregas (calc_entregas). Líquido = bruto − consumos + reembolsos (consumos_entregas).
@@ -2883,12 +3024,114 @@ function toggleExibirSemanaAtualCusto(){
   }
 }
 
+
+let _quadroMasterSeq = 0;
+async function renderQuadroFaturamentoMaster(el){
+  if(!el) el = document.getElementById('quadroFaturamentoSemana');
+  if(!el) return;
+  const client = getSb();
+  if(!client){ el.style.display='block'; el.innerHTML='<div class="card" style="margin:10px 12px;color:#ff6b6b">Supabase não configurado</div>'; return; }
+  const seq = ++_quadroMasterSeq;
+  el.style.display = 'block';
+  el.innerHTML = '<div class="card" style="margin:10px 12px;text-align:center;color:#8b93a7;font-size:12px">Carregando faturamento dos entregadores…</div>';
+
+  let ents = [];
+  try{
+    const {data, error} = await client.from('entregadores').select('id,nome,is_master,ativo').eq('ativo', true).order('nome');
+    if(error) throw error;
+    ents = (data||[]).filter(e => e && e.nome && !e.is_master && String(e.nome).toLowerCase() !== 'master');
+  }catch(e){
+    el.innerHTML = '<div class="card" style="margin:10px 12px;color:#ff6b6b">Erro ao listar entregadores: '+(e.message||e)+'</div>';
+    return;
+  }
+  if(seq !== _quadroMasterSeq) return;
+  if(!ents.length){
+    el.innerHTML = '<div class="card" style="margin:10px 12px;text-align:center;color:#8b93a7">Nenhum entregador ativo.</div>';
+    return;
+  }
+
+  const semanas = _semanasVisiveisCusto();
+  const ant = semanas.find(s => s.isAnterior) || null;
+  const atual = semanas.find(s => !s.isAnterior) || null;
+  const escolha = window._fatMasterSemana || (ant ? 'ant' : 'atual');
+  const semana = (escolha === 'atual' && atual) ? atual : (ant || atual);
+  if(!semana){
+    el.innerHTML = '<div class="card" style="margin:10px 12px;color:#8b93a7">Sem semana para exibir.</div>';
+    return;
+  }
+
+  let html = `<div style="margin:10px 12px 6px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+    <div style="font-size:14px;font-weight:900;color:#f0c14a">📊 Faturamento por entregador</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">`;
+  if(ant){
+    html += `<button type="button" class="btn small${semana===ant?' primary':''}" id="btnFatMasterAnt" onclick="window._fatMasterSemana='ant';renderQuadroFaturamentoSemana()" style="font-size:11px;padding:8px 12px">Semana ${ant.num||''} (a pagar)</button>`;
+  }
+  if(atual){
+    html += `<button type="button" class="btn small${semana===atual?' primary':''}" id="btnFatMasterAtual" onclick="window._fatMasterSemana='atual';renderQuadroFaturamentoSemana()" style="font-size:11px;padding:8px 12px">Semana ${atual.num||''} (atual)</button>`;
+  }
+  html += `</div></div>`;
+  html += `<div style="margin:0 12px 10px;font-size:11px;color:#8b93a7">${semana.label||''} · ${semana.periodo||''} · ${ents.length} entregador(es) ativo(s)</div>`;
+  html += `<div id="fatMasterLista" style="display:flex;flex-direction:column;gap:10px;padding:0 12px 16px"></div>`;
+  el.innerHTML = html;
+
+  const lista = document.getElementById('fatMasterLista');
+  if(!lista) return;
+  lista.innerHTML = '<div style="text-align:center;color:#8b93a7;font-size:12px;padding:8px">Calculando…</div>';
+
+  const cards = [];
+  for(const ent of ents){
+    if(seq !== _quadroMasterSeq) return;
+    try{
+      const nome = String(ent.nome||'');
+      const idEnt = String(ent.id || nome);
+      const dados = await _carregarDadosSemanaCusto(client, semana.seg, semana.dom, nome, idEnt);
+      if(seq !== _quadroMasterSeq) return;
+      const bruto = Number(dados.bruto)||0;
+      const liquido = Number(dados.liquido)||0;
+      const cons = Number(dados.totalConsumo)||0;
+      const reemb = Number(dados.totalReembolso)||0;
+      const nomeEsc = nome.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      cards.push(`<div style="background:#161a22;border:1px solid #2c3340;border-radius:14px;padding:12px 14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+          <div style="font-weight:900;color:#e6e8ef;font-size:15px">🛵 ${nomeEsc}</div>
+          <div style="font-size:12px;color:#8b93a7">${semana.label||''}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div style="background:#0e1118;border:1px solid #2c3340;border-radius:10px;padding:10px;text-align:center">
+            <div style="font-size:10px;color:#8b93a7;font-weight:700;letter-spacing:0.06em">BRUTO</div>
+            <div style="font-size:18px;font-weight:900;color:#fff;margin-top:4px">${_fmtMoedaBR(bruto)}</div>
+          </div>
+          <div style="background:#0e1118;border:1px solid #2a5a3a;border-radius:10px;padding:10px;text-align:center">
+            <div style="font-size:10px;color:#8b93a7;font-weight:700;letter-spacing:0.06em">LÍQUIDO</div>
+            <div style="font-size:18px;font-weight:900;color:#3dcc8a;margin-top:4px">${_fmtMoedaBR(liquido)}</div>
+          </div>
+          <div style="background:#0e1118;border:1px solid #5a2a2a;border-radius:10px;padding:10px;text-align:center">
+            <div style="font-size:10px;color:#8b93a7;font-weight:700;letter-spacing:0.06em">CONSUMOS</div>
+            <div style="font-size:15px;font-weight:900;color:#ff6b6b;margin-top:4px">${cons?('- '+_fmtMoedaBR(cons)):_fmtMoedaBR(0)}</div>
+          </div>
+          <div style="background:#0e1118;border:1px solid #2a5a3a;border-radius:10px;padding:10px;text-align:center">
+            <div style="font-size:10px;color:#8b93a7;font-weight:700;letter-spacing:0.06em">REEMBOLSOS</div>
+            <div style="font-size:15px;font-weight:900;color:#3dcc8a;margin-top:4px">${reemb?('+ '+_fmtMoedaBR(reemb)):_fmtMoedaBR(0)}</div>
+          </div>
+        </div>
+      </div>`);
+    }catch(e){
+      console.warn('fat master ent', ent, e);
+      cards.push(`<div style="background:#161a22;border:1px solid #5a2a2a;border-radius:12px;padding:12px;color:#ff6b6b">Erro em ${String(ent.nome||'?').replace(/</g,'')}: ${String(e.message||e).replace(/</g,'')}</div>`);
+    }
+  }
+  if(seq !== _quadroMasterSeq) return;
+  lista.innerHTML = cards.join('') || '<div style="text-align:center;color:#8b93a7">Sem dados</div>';
+}
+
 async function renderQuadroFaturamentoSemana(){
   const el = document.getElementById('quadroFaturamentoSemana');
   if(!el) return;
-  if(!usuarioLogado || usuarioLogado.isMaster){ el.style.display='none'; el.innerHTML=''; return; }
-  if(configHorarios && configHorarios.ocultar_faturamento){ _quadroSemanaSeq++; el.style.display='none'; el.innerHTML=''; return; }
-  const client = getSb();
+  if(!usuarioLogado){ el.style.display='none'; el.innerHTML=''; return; }
+  if(usuarioLogado.isMaster && !usuarioLogado.viaMaster){
+    return renderQuadroFaturamentoMaster(el);
+  }
+    const client = getSb();
   if(!client){ el.style.display='none'; return; }
   const seq = ++_quadroSemanaSeq;
   const nome = nomeEntregadorAtual();
@@ -2956,7 +3199,7 @@ async function renderQuadroFaturamentoSemana(){
 // =================== FIM CUSTO DE ENTREGAS ===================
 
 // ===================== ABAS ENTREGADOR: Pedidos | Custo =====================
-let abaEntregadorAtual = 'rota'; // 'rota' (padrão do entregador) | 'pedidos' | 'custo'
+let abaEntregadorAtual = 'rota'; // 'rota' | 'pedidos' | 'custo' | 'faturamento'
 let turnosRota = {jantar:true, almoco:true}; // turnos abertos na aba Em rota
 let filtroCustoEnt = 'hoje';
 let dataSelCustoEnt = null;
@@ -3006,21 +3249,25 @@ function atualizarUIFiltroCustoEnt(){
 function setAbaEntregador(aba){
   const isMasterCheck = !!(usuarioLogado && usuarioLogado.isMaster);
   abaEntregadorAtual = aba || 'rota';
-  // Master: Em rota é a principal (padrão). Pedidos = visão com filtros; Custo = conferir custos.
+  // Master: Em rota é a principal (padrão). Pedidos = visão com filtros; Custo = valores; Faturamento = cálculo.
   const btnR = document.getElementById('btnAbaRota');
   const btnP = document.getElementById('btnAbaPedidos');
   const btnC = document.getElementById('btnAbaCusto');
+  const btnF = document.getElementById('btnAbaFaturamento');
   if(btnR) btnR.className = 'tab'+(abaEntregadorAtual==='rota'?' active':'');
   if(btnP) btnP.className = 'tab'+(abaEntregadorAtual==='pedidos'?' active':'');
   if(btnC) btnC.className = 'tab'+(abaEntregadorAtual==='custo'?' active':'');
+  if(btnF) btnF.className = 'tab'+(abaEntregadorAtual==='faturamento'?' active':'');
 
   const isCusto = abaEntregadorAtual === 'custo';
+  const isFaturamento = abaEntregadorAtual === 'faturamento';
   const isRota = abaEntregadorAtual === 'rota';
 
   const gridStats = document.getElementById('gridStats');
   const viewTurnos = document.getElementById('viewTurnos');
   const listaVazia = document.getElementById('listaVazia');
   const viewCusto = document.getElementById('viewCustoEntregador');
+  const viewFat = document.getElementById('viewFaturamentoEntregador');
   const topRow = document.getElementById('entregadorTopRow');
   const toggleBar = document.getElementById('toggleTopBar');
   const cardAdd = document.getElementById('cardAddPedido');
@@ -3030,6 +3277,7 @@ function setAbaEntregador(aba){
 
   // MASTER
   if(isMasterCheck){
+    if(viewFat) viewFat.style.display = 'none';
     if(isCusto){
       if(gridStats) gridStats.style.display = 'none';
       if(viewTurnos) viewTurnos.style.display = 'none';
@@ -3040,6 +3288,17 @@ function setAbaEntregador(aba){
       if(filtroDia) filtroDia.style.display = 'none';
       atualizarUIFiltroCustoEnt();
       renderAbaCustoMaster();
+    } else if(isFaturamento){
+      // Master: faturamento é por entregador — redireciona para custo (conferência)
+      if(gridStats) gridStats.style.display = 'none';
+      if(viewTurnos) viewTurnos.style.display = 'none';
+      if(listaVazia) listaVazia.style.display = 'none';
+      if(viewCusto) viewCusto.style.display = 'none';
+      if(viewFat) viewFat.style.display = 'block';
+      if(topRow) topRow.style.display = 'none';
+      if(toggleBar) toggleBar.style.display = 'none';
+      if(filtroDia) filtroDia.style.display = 'none';
+      try{ renderQuadroFaturamentoSemana(); }catch(e){}
     } else if(isRota){
       // Em rota: pedidos de HOJE do TURNO ATUAL, só por entregador — SEM adicionar e SEM pesquisa
       if(gridStats) gridStats.style.display = '';
@@ -3070,13 +3329,13 @@ function setAbaEntregador(aba){
     return;
   }
 
-  // ENTREGADOR - Nova regra: Pedidos sem filtros e sem pesquisa, Custo com pesquisa
+  // ENTREGADOR
   if(isCusto){
     if(gridStats) gridStats.style.display = 'none';
     if(viewTurnos) viewTurnos.style.display = 'none';
     if(listaVazia) listaVazia.style.display = 'none';
     if(viewCusto) viewCusto.style.display = 'block';
-    // Na aba Custo, mostra apenas a pesquisa de pedidos (sem adicionar e sem filtro de entrega)
+    if(viewFat) viewFat.style.display = 'none';
     if(filtroDia) filtroDia.style.display = 'none';
     if(toggleBar) toggleBar.style.display = 'none';
     if(topRow){
@@ -3094,12 +3353,25 @@ function setAbaEntregador(aba){
     }
     atualizarUIFiltroCustoEnt();
     renderAbaCusto();
+  } else if(isFaturamento){
+    if(gridStats) gridStats.style.display = 'none';
+    if(viewTurnos) viewTurnos.style.display = 'none';
+    if(listaVazia) listaVazia.style.display = 'none';
+    if(viewCusto) viewCusto.style.display = 'none';
+    if(viewFat) viewFat.style.display = 'block';
+    if(filtroDia) filtroDia.style.display = 'none';
+    if(toggleBar) toggleBar.style.display = 'none';
+    if(topRow) topRow.style.display = 'none';
+    if(cardAdd){ cardAdd.classList.add('barra-oculta'); cardAdd.style.display = 'none'; }
+    if(cardBusca){ cardBusca.classList.add('barra-oculta'); cardBusca.style.display = 'none'; }
+    try{ renderQuadroFaturamentoSemana(); }catch(e){ console.warn('faturamento', e); }
   } else {
     // Entregador: "Em rota" (padrão) = adicionar + pedidos em rota | "Pedidos" = só finalizados
     const naRota = abaEntregadorAtual === 'rota';
     if(gridStats) gridStats.style.display = naRota ? 'none' : '';
     if(viewTurnos) viewTurnos.style.display = 'block';
     if(viewCusto) viewCusto.style.display = 'none';
+    if(viewFat) viewFat.style.display = 'none';
     if(filtroDia) filtroDia.style.display = 'none';
     if(toggleBar) toggleBar.style.display = 'none';
     if(topRow){
@@ -3125,16 +3397,17 @@ function atualizarVisibilidadeAbasEntregador(){
   const logado = !!usuarioLogado;
   const isMaster = !!(usuarioLogado && usuarioLogado.isMaster);
   bar.style.display = logado ? 'flex' : 'none';
-  const btnC = document.getElementById('btnAbaCusto');
   { const _l = document.getElementById('lblAbaCusto'); if(_l) _l.textContent = isMaster ? 'Conferir custos' : 'Custo'; }
-  const btnR = document.getElementById('btnAbaRota');
-  // Master e entregador: Em rota visível e é a principal
-  if(btnR) btnR.style.display = '';
+  { const _f = document.getElementById('lblAbaFaturamento'); if(_f) _f.textContent = 'Faturamento'; }
+  // Aplica checkboxes de abas por entregador (Master vê todas)
+  try{ aplicarVisibilidadeAbasEntregador(); }catch(e){}
   if(logado){
-    // Sempre abre na Em rota (principal)
     if(isMaster) abaEntregadorAtual = 'rota';
     else if(!abaEntregadorAtual) abaEntregadorAtual = 'rota';
-    setAbaEntregador(abaEntregadorAtual || 'rota');
+    // se aba atual ocultada, aplicarVisibilidade já redirecionou
+    if(isMaster || abaVisivelParaUsuario(abaEntregadorAtual)){
+      setAbaEntregador(abaEntregadorAtual || 'rota');
+    }
   }
 }
 
@@ -3954,7 +4227,6 @@ async function renderAbaCusto(){
   if(!usuarioLogado || usuarioLogado.isMaster) return;
   if(abaEntregadorAtual !== 'custo') return;
   atualizarUIFiltroCustoEnt();
-  try{ renderQuadroFaturamentoSemana(); }catch(e){ console.warn('quadro faturamento', e); }
   const listaEl = document.getElementById('listaCustoEntregador');
   const vazioEl = document.getElementById('custoEntVazio');
   const footer = document.getElementById('custoEntFooter');
@@ -5040,9 +5312,15 @@ async function fazerLogin(){
   erroEl.textContent = 'Verificando...';
   erroEl.style.color = '#8b93a7';
   try{
-    const {data: _rowsLogin, error} = await client.from('entregadores')
-      .select('id,nome,senha,is_master,ativo')
-      .ilike('nome', nomeInput);
+    let _rowsLogin = null, error = null;
+    ({data: _rowsLogin, error} = await client.from('entregadores')
+      .select('id,nome,senha,is_master,ativo,abas_visiveis')
+      .ilike('nome', nomeInput));
+    if(error && /abas_visiveis|column/i.test(error.message||'')){
+      ({data: _rowsLogin, error} = await client.from('entregadores')
+        .select('id,nome,senha,is_master,ativo')
+        .ilike('nome', nomeInput));
+    }
     if(error){
       erroEl.style.color = '#ff6b6b';
       erroEl.textContent = 'Erro ao consultar: ' + error.message + ' (crie a tabela entregadores no SQL Editor)';
@@ -5058,7 +5336,7 @@ async function fazerLogin(){
     }
     // Master: is_master no banco OU nome Master → acesso total (entregas + filtros + configurações)
     const isMaster = !!(data.is_master === true || data.is_master === 1 || String(data.is_master).toLowerCase() === 'true');
-    usuarioLogado = { nome: data.nome, lower: data.nome.toLowerCase(), isMaster, id: data.id };
+    usuarioLogado = { nome: data.nome, lower: data.nome.toLowerCase(), isMaster, id: data.id, abas_visiveis: normalizarAbasVisiveis(data.abas_visiveis) };
     localStorage.removeItem('master_origem');
     localStorage.setItem('usuario_logado', JSON.stringify(usuarioLogado));
     localStorage.setItem('entregador_nome', data.nome);
@@ -5178,6 +5456,8 @@ function _executarLogout(){
     if(abas) abas.style.display = 'none';
     const viewCusto = document.getElementById('viewCustoEntregador');
     if(viewCusto) viewCusto.style.display = 'none';
+    const viewFat = document.getElementById('viewFaturamentoEntregador');
+    if(viewFat) viewFat.style.display = 'none';
     const filtroDia = document.getElementById('filtroDiaPedidos');
     if(filtroDia) filtroDia.style.display = 'none';
     abaEntregadorAtual = 'rota';
@@ -5188,6 +5468,7 @@ function checkLoginPersistido(){
   if(raw){
     try{
       usuarioLogado=JSON.parse(raw);
+      try{ usuarioLogado.abas_visiveis = normalizarAbasVisiveis(usuarioLogado.abas_visiveis); }catch(e){}
       document.getElementById('loginScreen').style.display='none';
       document.getElementById('userBadge').textContent=usuarioLogado.nome + (usuarioLogado.isMaster?' 👑':'');
       try{ aplicarVisibilidadeBarras(); }catch(e){ console.warn(e); }
@@ -5367,7 +5648,7 @@ function setFiltroEntregador(t){
   carregar();
 }
 function pesquisarPedidosDoDia(){
-  if(typeof abaEntregadorAtual !== 'undefined' && abaEntregadorAtual==='custo'){
+  if(typeof abaEntregadorAtual !== 'undefined' && (abaEntregadorAtual==='custo' || abaEntregadorAtual==='faturamento')){
     try{ renderAbaCusto(); }catch(e){ render(); }
   } else {
     render();
@@ -6232,7 +6513,7 @@ async function carregar(){
  }
  if(usuarioLogado?.isMaster && dataResult.length===0){ console.log('Master: nenhum pedido para', datasParaBuscar); }
  render();
- try{ if(abaEntregadorAtual==='custo' && usuarioLogado && !usuarioLogado.isMaster) renderAbaCusto(); }catch(e){}
+ try{ if(abaEntregadorAtual==='custo' && usuarioLogado && !usuarioLogado.isMaster) renderAbaCusto(); if(abaEntregadorAtual==='faturamento') renderQuadroFaturamentoSemana(); }catch(e){}
  try{ agendarAtualizacaoDinheiro(); }catch(e){}
 }
 function podeAdicionarData(dataPedido){
@@ -8468,10 +8749,10 @@ function render(){
  // Esconde o bloco antigo de entregadores no topo (agora fica DENTRO de cada turno)
  if(rootMaster){ rootMaster.style.display='none'; rootMaster.innerHTML=''; }
 
- if(typeof abaEntregadorAtual !== 'undefined' && abaEntregadorAtual === 'custo'){
-   // Aba Custo tem render próprio; não mexe na lista de Pedidos
+ if(typeof abaEntregadorAtual !== 'undefined' && (abaEntregadorAtual === 'custo' || abaEntregadorAtual === 'faturamento')){
+   // Aba Custo/Faturamento tem render próprio; não mexe na lista de Pedidos
    if(viewTurnos) viewTurnos.style.display='none';
-   const _lv = document.getElementById('listaVazia'); if(_lv) _lv.style.display='none';
+   const _lv = document.getElementById('listaVazia'); if(_lv){ _lv.style.display='none'; _lv.innerHTML=''; }
    return;
  }
  if(!filtrados.length){
@@ -8531,7 +8812,7 @@ function render(){
  }
 
  // Na aba Custo (Master ou entregador) os blocos de turno de Pedidos devem ficar ocultos
- if(viewTurnos) viewTurnos.style.display = (typeof abaEntregadorAtual !== 'undefined' && abaEntregadorAtual === 'custo') ? 'none' : 'block';
+ if(viewTurnos) viewTurnos.style.display = (typeof abaEntregadorAtual !== 'undefined' && (abaEntregadorAtual === 'custo' || abaEntregadorAtual === 'faturamento')) ? 'none' : 'block';
 
  let jantarAll = filtrados.filter(p=>getTurno(p)==='jantar');
  let almocoAll = filtrados.filter(p=>getTurno(p)==='almoco');
@@ -9976,7 +10257,7 @@ function trocarContaIdx(i){
     localStorage.removeItem('master_origem');
   } else {
     localStorage.setItem('master_origem', JSON.stringify({ nome: origem.nome, lower: origem.lower || String(origem.nome).toLowerCase(), isMaster: true, id: origem.id }));
-    usuarioLogado = { nome: c.nome, lower: c.lower, isMaster: false, id: c.id, viaMaster: true };
+    usuarioLogado = { nome: c.nome, lower: c.lower, isMaster: false, id: c.id, viaMaster: true, abas_visiveis: normalizarAbasVisiveis(c.abas_visiveis) };
   }
   localStorage.setItem('usuario_logado', JSON.stringify(usuarioLogado));
   localStorage.setItem('entregador_nome', usuarioLogado.nome);
@@ -12022,7 +12303,7 @@ async function masterChamarEntregador(nome, idx){
   setInterval(()=>{
     try{
       if(!usuarioLogado) return;
-      if(typeof abaEntregadorAtual !== 'undefined' && abaEntregadorAtual === 'custo' && !usuarioLogado.isMaster) return;
+      if(typeof abaEntregadorAtual !== 'undefined' && (abaEntregadorAtual === 'custo' || abaEntregadorAtual === 'faturamento') && !usuarioLogado.isMaster) return;
       if(document.getElementById('loginScreen')?.style.display !== 'none' && document.getElementById('loginScreen')?.style.display !== '') return;
       // só re-render se houver pedido pendente com previsão
       const precisa = (todosPedidos||[]).some(p => p && p.status !== 'codigo_informado');
