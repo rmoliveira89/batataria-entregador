@@ -774,7 +774,26 @@ create table if not exists repasse_entregador (
 );
 create index if not exists idx_repasse_entregador_nome_semana on repasse_entregador (nome, semana);
 alter table repasse_entregador enable row level security;
-create policy "libera tudo anon repasse entregador" on repasse_entregador for all using (true) with check (true);</code>
+create policy "libera tudo anon repasse entregador" on repasse_entregador for all using (true) with check (true);
+
+create table if not exists consumos_entregas (
+  id uuid primary key default gen_random_uuid(),
+  semana_inicio date not null,
+  entregador_id uuid references entregadores(id) on delete set null,
+  entregador_nome text,
+  descricao text not null,
+  valor numeric(12,2) not null check (valor > 0),
+  tipo text not null check (tipo in ('consumo','reembolso')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  origem text default 'loja'
+);
+create index if not exists idx_consumos_semana on consumos_entregas (semana_inicio);
+create index if not exists idx_consumos_entregador on consumos_entregas (entregador_id);
+alter table consumos_entregas enable row level security;
+create policy "libera tudo anon consumos entregas" on consumos_entregas for all using (true) with check (true);
+
+</code>
 </div>
 </div>
 <div id="abaEntregadores" style="display:none">
@@ -2593,8 +2612,9 @@ async function removerCustoEntrega(id){
 
 
 // ===================== QUADRO: FATURAMENTO ESTIMADO DA SEMANA (aba Custo do entregador) =====================
-// Semana = segunda a domingo. Bruto / líquido / data do pagamento vêm da tabela repasse_entregador
-// (gravada por outro sistema) — aqui NADA é calculado. As quantidades por valor vêm de calc_entregas.
+// Semana = segunda a domingo. Numeração ISO (Semana 41, 42…).
+// Saldo da SEMANA ANTERIOR permanece visível até QUARTA 22:00 (pagamento na quarta).
+// Bruto = soma das entregas (calc_entregas). Líquido = bruto − consumos + reembolsos (consumos_entregas).
 function _semanaSegDom(dataStr){
   const m = String(dataStr||'').match(/^(\d{4})-(\d{2})-(\d{2})/);
   const base = m ? new Date(Date.UTC(+m[1], +m[2]-1, +m[3])) : new Date();
@@ -2615,19 +2635,68 @@ function _fmtValorCurto(n){
   if(isNaN(x)) return '?';
   return Number.isInteger(x) ? String(x) : x.toFixed(2).replace('.',',');
 }
-let _quadroSemanaSeq = 0;
-async function renderQuadroFaturamentoSemana(){
-  const el = document.getElementById('quadroFaturamentoSemana');
-  if(!el) return;
-  if(!usuarioLogado || usuarioLogado.isMaster){ el.style.display='none'; el.innerHTML=''; return; }
-  if(configHorarios && configHorarios.ocultar_faturamento){ _quadroSemanaSeq++; el.style.display='none'; el.innerHTML=''; return; }
-  const client = getSb();
-  if(!client){ el.style.display='none'; return; }
-  const seq = ++_quadroSemanaSeq;
+/** Número da semana ISO (1–53) a partir de YYYY-MM-DD (segunda). */
+function _numSemanaISO(segISO){
+  const m = String(segISO||'').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(!m) return 0;
+  const date = new Date(Date.UTC(+m[1], +m[2]-1, +m[3]));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+}
+/** Período curto: 05/10 - 11/10 */
+function _periodoCurto(seg, dom){
+  const f = iso => {
+    const p = String(iso).slice(0,10).split('-');
+    return p.length===3 ? (p[2]+'/'+p[1]) : iso;
+  };
+  return f(seg) + ' - ' + f(dom);
+}
+/**
+ * Semanas a exibir: atual sempre; anterior até quarta 22:00 (horário de Brasília ≈ local do aparelho).
+ * Retorna array de { seg, dom, num, label, periodo, isAnterior }.
+ */
+function _semanasVisiveisCusto(){
+  const agora = new Date();
   const { seg, dom } = _semanaSegDom(getDataFiltroCustoEnt());
-  const nome = nomeEntregadorAtual();
-  const idEnt = String(usuarioLogado.id || usuarioLogado.nome || '');
+  // segunda anterior
+  const m = seg.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const segDate = new Date(Date.UTC(+m[1], +m[2]-1, +m[3]));
+  const segAntDate = new Date(segDate.getTime() - 7*86400000);
+  const f = d => d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
+  const segAnt = f(segAntDate);
+  const domAnt = f(new Date(segAntDate.getTime() + 6*86400000));
 
+  // Corte: quarta 22:00 da semana atual (seg+2)
+  const quarta = new Date(segDate.getTime() + 2*86400000);
+  // 22:00 no fuso local do dispositivo
+  const corte = new Date(quarta.getUTCFullYear(), quarta.getUTCMonth(), quarta.getUTCDate(), 22, 0, 0, 0);
+  const mostrarAnterior = agora.getTime() < corte.getTime();
+
+  const lista = [];
+  if(mostrarAnterior){
+    lista.push({
+      seg: segAnt, dom: domAnt,
+      num: _numSemanaISO(segAnt),
+      label: 'Semana ' + _numSemanaISO(segAnt),
+      periodo: _periodoCurto(segAnt, domAnt),
+      isAnterior: true
+    });
+  }
+  lista.push({
+    seg, dom,
+    num: _numSemanaISO(seg),
+    label: 'Semana ' + _numSemanaISO(seg),
+    periodo: _periodoCurto(seg, dom),
+    isAnterior: false
+  });
+  return lista;
+}
+
+let _quadroSemanaSeq = 0;
+
+async function _carregarDadosSemanaCusto(client, seg, dom, nome, idEnt){
   let rep = null, repErro = null;
   try{
     const r = await client.from('repasse_entregador').select('*').ilike('nome', nome).eq('semana', seg).order('data',{ascending:false}).limit(1);
@@ -2635,13 +2704,12 @@ async function renderQuadroFaturamentoSemana(){
   }catch(e){ repErro = e; }
 
   let porValor = {};
-  const porDia = {};   // dia -> { valor -> qtd }
+  const porDia = {};
+  let brutoCalc = 0;
   try{
     if(!cacheOpcoesCusto.length) await carregarOpcoesCusto();
     const ids = [...new Set([idEnt, nome].filter(Boolean))];
     const r2 = await client.from('calc_entregas').select('*').gte('dia', seg).lte('dia', dom).in('id_entregador', ids).limit(5000);
-    // Um envio gera 1 linha por (dia, turno, valor). Se houver linhas repetidas (reabertura/reenvio,
-    // ou gravadas com id e com nome), vale só a MAIS RECENTE — senão a semana soma em dobro.
     const unicas = {};
     (r2.data||[]).forEach(row=>{
       let valor = null;
@@ -2651,21 +2719,60 @@ async function renderQuadroFaturamentoSemana(){
       const k = valor === null || isNaN(valor) ? ('?'+row.id_entrega) : String(valor);
       const chave = row.dia+'|'+row.turno+'|'+k;
       const ts = new Date(row.updated_at || row.created_at || 0).getTime() || 0;
-      if(!unicas[chave] || ts >= unicas[chave].ts) unicas[chave] = { dia: String(row.dia).slice(0,10), k: k.charAt(0)==='?' ? '?' : k, q: Number(row.quant||0), ts };
+      if(!unicas[chave] || ts >= unicas[chave].ts) unicas[chave] = { dia: String(row.dia).slice(0,10), k: k.charAt(0)==='?' ? '?' : k, q: Number(row.quant||0), valor: (valor===null||isNaN(valor))?0:Number(valor), ts };
     });
     Object.values(unicas).forEach(u=>{
       porValor[u.k] = (porValor[u.k]||0) + u.q;
       (porDia[u.dia] = porDia[u.dia] || {})[u.k] = ((porDia[u.dia]||{})[u.k]||0) + u.q;
+      brutoCalc += (u.valor || 0) * (u.q || 0);
     });
   }catch(e){ console.warn('quadro semana calc_entregas', e); }
 
-  if(seq !== _quadroSemanaSeq) return;
+  // Consumos / reembolsos da semana
+  let consumos = [], consErro = null;
+  try{
+    const r3 = await client.from('consumos_entregas')
+      .select('id,descricao,valor,tipo,entregador_id,entregador_nome,created_at')
+      .eq('semana_inicio', seg)
+      .order('created_at', {ascending:true})
+      .limit(500);
+    if(r3.error){
+      if(!/relation|does not exist|consumos_entregas/i.test(String(r3.error.message||r3.error))) consErro = r3.error;
+    } else {
+      const nomeL = String(nome||'').trim().toLowerCase();
+      const idL = String(idEnt||'');
+      consumos = (r3.data||[]).filter(row=>{
+        if(row.entregador_id && idL && String(row.entregador_id) === idL) return true;
+        if(row.entregador_nome && nomeL && String(row.entregador_nome).trim().toLowerCase() === nomeL) return true;
+        return false;
+      });
+    }
+  }catch(e){ consErro = e; }
+
+  let totalConsumo = 0, totalReembolso = 0;
+  consumos.forEach(c=>{
+    const v = Number(c.valor)||0;
+    if(c.tipo === 'reembolso') totalReembolso += v;
+    else totalConsumo += v;
+  });
+
+  // Bruto: preferir cálculo das entregas; se repasse tiver bruto e não houver entregas, usar repasse
+  let bruto = brutoCalc;
+  if(bruto === 0 && rep && rep.valor_bruto != null) bruto = Number(rep.valor_bruto)||0;
+  const liquido = bruto - totalConsumo + totalReembolso;
+
+  return { rep, repErro, porValor, porDia, bruto, liquido, totalConsumo, totalReembolso, consumos, consErro };
+}
+
+function _htmlCardSemanaCusto(info, dados){
+  const { seg, dom, label, periodo, isAnterior } = info;
+  const { rep, repErro, porValor, porDia, bruto, liquido, totalConsumo, totalReembolso, consumos, consErro } = dados;
+
   const ordenaChaves = o => { const ks = Object.keys(o).filter(k=>k!=='?').sort((a,b)=>Number(a)-Number(b)); if(o['?']) ks.push('?'); return ks; };
-  const chaves = ordenaChaves(porValor);
-  const chips = chaves.filter(k=>porValor[k]>0).map(k =>
+  const chips = ordenaChaves(porValor).filter(k=>porValor[k]>0).map(k =>
     `<span style="display:inline-block;background:#0e1118;border:1px solid #2c3340;border-radius:8px;padding:5px 9px;font-size:13px;font-weight:900;color:#e6e8ef">${porValor[k]}x${k==='?'?'?':_fmtValorCurto(k)}</span>`
   ).join(' ');
-  // Detalhe por dia (segunda → domingo) para conferência
+
   const NOMES_DIA = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
   let linhasDia = '';
   for(let i=0;i<7;i++){
@@ -2675,36 +2782,175 @@ async function renderQuadroFaturamentoSemana(){
     const txt = ordenaChaves(o).filter(k=>o[k]>0).map(k=>o[k]+'x'+(k==='?'?'?':_fmtValorCurto(k))).join('  ') || '—';
     linhasDia += `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:3px 0;border-bottom:1px solid #20262f"><span style="color:#8b93a7">${NOMES_DIA[i]} ${formatarDataBR(iso)}</span><b style="color:#e6e8ef">${txt}</b></div>`;
   }
-  const detalheDias = `<details style="margin-top:8px"><summary style="font-size:11px;color:#6ab7ff;cursor:pointer;font-weight:700">Ver por dia</summary><div style="margin-top:6px">${linhasDia}</div></details>`;
+
+  const listaCons = (consumos||[]).filter(c=>c.tipo!=='reembolso');
+  const listaReemb = (consumos||[]).filter(c=>c.tipo==='reembolso');
+  let htmlCons = '';
+  if(!listaCons.length){
+    htmlCons = '<div style="font-size:11px;color:#5a657a;padding:4px 0">Nenhum consumo</div>';
+  } else {
+    htmlCons = listaCons.map(c=>
+      `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:4px 0;border-bottom:1px solid #20262f"><span style="color:#e6e8ef">${String(c.descricao||'—').replace(/</g,'')}</span><b style="color:#ff6b6b;white-space:nowrap">- ${_fmtMoedaBR(c.valor)}</b></div>`
+    ).join('');
+  }
+  let htmlReemb = '';
+  if(!listaReemb.length){
+    htmlReemb = '<div style="font-size:11px;color:#5a657a;padding:4px 0">Nenhum reembolso</div>';
+  } else {
+    htmlReemb = listaReemb.map(c=>
+      `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:4px 0;border-bottom:1px solid #20262f"><span style="color:#e6e8ef">${String(c.descricao||'—').replace(/</g,'')}</span><b style="color:#3dcc8a;white-space:nowrap">+ ${_fmtMoedaBR(c.valor)}</b></div>`
+    ).join('');
+  }
+
+  const detalhe = `<details style="margin-top:8px"><summary style="font-size:11px;color:#6ab7ff;cursor:pointer;font-weight:700">Detalhes</summary>
+    <div style="margin-top:8px">
+      <div style="font-size:10px;color:#8b93a7;font-weight:800;margin-bottom:4px">POR DIA</div>
+      ${linhasDia}
+      <div style="font-size:10px;color:#ff6b6b;font-weight:800;margin:10px 0 4px">CONSUMOS (− ${_fmtMoedaBR(totalConsumo)})</div>
+      ${htmlCons}
+      <div style="font-size:10px;color:#3dcc8a;font-weight:800;margin:10px 0 4px">REEMBOLSOS (+ ${_fmtMoedaBR(totalReembolso)})</div>
+      ${htmlReemb}
+    </div>
+  </details>`;
 
   const dataPag = rep && rep.data ? formatarDataBR(String(rep.data).slice(0,10), true) : '—';
-  const semTxt = formatarDataBR(seg) + ' a ' + formatarDataBR(dom);
-  const aviso = repErro
-    ? `<div style="font-size:10px;color:#ff6b6b;margin-top:8px">Tabela repasse_entregador indisponível. Rode o SQL no Supabase.</div>`
-    : (!rep ? `<div style="font-size:10px;color:#8b93a7;margin-top:8px">Repasse desta semana ainda não lançado.</div>` : '');
+  const badgeAnt = isAnterior
+    ? `<span style="font-size:10px;font-weight:800;background:#2a2a1a;color:#f0c14a;border:1px solid #5a4a2a;padding:3px 8px;border-radius:999px">⏳ A pagar (até qua 22h)</span>`
+    : `<span style="font-size:10px;font-weight:800;background:#0f1f15;color:#3dcc8a;border:1px solid #2a5a3a;padding:3px 8px;border-radius:999px">Semana atual</span>`;
 
-  el.innerHTML = `<div class="card" style="margin:10px 12px;border-color:#2a5a3a;background:linear-gradient(180deg,#14201a,#161a22)">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-      <div style="font-size:13px;color:#3dcc8a;font-weight:900">💰 FATURAMENTO ESTIMADO DA SEMANA</div>
-      <span style="font-size:10px;color:#8b93a7">📅 ${semTxt} (seg–dom)</span>
+  let aviso = '';
+  if(repErro) aviso += `<div style="font-size:10px;color:#ff6b6b;margin-top:6px">Tabela repasse_entregador indisponível.</div>`;
+  if(consErro) aviso += `<div style="font-size:10px;color:#ff6b6b;margin-top:6px">Tabela consumos_entregas indisponível. Rode o SQL no Supabase.</div>`;
+
+  const border = isAnterior ? '#5a4a2a' : '#2a5a3a';
+  const bg = isAnterior ? 'linear-gradient(180deg,#1c1c12,#161a22)' : 'linear-gradient(180deg,#14201a,#161a22)';
+  const titleColor = isAnterior ? '#f0c14a' : '#3dcc8a';
+
+  return `<div class="card" style="margin:10px 12px;border-color:${border};background:${bg}">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <div style="font-size:13px;color:${titleColor};font-weight:900">💰 ${label}</div>
+      ${badgeAnt}
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:10px">
-      <div style="flex:1;background:#0e1118;border:1px solid #2c3340;border-radius:10px;padding:10px;text-align:center">
+    <div style="font-size:11px;color:#8b93a7;margin-bottom:10px">📅 ${periodo} <span style="opacity:.7">(seg–dom)</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <div style="background:#0e1118;border:1px solid #2c3340;border-radius:10px;padding:10px;text-align:center">
         <div style="font-size:10px;color:#8b93a7;font-weight:700">BRUTO</div>
-        <div style="font-size:17px;font-weight:900;color:#e6e8ef;margin-top:2px">${rep ? _fmtMoedaBR(rep.valor_bruto) : '—'}</div>
+        <div style="font-size:17px;font-weight:900;color:#e6e8ef;margin-top:2px">${_fmtMoedaBR(bruto)}</div>
       </div>
-      <div style="flex:1;background:#0e1118;border:1px solid #2a5a3a;border-radius:10px;padding:10px;text-align:center">
+      <div style="background:#0e1118;border:1px solid #2a5a3a;border-radius:10px;padding:10px;text-align:center">
         <div style="font-size:10px;color:#8b93a7;font-weight:700">LÍQUIDO</div>
-        <div style="font-size:17px;font-weight:900;color:#3dcc8a;margin-top:2px">${rep ? _fmtMoedaBR(rep.valor_liquido) : '—'}</div>
+        <div style="font-size:17px;font-weight:900;color:#3dcc8a;margin-top:2px">${_fmtMoedaBR(liquido)}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <div style="background:#0e1118;border:1px solid #5a2a2a;border-radius:10px;padding:8px;text-align:center">
+        <div style="font-size:9px;color:#8b93a7;font-weight:700">CONSUMOS</div>
+        <div style="font-size:14px;font-weight:900;color:#ff6b6b;margin-top:2px">− ${_fmtMoedaBR(totalConsumo)}</div>
+      </div>
+      <div style="background:#0e1118;border:1px solid #2a5a3a;border-radius:10px;padding:8px;text-align:center">
+        <div style="font-size:9px;color:#8b93a7;font-weight:700">REEMBOLSOS</div>
+        <div style="font-size:14px;font-weight:900;color:#3dcc8a;margin-top:2px">+ ${_fmtMoedaBR(totalReembolso)}</div>
       </div>
     </div>
     <div style="font-size:12px;color:#8b93a7;margin-bottom:8px">🗓️ Pagamento: <b style="color:#f0c14a">${dataPag}</b></div>
-    <div style="font-size:10px;color:#8b93a7;font-weight:700;margin-bottom:5px">ENTREGAS ACUMULADAS NA SEMANA</div>
+    <div style="font-size:10px;color:#8b93a7;font-weight:700;margin-bottom:5px">ENTREGAS ACUMULADAS</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">${chips || '<span style="font-size:12px;color:#5a657a">Nenhuma entrega enviada nesta semana</span>'}</div>
-    ${detalheDias}
+    ${detalhe}
     ${aviso}
   </div>`;
+}
+
+let _exibirSemanaAtualCusto = false; // usuário pediu para ver a semana atual (oculta por padrão enquanto houver semana anterior)
+
+function toggleExibirSemanaAtualCusto(){
+  _exibirSemanaAtualCusto = !_exibirSemanaAtualCusto;
+  const box = document.getElementById('boxSemanaAtualCusto');
+  const btn = document.getElementById('btnExibirSemanaAtualCusto');
+  if(box) box.style.display = _exibirSemanaAtualCusto ? 'block' : 'none';
+  if(btn){
+    if(_exibirSemanaAtualCusto){
+      btn.textContent = '▾ Ocultar semana atual';
+      btn.style.background = '#1c1c12';
+      btn.style.borderColor = '#5a4a2a';
+      btn.style.color = '#f0c14a';
+    } else {
+      const lab = btn.getAttribute('data-label') || 'semana atual';
+      btn.textContent = '▸ Exibir ' + lab;
+      btn.style.background = '#1a2a3a';
+      btn.style.borderColor = '#2a4a5a';
+      btn.style.color = '#6ab7ff';
+    }
+  }
+}
+
+async function renderQuadroFaturamentoSemana(){
+  const el = document.getElementById('quadroFaturamentoSemana');
+  if(!el) return;
+  if(!usuarioLogado || usuarioLogado.isMaster){ el.style.display='none'; el.innerHTML=''; return; }
+  if(configHorarios && configHorarios.ocultar_faturamento){ _quadroSemanaSeq++; el.style.display='none'; el.innerHTML=''; return; }
+  const client = getSb();
+  if(!client){ el.style.display='none'; return; }
+  const seq = ++_quadroSemanaSeq;
+  const nome = nomeEntregadorAtual();
+  const idEnt = String(usuarioLogado.id || usuarioLogado.nome || '');
+  const semanas = _semanasVisiveisCusto();
+  const ant = semanas.find(s => s.isAnterior) || null;
+  const atual = semanas.find(s => !s.isAnterior) || null;
+
+  el.innerHTML = '<div class="card" style="margin:10px 12px;text-align:center;color:#8b93a7;font-size:12px">Carregando faturamento…</div>';
   el.style.display = 'block';
+
+  let htmlAnt = '';
+  let htmlAtual = '';
+
+  // Prioridade: semana anterior (a pagar) visível por padrão até o pagamento (qua 22h)
+  if(ant){
+    try{
+      const dados = await _carregarDadosSemanaCusto(client, ant.seg, ant.dom, nome, idEnt);
+      if(seq !== _quadroSemanaSeq) return;
+      htmlAnt = _htmlCardSemanaCusto(ant, dados);
+    }catch(e){
+      console.warn('renderQuadro semana anterior', e);
+      htmlAnt = `<div class="card" style="margin:10px 12px;color:#ff6b6b">Erro ao carregar ${ant.label}</div>`;
+    }
+  }
+
+  if(atual){
+    try{
+      const dados = await _carregarDadosSemanaCusto(client, atual.seg, atual.dom, nome, idEnt);
+      if(seq !== _quadroSemanaSeq) return;
+      htmlAtual = _htmlCardSemanaCusto(atual, dados);
+    }catch(e){
+      console.warn('renderQuadro semana atual', e);
+      htmlAtual = `<div class="card" style="margin:10px 12px;color:#ff6b6b">Erro ao carregar ${atual.label}</div>`;
+    }
+  }
+
+  if(seq !== _quadroSemanaSeq) return;
+
+  let html = '';
+  // Se existe semana anterior (ainda no prazo de pagamento): ela fica aberta; a atual fica oculta com botão
+  if(ant && atual){
+    html += htmlAnt;
+    const lab = atual.label + ' · ' + atual.periodo;
+    const aberto = !!_exibirSemanaAtualCusto;
+    html += `<div style="margin:0 12px 8px">
+      <button type="button" id="btnExibirSemanaAtualCusto" class="btn" data-label="${lab.replace(/"/g,'&quot;')}"
+        onclick="toggleExibirSemanaAtualCusto()"
+        style="width:100%;padding:12px;font-weight:800;font-size:12px;border-radius:10px;background:${aberto?'#1c1c12':'#1a2a3a'};border:1px solid ${aberto?'#5a4a2a':'#2a4a5a'};color:${aberto?'#f0c14a':'#6ab7ff'}">
+        ${aberto ? '▾ Ocultar semana atual' : '▸ Exibir ' + lab}
+      </button>
+    </div>`;
+    html += `<div id="boxSemanaAtualCusto" style="display:${aberto?'block':'none'}">${htmlAtual}</div>`;
+  } else if(atual){
+    // Só semana atual (já passou o prazo da anterior): mostra aberta
+    html += htmlAtual;
+  } else if(ant){
+    html += htmlAnt;
+  }
+
+  el.innerHTML = html || '';
+  el.style.display = html ? 'block' : 'none';
 }
 
 // =================== FIM CUSTO DE ENTREGAS ===================
