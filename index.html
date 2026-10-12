@@ -5492,7 +5492,8 @@ async function verificarAcessoAtivo(){
 function iniciarMonitorAcessoAtivo(){
   if(window.__monitorAcessoAtivo) return;
   window.__monitorAcessoAtivo = true;
-  setInterval(()=>{ verificarAcessoAtivo(); }, 20000);
+  // A cada 60s (Realtime em entregadores já reage; este é só fallback)
+  setInterval(()=>{ verificarAcessoAtivo(); }, 60000);
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) verificarAcessoAtivo(); });
   window.addEventListener('focus', ()=>{ verificarAcessoAtivo(); });
   window.addEventListener('online', ()=>{ verificarAcessoAtivo(); });
@@ -10656,10 +10657,10 @@ async function carregarControleDinheiroMaster(){
 function iniciarMonitorDinheiro(){
   pararMonitorDinheiro();
   if(!usuarioLogado) return;
-  // A cada 20s (além do realtime via carregar())
+  // A cada 45s (além do realtime via carregar()) — reduz carga no Free plan
   _timerDinheiro = setInterval(()=>{
     try{ carregarControleDinheiro(); }catch(e){ console.warn(e); }
-  }, 20000);
+  }, 45000);
 }
 let _debDinheiro = null;
 function agendarAtualizacaoDinheiro(){
@@ -11488,13 +11489,24 @@ async function editarCodigo(id,atual){
   abrirConfirmacaoAutomatico(pedido, { editar: true, codigoAtual: atual || pedido.codigo_cliente || '' });
 }
 
+
+// Debounce do carregar() para evitar rajada de requests quando Realtime dispara vários eventos seguidos
+let _carregarDebounceTimer = null;
+function carregarDebounced(){
+  if(_carregarDebounceTimer) clearTimeout(_carregarDebounceTimer);
+  _carregarDebounceTimer = setTimeout(()=>{
+    _carregarDebounceTimer = null;
+    try{ carregar(); }catch(e){ console.warn('carregarDebounced', e); }
+  }, 800);
+}
+
 function ouvir(){
   const client=getSb();
   if(!client) return;
   client.channel('entregador-v8')
     .on('postgres_changes',{event:'*',schema:'public',table:'refri_pedidos'},()=>{ try{ _agendarRefriCache(true); }catch(e){} })
-    .on('postgres_changes',{event:'*',schema:'public',table:'pedidos_entrega_dia'},()=>carregar())
-    .on('postgres_changes',{event:'*',schema:'public',table:'reservas_entregadores'},()=>carregar())
+    .on('postgres_changes',{event:'*',schema:'public',table:'pedidos_entrega_dia'},()=>carregarDebounced())
+    .on('postgres_changes',{event:'*',schema:'public',table:'reservas_entregadores'},()=>carregarDebounced())
     .on('postgres_changes',{event:'*',schema:'public',table:'entregadores'},()=>{ try{ verificarAcessoAtivo(); }catch(e){} try{ atualizarAbasVisiveisDoServidor(); }catch(e){} })
     .on('postgres_changes',{event:'*',schema:'public',table:'app_config'}, (payload)=>{
       if(payload.new && payload.new.chave==='modo_confirmacao' && payload.new.valor){
@@ -12203,9 +12215,9 @@ async function pollChamadas(){
 function iniciarMonitorChamadas(){
   if(!usuarioLogado) return;
   if(_chamadaPollTimer){ clearInterval(_chamadaPollTimer); _chamadaPollTimer = null; }
-  // poll imediato + a cada 2s
+  // poll imediato + a cada 15s (Realtime é a fonte principal; poll só como fallback conservador)
   pollChamadas();
-  _chamadaPollTimer = setInterval(pollChamadas, 2000);
+  _chamadaPollTimer = setInterval(pollChamadas, 15000);
   // canal dedicado (além do ouvir geral)
   try{
     const client = getSb();
@@ -12385,12 +12397,12 @@ async function masterChamarEntregador(nome, idx){
     }catch(e){}
   }, 30000);
 
-  // Master: atualiza pedidos/reservas a cada 30s
+  // Master: atualiza pedidos/reservas a cada 60s (Realtime já cobre mudanças; este é só fallback)
   setInterval(()=>{
     if(usuarioLogado && usuarioLogado.isMaster){
       try{ carregar(); }catch(e){ console.warn('auto-refresh master', e); }
     }
-  }, 30000);
+  }, 60000);
   iniciarMonitorFilaOffline();
   iniciarWatchdogModo();
 })();
