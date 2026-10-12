@@ -2017,11 +2017,66 @@ function aplicarVisibilidadeAbasEntregador(){
     if(!el) return;
     el.style.display = (isMaster || abas[k]) ? '' : 'none';
   });
-  // Se a aba atual ficou oculta, aponta para a primeira visível (setAba é chamado pelo caller)
+  // Se a aba atual ficou oculta, muda para a primeira visível e re-renderiza
   if(!isMaster && usuarioLogado && !abas[abaEntregadorAtual]){
     const primeira = ABAS_ENTREGADOR_KEYS.find(a => abas[a.key]);
-    if(primeira) abaEntregadorAtual = primeira.key;
+    if(primeira){
+      try{ setAbaEntregador(primeira.key); }catch(e){ abaEntregadorAtual = primeira.key; }
+    }
   }
+}
+
+function _abasIguais(a, b){
+  const A = normalizarAbasVisiveis(a);
+  const B = normalizarAbasVisiveis(b);
+  return ABAS_ENTREGADOR_KEYS.every(({key}) => !!A[key] === !!B[key]);
+}
+
+/** Busca abas_visiveis no Supabase e aplica na hora (sem precisar relogar). */
+let _atualizandoAbasVisiveis = false;
+async function atualizarAbasVisiveisDoServidor(){
+  if(_atualizandoAbasVisiveis) return;
+  if(!usuarioLogado) return;
+  // Master puro vê todas; viaMaster (Master na conta do entregador) e entregador respeitam o cadastro
+  if(usuarioLogado.isMaster && !usuarioLogado.viaMaster) return;
+  if(navigator.onLine === false) return;
+  const client = getSb();
+  if(!client) return;
+  _atualizandoAbasVisiveis = true;
+  try{
+    let q = client.from('entregadores').select('id,nome,abas_visiveis');
+    q = usuarioLogado.id ? q.eq('id', usuarioLogado.id) : q.ilike('nome', usuarioLogado.nome || '');
+    let data = null, error = null;
+    ({data, error} = await q.maybeSingle());
+    if(error && /abas_visiveis|column/i.test(error.message||'')){
+      // coluna ainda não existe: mantém default (todas visíveis)
+      return;
+    }
+    if(error || !data) return;
+    const novas = normalizarAbasVisiveis(data.abas_visiveis);
+    const antigas = normalizarAbasVisiveis(usuarioLogado.abas_visiveis);
+    if(_abasIguais(antigas, novas)) return;
+    usuarioLogado.abas_visiveis = novas;
+    try{ localStorage.setItem('usuario_logado', JSON.stringify(usuarioLogado)); }catch(e){}
+    try{ aplicarVisibilidadeAbasEntregador(); }catch(e){}
+    console.log('[abas] visibilidade atualizada do servidor', novas);
+  }catch(e){
+    console.warn('atualizarAbasVisiveisDoServidor', e);
+  }finally{
+    _atualizandoAbasVisiveis = false;
+  }
+}
+
+function iniciarMonitorAbasVisiveis(){
+  if(window.__monitorAbasVisiveis) return;
+  window.__monitorAbasVisiveis = true;
+  // a cada 5 minutos
+  setInterval(()=>{ try{ atualizarAbasVisiveisDoServidor(); }catch(e){} }, 5 * 60 * 1000);
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) try{ atualizarAbasVisiveisDoServidor(); }catch(e){} });
+  window.addEventListener('focus', ()=>{ try{ atualizarAbasVisiveisDoServidor(); }catch(e){} });
+  window.addEventListener('online', ()=>{ try{ atualizarAbasVisiveisDoServidor(); }catch(e){} });
+  // primeira checagem após login/carregar
+  setTimeout(()=>{ try{ atualizarAbasVisiveisDoServidor(); }catch(e){} }, 2500);
 }
 
 async function carregarListaFuncoesAbas(){
@@ -5407,12 +5462,30 @@ async function verificarAcessoAtivo(){
   if(!client) return;
   _verificandoAcessoAtivo = true;
   try{
-    let q = client.from('entregadores').select('id,nome,ativo');
+    let q = client.from('entregadores').select('id,nome,ativo,abas_visiveis');
     q = usuarioLogado.id ? q.eq('id', usuarioLogado.id) : q.ilike('nome', usuarioLogado.nome || '');
-    const {data, error} = await q.maybeSingle();
+    let data = null, error = null;
+    ({data, error} = await q.maybeSingle());
+    if(error && /abas_visiveis|column/i.test(error.message||'')){
+      ({data, error} = await client.from('entregadores').select('id,nome,ativo')
+        .eq(usuarioLogado.id ? 'id' : 'nome', usuarioLogado.id || usuarioLogado.nome)
+        .maybeSingle());
+      // fallback without abas
+    }
     if(error) return;                    // falha de consulta: mantém a sessão
     if(!usuarioLogado) return;           // saiu enquanto consultava
     if(!data || !_entAtivo(data)) _forcarLogoutInativo();
+    // Atualiza abas se o Master alterou (a cada ~20s do monitor de acesso)
+    if(data && data.abas_visiveis !== undefined){
+      try{
+        const novas = normalizarAbasVisiveis(data.abas_visiveis);
+        if(!_abasIguais(usuarioLogado.abas_visiveis, novas)){
+          usuarioLogado.abas_visiveis = novas;
+          try{ localStorage.setItem('usuario_logado', JSON.stringify(usuarioLogado)); }catch(e2){}
+          aplicarVisibilidadeAbasEntregador();
+        }
+      }catch(e3){}
+    }
   }catch(e){ console.warn('verificarAcessoAtivo', e); }
   finally{ _verificandoAcessoAtivo = false; }
 }
@@ -11422,7 +11495,7 @@ function ouvir(){
     .on('postgres_changes',{event:'*',schema:'public',table:'refri_pedidos'},()=>{ try{ _agendarRefriCache(true); }catch(e){} })
     .on('postgres_changes',{event:'*',schema:'public',table:'pedidos_entrega_dia'},()=>carregar())
     .on('postgres_changes',{event:'*',schema:'public',table:'reservas_entregadores'},()=>carregar())
-    .on('postgres_changes',{event:'*',schema:'public',table:'entregadores'},()=>{ try{ verificarAcessoAtivo(); }catch(e){} })
+    .on('postgres_changes',{event:'*',schema:'public',table:'entregadores'},()=>{ try{ verificarAcessoAtivo(); }catch(e){} try{ atualizarAbasVisiveisDoServidor(); }catch(e){} })
     .on('postgres_changes',{event:'*',schema:'public',table:'app_config'}, (payload)=>{
       if(payload.new && payload.new.chave==='modo_confirmacao' && payload.new.valor){
         console.log('Modo global alterado pelo Master:', payload.new.valor);
@@ -12295,6 +12368,7 @@ async function masterChamarEntregador(nome, idx){
   try{ localStorage.removeItem('entregadores_lista'); }catch(e){}
   if(checkLoginPersistido()){ carregar(); ouvir(); carregarModoGlobal(); try{ verificarAcessoAtivo(); }catch(e){} } else { carregarModoGlobal(); }
   try{ iniciarMonitorAcessoAtivo(); }catch(e){ console.warn(e); }
+  try{ iniciarMonitorAbasVisiveis(); }catch(e){ console.warn(e); }
   atualizarBadgeModo();
   try{ carregarHorarios(); }catch(e){}
   try{ atualizarInfoRegra(); }catch(e){}
