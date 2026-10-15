@@ -136,6 +136,57 @@ body.ifood-modal-open{
 .rota-grupo.rota-colapsavel .rota-toggle-icon{font-size:12px;font-weight:800;color:#8b93a7;margin-left:6px;flex-shrink:0}
 .rota-grupo.rota-colapsavel.rota-colapsada .pedidos-grid{display:none !important}
 .rota-grupo.rota-colapsavel:not(.rota-colapsada) .pedidos-grid{display:grid}
+/* Entregador: cards maiores (280–350px) nas abas Em rota e Pedidos */
+body.modo-entregador .pedidos-grid{
+  grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:10px;
+  padding:8px 12px 12px;
+}
+body.modo-entregador .rota-grupo{
+  min-width:280px;
+  max-width:350px;
+  flex:1 1 280px;
+}
+body.modo-entregador .rota-grupo .pedidos-grid{
+  grid-template-columns:1fr;
+  padding:8px 8px 6px;
+  gap:8px;
+}
+body.modo-entregador .pedido-mini{
+  min-height:0;
+  padding:12px;
+  gap:8px;
+  border-radius:12px;
+}
+body.modo-entregador .pedido-mini .pm-num{font-size:16px}
+body.modo-entregador .pedido-mini .pm-nome{font-size:13px;-webkit-line-clamp:3}
+body.modo-entregador .pedido-mini .pm-end{font-size:11px;-webkit-line-clamp:3}
+body.modo-entregador .pedido-mini .pm-meta{font-size:10px}
+body.modo-entregador .pedido-mini .pm-pag{font-size:12px;padding:7px 9px}
+body.modo-entregador .pedido-mini .pm-actions .btn,
+body.modo-entregador .pedido-mini .pm-rota .btn,
+body.modo-entregador .pedido-mini .master-modal-actions .btn{
+  font-size:12px;
+  padding:10px 8px;
+  min-height:38px;
+}
+body.modo-entregador .btn-entregador-mapa,
+body.modo-entregador .btn-entregador-localizador{
+  font-size:13px;
+  padding:12px 10px;
+  min-height:48px;
+}
+@media (max-width:420px){
+  body.modo-entregador .pedidos-grid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;padding:6px 8px 10px}
+  body.modo-entregador .rota-grupo{min-width:260px;max-width:100%;flex:1 1 260px}
+}
+@media (min-width:520px){
+  body.modo-entregador .pedidos-grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+}
+@media (min-width:900px){
+  body.modo-entregador .pedidos-grid{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+  body.modo-entregador .rota-grupo{min-width:300px;max-width:350px;flex:1 1 300px}
+}
 .badge.entregador{background:#1a2a3a;color:#6ab7ff;border:1px solid #2a4a5a}
 .badge.espera{background:#2a2a1a;color:#f0c14a;border:1px solid #5a4a2a}
 /* Master - ação do pedido */
@@ -6338,6 +6389,7 @@ async function fazerLogin(){
     localStorage.setItem('entregador_nome', data.nome);
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('userBadge').textContent = data.nome + (isMaster ? ' 👑' : '');
+    try{ atualizarModoEntregadorBody(); }catch(e){}
     // Barras Adicionar / Pesquisa: defaults por perfil + preferência salva
     try{ aplicarVisibilidadeBarras(); }catch(e){ console.warn(e); }
     try{ atualizarVisibilidadeAbasEntregador(); }catch(e){}
@@ -6447,6 +6499,7 @@ function _executarLogout(){
   try{ fecharModalTrocarConta(); const bt=document.getElementById('btnTrocarConta'); if(bt) bt.style.display='none'; }catch(e){}
   usuarioLogado=null;
   document.getElementById('loginScreen').style.display='flex';
+  try{ atualizarModoEntregadorBody(); }catch(e){}
   document.getElementById('loginUser').value='';
   document.getElementById('loginPass').value='';
   const btnLimpeza = document.getElementById('btnLimpeza30'); if(btnLimpeza) btnLimpeza.style.display='none';
@@ -6486,6 +6539,7 @@ function checkLoginPersistido(){
       try{ usuarioLogado.abas_visiveis = normalizarAbasVisiveis(usuarioLogado.abas_visiveis); }catch(e){}
       document.getElementById('loginScreen').style.display='none';
       document.getElementById('userBadge').textContent=usuarioLogado.nome + (usuarioLogado.isMaster?' 👑':'');
+      try{ atualizarModoEntregadorBody(); }catch(e){}
       try{ aplicarVisibilidadeBarras(); }catch(e){ console.warn(e); }
       try{ atualizarVisibilidadeAbasEntregador(); }catch(e){}
       if(!usuarioLogado.isMaster){ try{ carregarOpcoesCusto(); }catch(e){} }
@@ -8520,6 +8574,15 @@ function toggleRotaPedidos(headerEl){
     }
   }catch(e){ console.warn('toggleRotaPedidos', e); }
 }
+
+/** Classe no body: cards maiores só para entregador (não Master). */
+function atualizarModoEntregadorBody(){
+  try{
+    const isEnt = !!(usuarioLogado && !usuarioLogado.isMaster);
+    document.body.classList.toggle('modo-entregador', isEnt);
+  }catch(e){}
+}
+
 
 function ordenarPorRota(lista, data){
   if(usuarioLogado?.isMaster){ return lista.sort((a,b)=> new Date(a.created_at)-new Date(b.created_at)); }
