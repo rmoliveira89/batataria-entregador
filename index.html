@@ -512,7 +512,7 @@ body.ifood-modal-open{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 141026.210524</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 151026.123500</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -3957,8 +3957,9 @@ function toggleTurnoCusto(turno){
   if(icon) icon.textContent = turnosCustoVisiveis[t] ? '👁️ Ocultar' : '🙈 Mostrar';
 }
 
-// ---- Trava por rua: rua com valor ÚNICO cadastrado (sem faixas) oferece só esse valor no card do entregador ----
-let _ruasTravaCache = { ts: 0, mapa: {} };   // chave da rua -> { v, faixas, conflito }
+// ---- Trava por rua: valor do cadastro de endereços (valor base + faixas por número do imóvel) ----
+// mapa[chave] = { v: valor_base, faixas:[{de,valor}], conflito:bool }
+let _ruasTravaCache = { ts: 0, mapa: {} };
 async function carregarRuasTravaCusto(forcar){
   if(!forcar && _ruasTravaCache.ts && (Date.now() - _ruasTravaCache.ts) < 300000) return;   // cache de 5 min
   const client = getSb();
@@ -3972,12 +3973,14 @@ async function carregarRuasTravaCusto(forcar){
       const k = _normNomeRuaCusto(r.rua);
       const v = Number(r.valor_normal);
       if(!k || isNaN(v)) return;
-      const nFx = temCols ? _normFaixas(r.faixas).length : 0;
+      const fx = temCols ? _normFaixas(r.faixas) : [];
       const m = mapa[k];
-      if(!m) mapa[k] = { v: v, faixas: nFx, conflito: false };
-      else {   // duplicata antiga com valores diferentes: rua não está "consolidada" → sem trava
-        if(Math.abs(m.v - v) > 0.001 || nFx !== m.faixas) m.conflito = true;
-        if(nFx > m.faixas) m.faixas = nFx;
+      if(!m) mapa[k] = { v: v, faixas: fx, conflito: false };
+      else {
+        // duplicata com valor base ou faixas diferentes → rua não consolidada (sem trava)
+        const fxDiff = JSON.stringify(m.faixas) !== JSON.stringify(fx);
+        if(Math.abs(m.v - v) > 0.001 || fxDiff) m.conflito = true;
+        if(fx.length > m.faixas.length) m.faixas = fx;
         if(v > m.v) m.v = v;
       }
     });
@@ -3986,17 +3989,27 @@ async function carregarRuasTravaCusto(forcar){
     console.warn('carregarRuasTravaCusto', e);   // falhou: sem trava (cards continuam com todas as opções)
   }
 }
-/** Valor único da rua para o card (1 pedido ou grupo): só trava se TODOS os endereços forem de ruas cadastradas
- *  com valor único (sem faixas e sem duplicata conflitante) e o mesmo valor. Senão devolve null (sem trava). */
+/** Resolve o valor de taxa cadastrado para um endereço completo (nome da rua + número).
+ *  Usa valor base; se houver faixas e o endereço tiver número, aplica a faixa correspondente.
+ *  Devolve null se a rua não estiver cadastrada ou estiver em conflito (duplicata). */
+function _resolverValorPorEndereco(end){
+  const k = _chaveRuaCusto(end);
+  if(!k) return null;
+  const e = _ruasTravaCache.mapa[k];
+  if(!e || e.conflito) return null;
+  const n = _extrairNumeroCasa(end);
+  return _valorPorNumero({ v: e.v, faixas: e.faixas || [] }, n);
+}
+/** Valor travado no card (1 pedido ou grupo): resolve cada endereço pelo cadastro (com número/faixas).
+ *  Só trava se TODOS os membros resolverem para o MESMO valor. Senão devolve null (sem trava). */
 function _valorTravadoRua(membros){
   const ms = Array.isArray(membros) ? membros : [membros];
   let alvo = null;
   for(const m of ms){
-    const k = _chaveRuaCusto(m && m.cliente_endereco);
-    const e = k ? _ruasTravaCache.mapa[k] : null;
-    if(!e || e.faixas > 0 || e.conflito) return null;
-    if(alvo == null) alvo = e.v;
-    else if(Math.abs(alvo - e.v) > 0.001) return null;
+    const v = _resolverValorPorEndereco(m && m.cliente_endereco);
+    if(v == null || isNaN(v)) return null;
+    if(alvo == null) alvo = v;
+    else if(Math.abs(alvo - v) > 0.001) return null;
   }
   return alvo;
 }
@@ -4009,9 +4022,9 @@ function _htmlSelectCusto(pedidoId, valorAtual, bloqueado, travado){
   let html = `<select id="selCusto_${pedidoId}" onchange="onChangeCustoPedido('${pedidoId}')"${dis}>`;
   html += `<option value="">— escolher —</option>`;
   if(trav != null){
-    // Rua com valor único: só a opção já cadastrada para a rua
+    // Valor do cadastro (base ou faixa por número): só essa opção; pré-seleciona se ainda sem valor
     const o = opts.find(x=> Math.abs(Number(x.custo) - trav) < 0.001);
-    const selT = (atual != null && !isNaN(atual) && Math.abs(atual - trav) < 0.001) ? ' selected' : '';
+    const selT = (atual == null || isNaN(atual) || Math.abs(atual - trav) < 0.001) ? ' selected' : '';
     html += o
       ? `<option value="${o.id}" data-custo="${trav}"${selT}>R$ ${trav.toFixed(2)}</option>`
       : `<option value="__manual_${trav}" data-custo="${trav}"${selT}>R$ ${trav.toFixed(2)}</option>`;
@@ -4404,10 +4417,15 @@ function _htmlCardCustoMaster(p){
   const end = p.cliente_endereco || 'Sem endereço';
   const nome = p.cliente_nome || '—';
   const ent = _nomeEntPedidoCusto(p);
-  const val = (typeof _valorCustoEfetivo==='function') ? _valorCustoEfetivo(p) : (p.valor_entrega!=null?Number(p.valor_entrega):null);
   const turnoP = getTurno(p);
   const turnoLab = turnoP==='almoco' ? '☀️' : '🌙';
   const pedBloq = isPedidoCustoBloqueado(p);
+  const trav = (!pedBloq && typeof _valorTravadoRua==='function') ? _valorTravadoRua([p]) : null;
+  if(trav != null && !pedBloq && !Object.prototype.hasOwnProperty.call(rascunhoCusto, p.id)
+    && (p.valor_entrega == null || p.valor_entrega === '')){
+    rascunhoCusto[p.id] = trav;
+  }
+  const val = (typeof _valorCustoEfetivo==='function') ? _valorCustoEfetivo(p) : (p.valor_entrega!=null?Number(p.valor_entrega):null);
   let badge;
   if(pedBloq){
     badge = val != null
@@ -4418,6 +4436,8 @@ function _htmlCardCustoMaster(p){
       ? `<span class="ci-salvo">R$ ${Number(val).toFixed(2)}</span>`
       : `<span style="font-size:10px;color:#8b93a7">sem valor</span>`;
   }
+  const stTxt = pedBloq ? '🔒 Bloqueado após envio (reabra o turno para alterar)'
+    : (trav!=null ? (_extrairNumeroCasa(end)!=null ? '📌 Valor por numeração' : '📌 RUA COM VALOR CONSOLIDADO') : '');
   return `<div class="custo-item${pedBloq?' ok':''}${_enderecoAlterado(p)?' alterado':''}" id="custoMasterItem_${p.id}">
     <div class="ci-top">
       <div>
@@ -4431,9 +4451,9 @@ function _htmlCardCustoMaster(p){
       ${_htmlAlteradoEnd(p)}
     <div class="ci-ent">🛵 ${ent}</div>
     <div class="ci-row" style="margin-top:8px">
-      ${_htmlSelectCustoMaster(p.id, val, pedBloq)}
+      ${_htmlSelectCustoMaster(p.id, val, pedBloq, trav)}
     </div>
-    <div id="custoMasterSt_${p.id}" style="font-size:10px;color:#8b93a7;min-height:12px">${pedBloq?'🔒 Bloqueado após envio (reabra o turno para alterar)':''}</div>
+    <div id="custoMasterSt_${p.id}" style="font-size:10px;color:#8b93a7;min-height:12px">${stTxt}</div>
     <div class="ci-row" style="margin-top:6px;display:flex;gap:6px">
       <button class="btn blue" style="flex:1;padding:10px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px" onclick="event.stopPropagation();abrirMapaPorId('${p.id}')"><span>📍</span><span>Mapa</span></button>
       <button class="btn" style="flex:1;padding:10px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="event.stopPropagation();abrirModalEditarEndereco('${p.id}')"><span>✏️</span><span>Editar</span></button>
@@ -4449,12 +4469,21 @@ function _htmlCardCustoMasterGrupo(membros){
   const hora = (typeof _fmtHoraPedido==='function') ? _fmtHoraPedido(p0) : '';
   const end = p0.cliente_endereco || 'Sem endereço';
   const ent = _nomeEntPedidoCusto(p0);
+  const pedBloq = membros.every(m => isPedidoCustoBloqueado(m));
+  const trav = (!pedBloq && typeof _valorTravadoRua==='function') ? _valorTravadoRua(membros) : null;
+  if(trav != null && !pedBloq){
+    membros.forEach(m=>{
+      if(!Object.prototype.hasOwnProperty.call(rascunhoCusto, m.id)
+        && (m.valor_entrega == null || m.valor_entrega === '')){
+        rascunhoCusto[m.id] = trav;
+      }
+    });
+  }
   let val = null;
   for(const m of membros){
     const v = (typeof _valorCustoEfetivo==='function') ? _valorCustoEfetivo(m) : (m.valor_entrega!=null?Number(m.valor_entrega):null);
     if(v != null && !isNaN(v)){ val = v; break; }
   }
-  const pedBloq = membros.every(m => isPedidoCustoBloqueado(m));
   const turnoP = getTurno(p0);
   const turnoLab = turnoP==='almoco' ? '☀️' : '🌙';
   let badge;
@@ -4489,9 +4518,9 @@ function _htmlCardCustoMasterGrupo(membros){
     <div class="ci-ent">🛵 ${ent}</div>
     <div style="background:#0e1118;border:1px solid #2c3340;border-radius:8px;padding:6px 8px;margin-top:4px">${linhas}</div>
     <div class="ci-row" style="margin-top:8px">
-      ${_htmlSelectCustoMaster(p0.id, val, pedBloq)}
+      ${_htmlSelectCustoMaster(p0.id, val, pedBloq, trav)}
     </div>
-    <div id="custoMasterSt_${p0.id}" style="font-size:10px;color:#8b93a7;min-height:12px">${pedBloq?'🔒 Bloqueado após envio (reabra o turno para alterar)':'🔗 1 valor para o grupo inteiro'}</div>
+    <div id="custoMasterSt_${p0.id}" style="font-size:10px;color:#8b93a7;min-height:12px">${pedBloq?'🔒 Bloqueado após envio (reabra o turno para alterar)':('🔗 1 valor para o grupo inteiro'+(trav!=null?' · 📌 valor do cadastro (rua/nº)':''))}</div>
     <div class="ci-row" style="margin-top:6px;display:flex;gap:6px">
       <button class="btn blue" style="flex:1;padding:10px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px" onclick="event.stopPropagation();abrirMapaPorId('${p0.id}')"><span>📍</span><span>Mapa</span></button>
       <button class="btn" style="flex:1;padding:10px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="event.stopPropagation();abrirModalEditarEndereco('${p0.id}')"><span>✏️</span><span>Editar</span></button>
@@ -4500,8 +4529,8 @@ function _htmlCardCustoMasterGrupo(membros){
 }
 
 /** Select de valor do Master (mesmas opções do entregador). Grupo = 1 campo para todos os pedidos. */
-function _htmlSelectCustoMaster(pedidoId, valorAtual, bloqueado){
-  return _htmlSelectCusto(pedidoId, valorAtual, bloqueado)
+function _htmlSelectCustoMaster(pedidoId, valorAtual, bloqueado, travado){
+  return _htmlSelectCusto(pedidoId, valorAtual, bloqueado, travado)
     .replace('id="selCusto_', 'id="selCustoM_')
     .replace("onchange=\"onChangeCustoPedido(", "onchange=\"onChangeCustoMaster(");
 }
@@ -4620,6 +4649,7 @@ async function renderAbaCustoMaster(){
   if(tit) tit.textContent = '💵 CONFERIR CUSTOS (Master)';
   try{ await _sincronizarBloqueioCustoDia(getDataFiltroCustoEnt()); }catch(e){}
   if(!(cacheOpcoesCusto||[]).length){ try{ await carregarOpcoesCusto(); }catch(e){} }
+  try{ await carregarRuasTravaCusto(); }catch(e){}
 
   const dataAlvo = getDataFiltroCustoEnt();
   // Garante pedidos do dia no cache
@@ -4867,11 +4897,16 @@ async function renderAbaCusto(){
     const end = p.cliente_endereco || 'Sem endereço';
     const nome = p.cliente_nome || '—';
     const ent = getNomeReserva(p) || p.entregador_nome || nomeLogado;
-    const val = _valorCustoEfetivo(p);
     const turnoP = getTurno(p);
     const turnoLab = turnoP==='almoco' ? '☀️' : '🌙';
     const pedBloq = isCustoTurnoBloqueado(turnoP) || isPedidoCustoBloqueado(p);
     const trav = pedBloq ? null : _valorTravadoRua([p]);
+    // Pré-preenche rascunho com valor do cadastro (base ou faixa por nº) se ainda sem valor
+    if(trav != null && !pedBloq && !Object.prototype.hasOwnProperty.call(rascunhoCusto, p.id)
+      && (p.valor_entrega == null || p.valor_entrega === '')){
+      rascunhoCusto[p.id] = trav;
+    }
+    const val = _valorCustoEfetivo(p);
     let badge;
     if(pedBloq){
       badge = val != null
@@ -4897,7 +4932,7 @@ async function renderAbaCusto(){
       <div class="ci-row">
         ${_htmlSelectCusto(p.id, val, pedBloq, trav)}
       </div>
-      <div id="custoSt_${p.id}" style="font-size:10px;color:#8b93a7;min-height:12px">${pedBloq?'🔒 Bloqueado após envio':(trav!=null?'📌 Rua com valor único cadastrado':'')}</div>
+      <div id="custoSt_${p.id}" style="font-size:10px;color:#8b93a7;min-height:12px">${pedBloq?'🔒 Bloqueado após envio':(trav!=null?(_extrairNumeroCasa(end)!=null?'📌 Valor por numeração':'📌 RUA COM VALOR CONSOLIDADO'):'')}</div>
     </div>`;
   }
 
@@ -4911,14 +4946,23 @@ async function renderAbaCusto(){
     const ent = getNomeReserva(p0) || p0.entregador_nome || nomeLogado;
     const turnoP = getTurno(p0);
     const turnoLab = turnoP==='almoco' ? '☀️' : '🌙';
+    const pedBloq = membros.every(m => isCustoTurnoBloqueado(getTurno(m)) || isPedidoCustoBloqueado(m));
+    const trav = pedBloq ? null : _valorTravadoRua(membros);
+    // Pré-preenche rascunho do grupo com valor do cadastro (endereço + número)
+    if(trav != null && !pedBloq){
+      membros.forEach(m=>{
+        if(!Object.prototype.hasOwnProperty.call(rascunhoCusto, m.id)
+          && (m.valor_entrega == null || m.valor_entrega === '')){
+          rascunhoCusto[m.id] = trav;
+        }
+      });
+    }
     // Valor do grupo: 1º membro com valor efetivo
     let val = null;
     for(const m of membros){
       const v = _valorCustoEfetivo(m);
       if(v != null && !isNaN(v)){ val = v; break; }
     }
-    const pedBloq = membros.every(m => isCustoTurnoBloqueado(getTurno(m)) || isPedidoCustoBloqueado(m));
-    const trav = pedBloq ? null : _valorTravadoRua(membros);
     // Select ancorado no 1º pedido; _propagarCustoGrupo aplica aos demais
     const idAncora = p0.id;
     let badge;
@@ -4955,7 +4999,7 @@ async function renderAbaCusto(){
       <div class="ci-row" style="margin-top:8px">
         ${_htmlSelectCusto(idAncora, val, pedBloq, trav)}
       </div>
-      <div id="custoSt_${idAncora}" style="font-size:10px;color:#8b93a7;min-height:12px">${pedBloq?'🔒 Bloqueado após envio':('🔗 1 valor para o grupo inteiro'+(trav!=null?' · 📌 valor único da rua':''))}</div>
+      <div id="custoSt_${idAncora}" style="font-size:10px;color:#8b93a7;min-height:12px">${pedBloq?'🔒 Bloqueado após envio':('🔗 1 valor para o grupo inteiro'+(trav!=null?' · 📌 valor do cadastro (rua/nº)':''))}</div>
     </div>`;
   }
 
@@ -8624,6 +8668,8 @@ async function salvarEnderecoMaster(){
         if(payloadFull.forma_pagamento) todosPedidos[idx].forma_pagamento = payloadFull.forma_pagamento;
         try{ todosPedidos[idx]._endereco_editado_master = true; }catch(e){}
       }
+      // endereço mudou → limpa rascunho de custo p/ recalcular taxa pela nova numeração
+      try{ if(typeof rascunhoCusto==='object' && rascunhoCusto) delete rascunhoCusto[id]; }catch(e){}
     });
     try{ render(); }catch(e){}
     setTimeout(()=>{
