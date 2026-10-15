@@ -122,6 +122,75 @@ body.ifood-modal-open{
 .master-ent-header.espera{background:#1c1c12;border-color:#5a4a2a}
 .master-ent-header.com-pedidos{background:#1a1e2a;border-color:#2a3a5a}
 .master-ent-header .count{font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:3px 8px;border-radius:999px;color:#8b93a7}
+/* Master · Em rota: colunas por entregador + grade 3 (tamanho custo) */
+.master-rota-board{
+  display:flex;flex-wrap:nowrap;gap:12px;align-items:flex-start;
+  padding:8px 12px 16px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+}
+.master-ent-col{
+  flex:0 0 360px;width:360px;max-width:92vw;
+  background:#161a22;border:1px solid #2a3a5a;border-radius:14px;
+  padding:8px 8px 10px;box-sizing:border-box;
+}
+.master-ent-col-header{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;
+  padding:8px 10px;margin:0 0 8px;border-radius:10px;
+  background:#1a1e2a;border:1px solid #2c3340;
+  font-size:13px;font-weight:900;color:#6ab7ff;
+}
+.master-ent-col-header .count{
+  font-size:10px;font-weight:700;color:#8b93a7;
+  background:#0e1118;border:1px solid #2c3340;padding:3px 8px;border-radius:999px;
+}
+.master-ent-col .rota-grupo{
+  min-width:0;max-width:none;flex:none;width:100%;
+  margin:0 0 8px;background:rgba(14,17,24,.55);
+}
+.master-ent-col .rota-grupo .rota-header{font-size:10px;padding:5px 8px}
+.master-rota-grid3{
+  display:grid !important;
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  gap:6px !important;
+  padding:5px 4px 4px !important;
+}
+/* Cards no tamanho da aba Custo (custo-item) */
+.master-rota-grid3 .pedido-mini,
+.master-espera-grid .pedido-mini{
+  padding:8px;
+  gap:5px;
+  border-radius:10px;
+  min-height:0;
+}
+.master-rota-grid3 .pedido-mini .pm-num,
+.master-espera-grid .pedido-mini .pm-num{font-size:13px}
+.master-rota-grid3 .pedido-mini .pm-meta,
+.master-espera-grid .pedido-mini .pm-meta{font-size:8px}
+.master-rota-grid3 .pedido-mini .pm-nome,
+.master-espera-grid .pedido-mini .pm-nome{font-size:10px;-webkit-line-clamp:2}
+.master-rota-grid3 .pedido-mini .pm-end,
+.master-espera-grid .pedido-mini .pm-end{font-size:9px;-webkit-line-clamp:2}
+.master-rota-grid3 .pedido-mini .pm-pag,
+.master-espera-grid .pedido-mini .pm-pag{font-size:10px;padding:5px 7px}
+.master-rota-grid3 .pedido-mini .pm-actions .btn,
+.master-rota-grid3 .pedido-mini .pm-rota .btn,
+.master-rota-grid3 .pedido-mini .master-modal-actions .btn,
+.master-espera-grid .pedido-mini .pm-actions .btn,
+.master-espera-grid .pedido-mini .master-modal-actions .btn{
+  font-size:10px;padding:7px 5px;min-height:31px;
+}
+.master-espera-grid{
+  display:grid !important;
+  grid-template-columns:repeat(auto-fill,minmax(136px,1fr)) !important;
+  gap:7px !important;
+  padding:5px 10px 10px !important;
+}
+@media (min-width:520px){
+  .master-espera-grid{grid-template-columns:repeat(auto-fill,minmax(153px,1fr)) !important}
+}
+@media (min-width:900px){
+  .master-espera-grid{grid-template-columns:repeat(auto-fill,minmax(170px,1fr)) !important}
+}
+
 /* Agrupamento visual por ROTA (wrapper — não altera .pedido-mini) */
 .rotas-wrap{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;padding:5px 10px 10px;box-sizing:border-box}
 .rota-grupo{margin:0;padding:0 0 6px;border:1px dashed #3a4250;border-radius:12px;background:rgba(14,17,24,.45);min-width:238px;max-width:298px;flex:1 1 238px;box-sizing:border-box}
@@ -8808,6 +8877,108 @@ function htmlMasterDentroDoTurno(pedidosDoTurno, prefixo){
   return out;
 }
 
+/** Master · aba Em rota: EM ESPERA (cards) + colunas lado a lado por entregador, rotas com grade 3. */
+function htmlMasterEmRotaColunas(pedidosDoTurno){
+  const espera = [];
+  const porEnt = {};
+  (pedidosDoTurno||[]).forEach(p=>{
+    if(!p) return;
+    const nome = getNomeReserva(p);
+    if(!nome){ espera.push(p); return; }
+    if(!porEnt[nome]) porEnt[nome]=[];
+    porEnt[nome].push(p);
+  });
+  const nomes = Object.keys(porEnt).sort((a,b)=> a.localeCompare(b,'pt-BR'));
+
+  // —— EM ESPERA (mantém lista de cards, tamanho custo) ——
+  const keyEsp = 'rota_espera';
+  if(masterEntVisiveis[keyEsp] === undefined) masterEntVisiveis[keyEsp] = true;
+  const abertoEsp = !!masterEntVisiveis[keyEsp];
+  const itensEsp = montarItensAgrupados(espera);
+  const pendEsp = itensEsp.filter(it=>!itemEhConfirmado(it)).length;
+  let out = `<div class="master-ent-header espera" onclick="toggleMasterEnt('${keyEsp}')" style="margin-left:12px;margin-right:12px">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <h2 style="margin:0;font-size:14px">⏳ EM ESPERA (sem entregador)</h2>
+      <span class="count">${itensEsp.length} entrega(s) · ${espera.length} pedido(s)</span>
+      ${pendEsp?`<span class="count" style="color:#f0c14a">${pendEsp} a entregar</span>`:''}
+    </div>
+    <span id="iconMaster_${keyEsp}">${abertoEsp?'👁️ Ocultar':'🙈 Mostrar'}</span>
+  </div>
+  <div id="wrapMaster_${keyEsp}" style="display:${abertoEsp?'block':'none'}">`;
+  out += htmlSugestoesAgrupamento(espera);
+  if(!itensEsp.length){
+    out += `<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum pedido em espera</div>`;
+  } else {
+    const itensOrd = [...itensEsp].sort((a,b)=>{
+      const ac = itemEhConfirmado(a)?1:0;
+      const bc = itemEhConfirmado(b)?1:0;
+      if(ac!==bc) return ac-bc;
+      const da = a.tipo==='grupo' ? a.pedidos[0].created_at : a.pedido.created_at;
+      const db = b.tipo==='grupo' ? b.pedidos[0].created_at : b.pedido.created_at;
+      return new Date(da)-new Date(db);
+    });
+    const htmlCards = itensOrd.map((it,i)=> it.tipo==='grupo' ? cardGrupoPedidos(it) : cardPedido(it.pedido,i,espera)).join('');
+    out += `<div class="master-espera-grid">${htmlCards}</div>`;
+  }
+  out += `</div>`;
+
+  // —— COLUNAS POR ENTREGADOR ——
+  if(!nomes.length){
+    out += `<div style="text-align:center;color:#5a657a;font-size:12px;padding:16px 12px">Nenhum entregador com pedidos neste turno</div>`;
+    return out;
+  }
+  out += `<div class="master-rota-board">`;
+  nomes.forEach(nome=>{
+    out += _htmlMasterEntColuna(nome, porEnt[nome]);
+  });
+  out += `</div>`;
+  return out;
+}
+
+function _htmlMasterEntColuna(nome, lista){
+  const listaSegura = lista || [];
+  const itens = montarItensAgrupados(listaSegura);
+  const pend = itens.filter(it=>!itemEhConfirmado(it)).length;
+  const conf = itens.filter(itemEhConfirmado).length;
+  const nomeEsc = String(nome||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  let body = '';
+  const rotas = (typeof getRotasByEntregador === 'function' && typeof _ordenarRotasExibicao === 'function')
+    ? _ordenarRotasExibicao(getRotasByEntregador(listaSegura))
+    : [];
+  const cardHtml = (it, i, refLista) => it.tipo==='grupo' ? cardGrupoPedidos(it) : cardPedido(it.pedido, i, refLista);
+
+  if(!listaSegura.length){
+    body = `<div style="text-align:center;color:#555;font-size:11px;padding:10px">Nenhum</div>`;
+  } else if(!rotas.length){
+    const htmlCards = itens.map((it,i)=> cardHtml(it,i,listaSegura)).join('');
+    body = `<div class="pedidos-grid master-rota-grid3">${htmlCards}</div>`;
+  } else {
+    body = rotas.map(r=>{
+      let its = montarItensAgrupados(r.pedidos||[]);
+      const htmlCards = its.map((it,i)=> cardHtml(it,i,r.pedidos)).join('');
+      if(!htmlCards || htmlCards.indexOf('pedido-mini')===-1) return '';
+      const qtd = its.length;
+      let cls = 'rota-grupo';
+      if(r.avulsa) cls += ' rota-avulsa';
+      if(!r.aberta) cls += ' rota-fechada';
+      const titulo = r.avulsa ? ('ROTA AVULSA - ' + (r.horario||'')) : ('ROTA - ' + (r.horario||''));
+      const meta = (r.aberta ? 'aberta' : 'finalizada') + ' · ' + qtd + ' entrega(s)';
+      return `<div class="${cls}">
+        <div class="rota-header"><span>${titulo}</span><span class="rota-meta">${meta}</span></div>
+        <div class="pedidos-grid master-rota-grid3">${htmlCards}</div>
+      </div>`;
+    }).filter(Boolean).join('') || `<div class="pedidos-grid master-rota-grid3">${itens.map((it,i)=>cardHtml(it,i,listaSegura)).join('')}</div>`;
+  }
+
+  return `<div class="master-ent-col">
+    <div class="master-ent-col-header">
+      <span>🛵 ${nomeEsc}</span>
+      <span class="count">${itens.length} entrega(s)${pend?` · <span style="color:#f0c14a">${pend} a entregar</span>`:''}${conf?` · <span style="color:#3dcc8a">${conf} ok</span>`:''}</span>
+    </div>
+    ${body}
+  </div>`;
+}
+
 
 // ===================== MASTER FUNCTIONS =====================
 let masterPedidoSelecionadoId = null;
@@ -9164,6 +9335,8 @@ async function abrirModalMasterPedido(pedidoId){
     acoes += `<button class="btn green" onclick="finalizarPedidoMaster('${p.id}')">✅ Finalizar Pedido</button>`;
   } else {
     acoes += `<button class="btn" style="background:#3a2a1a;color:#f0c14a;border-color:#5a4a2a" onclick="reativarPedido('${p.id}'); fecharModalMasterPedido()">↺ Reativar</button>`;
+    // Pedido já finalizado: Master pode reabrir o fluxo Localizador → iFood (igual ao Finalizar do entregador)
+    acoes += `<button class="btn" style="background:#EA1D2C;color:#fff;border:none;font-weight:900" onclick="masterConfirmarIfood('${p.id}')">🍔 Confirmar iFood</button>`;
   }
   if(nomeReserva && !custoBloq){
     acoes += `<button class="btn red" onclick="removerEntregadorDoPedido('${p.id}')">❌ Remover do entregador (voltar p/ espera)</button>`;
@@ -9470,6 +9643,20 @@ function finalizarPedidoMaster(pedidoId){
   } else {
     abrirConfirmacaoAutomatico(pedido);
   }
+}
+
+/** Master · pedido já finalizado: abre o mesmo fluxo do entregador (Localizador → COPIAR → frame iFood). */
+function masterConfirmarIfood(pedidoId){
+  if(!usuarioLogado || !usuarioLogado.isMaster) return;
+  const pedido = (todosPedidos||[]).find(x=>x.id===pedidoId);
+  if(!pedido){ alert('Pedido não encontrado'); return; }
+  try{ fecharModalMasterPedido(); }catch(e){}
+  if(isPedidoExterno(pedido.numero_pedido)){
+    // WA / Aiqfome: modal de finalização direta (sem iFood)
+    return finalizarPedidoExterno(pedidoId);
+  }
+  // Sempre fluxo Localizador + iFood (igual botão Finalizar do entregador no modo localizador)
+  abrirConfirmacaoEntregador(pedido);
 }
 
 async function executarFinalizarPedidoConfirmado(){
@@ -10317,9 +10504,9 @@ function render(){
      // Banner informativo (não é separação de listas)
      const banner = `<div class="card" style="margin:10px 12px 6px;padding:10px 12px;border-color:#2a3a5a;background:#1a1e2a">
        <div style="font-size:12px;font-weight:900;color:#6ab7ff">🛵 Em rota · ${rotuloTurno} · ${formatarDataBR(getHojeSP())}</div>
-       <div style="font-size:10px;color:#8b93a7;margin-top:4px">Pedidos de hoje neste turno · agrupados por entregador · turno diferente não aparece</div>
+       <div style="font-size:10px;color:#8b93a7;margin-top:4px">Pedidos de hoje neste turno · em espera + colunas por entregador (rotas) · turno diferente não aparece</div>
      </div>`;
-     document.getElementById('listaJantarPendente').innerHTML = banner + htmlMasterDentroDoTurno(listaRota, 'rota');
+     document.getElementById('listaJantarPendente').innerHTML = banner + htmlMasterEmRotaColunas(listaRota);
      document.getElementById('listaAlmocoPendente').innerHTML = '';
      if(headerJ) headerJ.style.display = 'none';
      if(headerA) headerA.style.display = 'none';
