@@ -122,6 +122,26 @@ body.ifood-modal-open{
 .master-ent-header.espera{background:#1c1c12;border-color:#5a4a2a}
 .master-ent-header.com-pedidos{background:#1a1e2a;border-color:#2a3a5a}
 .master-ent-header .count{font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:3px 8px;border-radius:999px;color:#8b93a7}
+/* Filtro + quantidade lado a lado — APENAS aba Pedidos (.com-filtro) */
+#pedidosFiltroStatsRow{display:none;margin:8px 12px 0}
+#pedidosFiltroStatsRow.on{display:block}
+#pedidosFiltroStatsRow.on.com-filtro{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}
+#pedidosFiltroStatsRow #filtroDiaPedidos{display:none;margin:0;padding:10px 12px;background:#161a22;border:1px solid #2c3340;border-radius:12px}
+#pedidosFiltroStatsRow.com-filtro #filtroDiaPedidos{display:block !important;flex:1 1 260px;min-width:220px}
+#pedidosFiltroStatsRow #gridStats{margin:0}
+#pedidosFiltroStatsRow.com-filtro #gridStats{flex:0 1 200px;min-width:140px;grid-template-columns:1fr !important}
+#pedidosFiltroStatsRow.com-filtro #gridStats .stat{padding:14px 12px}
+#pedidosFiltroStatsRow.com-filtro #gridStats .stat b{font-size:22px}
+.rotas-wrap{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;padding:6px 12px 12px;box-sizing:border-box}
+.rota-grupo{margin:0;padding:0 0 8px;border:1px dashed #3a4250;border-radius:14px;background:rgba(14,17,24,.45);min-width:280px;max-width:350px;flex:1 1 280px;box-sizing:border-box}
+.rota-grupo .rota-header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;margin:0;border-bottom:1px dashed #2c3340;font-size:12px;font-weight:900;color:#f0c14a;letter-spacing:.04em;cursor:pointer;user-select:none}
+.rota-grupo .rota-header .rota-meta{font-size:10px;font-weight:700;color:#8b93a7;letter-spacing:0;display:flex;align-items:center;gap:6px}
+.rota-grupo .rota-header .rota-toggle{font-size:11px;color:#6ab7ff;font-weight:800}
+.rota-grupo .pedidos-grid{padding:8px 8px 4px;grid-template-columns:1fr}
+.rota-grupo.rota-collapsed .pedidos-grid{display:none}
+.rota-grupo.rota-avulsa{border-color:#5a4a2a;background:rgba(28,28,18,.35)}
+.rota-grupo.rota-fechada{opacity:.88;border-color:#2c3340}
+
 .badge.entregador{background:#1a2a3a;color:#6ab7ff;border:1px solid #2a4a5a}
 .badge.espera{background:#2a2a1a;color:#f0c14a;border:1px solid #5a4a2a}
 /* Master - ação do pedido */
@@ -136,7 +156,7 @@ body.ifood-modal-open{
 #entregadorTopRow{display:grid;grid-template-columns:1.15fr 0.85fr;gap:10px;margin:10px 12px}
 #entregadorTopRow.uma-barra{grid-template-columns:1fr}
 #entregadorTopRow .card{margin:0;display:flex;flex-direction:column}
-#filtroDiaPedidos{margin:8px 12px 0;padding:10px 12px;background:#161a22;border:1px solid #2c3340;border-radius:12px;display:none}
+#filtroDiaPedidos{margin:0;padding:10px 12px;background:#161a22;border:1px solid #2c3340;border-radius:12px}
 #filtroDiaPedidos .fd-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 #entregadorTopRow #cardAddPedido{border-color:#3a3a2a;background:linear-gradient(180deg,#1a1a1e,#161a22)}
 #entregadorTopRow #cardAddPedido input#inputPedido{padding:16px 14px;font-size:16px;font-weight:700;border-radius:12px;border-width:2px;width:100%}
@@ -512,7 +532,7 @@ body.ifood-modal-open{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 151026.123500</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 151026.143600</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -1435,6 +1455,7 @@ Remove a finalização e a reserva. O pedido volta para <b style="color:#f0c14a"
 </div>
 
 <!-- Filtro de dia sempre visível na aba Pedidos (não depende da barra de pesquisa) -->
+<div id="pedidosFiltroStatsRow">
 <div id="filtroDiaPedidos">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
 <div style="font-size:12px;color:#6ab7ff;font-weight:900">📅 Filtrar pedidos</div>
@@ -1444,6 +1465,12 @@ Remove a finalização e a reserva. O pedido volta para <b style="color:#f0c14a"
 <button class="btn primary small" id="btnEntHoje" onclick="setFiltroEntregador('hoje')" style="font-size:11px;padding:8px 12px">Hoje</button>
 <button class="btn small" id="btnEntOntem" onclick="setFiltroEntregador('ontem')" style="font-size:11px;padding:8px 12px">Ontem</button>
 <input type="date" id="inputDataEnt" onchange="setFiltroEntregador('data')" style="width:auto;padding:8px 10px;border-radius:10px;border:1px solid #2c3340;background:#0e1118;color:#fff;font-size:12px"/>
+</div>
+</div>
+<div class="grid" id="gridStats">
+<div class="stat"><b id="stPendente">0</b><span>Pendentes</span></div>
+<div class="stat"><b id="stCodigo">0</b><span>Confirmados</span></div>
+<div class="stat" id="statEspera" style="display:none"><b id="stEspera">0</b><span>Em espera</span></div>
 </div>
 </div>
 
@@ -1488,11 +1515,7 @@ Remove a finalização e a reserva. O pedido volta para <b style="color:#f0c14a"
 </div>
 </div>
 
-<div class="grid" id="gridStats">
-<div class="stat"><b id="stPendente">0</b><span>Pendentes</span></div>
-<div class="stat"><b id="stCodigo">0</b><span>Confirmados</span></div>
-<div class="stat" id="statEspera" style="display:none"><b id="stEspera">0</b><span>Em espera</span></div>
-</div>
+
 <!-- Visão Master: Em espera + abas por entregador -->
 <div id="viewMasterEntregadores" style="display:none;margin:0 0 8px"></div>
 <div id="viewTurnos">
@@ -3745,6 +3768,25 @@ function atualizarUIFiltroCustoEnt(){
   }
 }
 
+function _setPedidosFiltroStatsRow(show, showFiltro){
+  // showFiltro=true somente na aba Pedidos (filtro ao lado da quantidade)
+  var row = document.getElementById('pedidosFiltroStatsRow');
+  var filtroDia = document.getElementById('filtroDiaPedidos');
+  var gridStats = document.getElementById('gridStats');
+  if(row){
+    if(show){
+      row.classList.add('on');
+      if(showFiltro){ row.classList.add('com-filtro'); row.style.display = 'flex'; }
+      else { row.classList.remove('com-filtro'); row.style.display = 'block'; }
+    } else {
+      row.classList.remove('on');
+      row.classList.remove('com-filtro');
+      row.style.display = 'none';
+    }
+  }
+  if(filtroDia) filtroDia.style.display = (show && showFiltro) ? 'block' : 'none';
+  if(gridStats) gridStats.style.display = show ? '' : 'none';
+}
 function setAbaEntregador(aba){
   const isMasterCheck = !!(usuarioLogado && usuarioLogado.isMaster);
   abaEntregadorAtual = aba || 'rota';
@@ -3778,32 +3820,28 @@ function setAbaEntregador(aba){
   if(isMasterCheck){
     if(viewFat) viewFat.style.display = 'none';
     if(isCusto){
-      if(gridStats) gridStats.style.display = 'none';
+      try{ _setPedidosFiltroStatsRow(false, false); }catch(e){}
       if(viewTurnos) viewTurnos.style.display = 'none';
       if(listaVazia) listaVazia.style.display = 'none';
       if(viewCusto) viewCusto.style.display = 'block';
       if(topRow) topRow.style.display = 'none';
       if(toggleBar) toggleBar.style.display = 'none';
-      if(filtroDia) filtroDia.style.display = 'none';
       atualizarUIFiltroCustoEnt();
       renderAbaCustoMaster();
     } else if(isFaturamento){
-      // Master: faturamento é por entregador — redireciona para custo (conferência)
-      if(gridStats) gridStats.style.display = 'none';
+      try{ _setPedidosFiltroStatsRow(false, false); }catch(e){}
       if(viewTurnos) viewTurnos.style.display = 'none';
       if(listaVazia) listaVazia.style.display = 'none';
       if(viewCusto) viewCusto.style.display = 'none';
       if(viewFat) viewFat.style.display = 'block';
       if(topRow) topRow.style.display = 'none';
       if(toggleBar) toggleBar.style.display = 'none';
-      if(filtroDia) filtroDia.style.display = 'none';
       try{ renderQuadroFaturamentoSemana(); }catch(e){}
     } else if(isRota){
-      // Em rota: pedidos de HOJE do TURNO ATUAL, só por entregador — SEM adicionar e SEM pesquisa
-      if(gridStats) gridStats.style.display = '';
+      // Em rota: stats normais, SEM filtro ao lado
+      try{ _setPedidosFiltroStatsRow(true, false); }catch(e){}
       if(viewTurnos) viewTurnos.style.display = 'block';
       if(viewCusto) viewCusto.style.display = 'none';
-      if(filtroDia) filtroDia.style.display = 'none';
       try{ filtro = 'hoje'; dataSel = null; }catch(e){}
       if(cardAdd){ cardAdd.classList.add('barra-oculta'); cardAdd.style.display = 'none'; }
       if(cardBusca){ cardBusca.classList.add('barra-oculta'); }
@@ -3815,10 +3853,10 @@ function setAbaEntregador(aba){
       try{ carregar(); }catch(e){ try{ render(); }catch(e2){} }
     } else {
       // Aba Pedidos: visão completa com filtro de dia + pesquisa (comportamento anterior)
-      if(gridStats) gridStats.style.display = '';
+      // Aba Pedidos Master: filtro + quantidade lado a lado
+      try{ _setPedidosFiltroStatsRow(true, true); }catch(e){}
       if(viewTurnos) viewTurnos.style.display = 'block';
       if(viewCusto) viewCusto.style.display = 'none';
-      if(filtroDia) filtroDia.style.display = 'block';
       if(btnToggleBusca) btnToggleBusca.style.display = '';
       if(toggleBar) toggleBar.style.display = 'flex';
       try{ aplicarVisibilidadeBarras(); }catch(e){}
@@ -3830,12 +3868,11 @@ function setAbaEntregador(aba){
 
   // ENTREGADOR
   if(isCusto){
-    if(gridStats) gridStats.style.display = 'none';
+    try{ _setPedidosFiltroStatsRow(false, false); }catch(e){}
     if(viewTurnos) viewTurnos.style.display = 'none';
     if(listaVazia) listaVazia.style.display = 'none';
     if(viewCusto) viewCusto.style.display = 'block';
     if(viewFat) viewFat.style.display = 'none';
-    if(filtroDia) filtroDia.style.display = 'none';
     if(toggleBar) toggleBar.style.display = 'none';
     if(topRow){
       topRow.style.display = 'grid';
@@ -3853,25 +3890,24 @@ function setAbaEntregador(aba){
     atualizarUIFiltroCustoEnt();
     renderAbaCusto();
   } else if(isFaturamento){
-    if(gridStats) gridStats.style.display = 'none';
+    try{ _setPedidosFiltroStatsRow(false, false); }catch(e){}
     if(viewTurnos) viewTurnos.style.display = 'none';
     if(listaVazia) listaVazia.style.display = 'none';
     if(viewCusto) viewCusto.style.display = 'none';
     if(viewFat) viewFat.style.display = 'block';
-    if(filtroDia) filtroDia.style.display = 'none';
     if(toggleBar) toggleBar.style.display = 'none';
     if(topRow) topRow.style.display = 'none';
     if(cardAdd){ cardAdd.classList.add('barra-oculta'); cardAdd.style.display = 'none'; }
     if(cardBusca){ cardBusca.classList.add('barra-oculta'); cardBusca.style.display = 'none'; }
     try{ renderQuadroFaturamentoSemana(); }catch(e){ console.warn('faturamento', e); }
   } else {
-    // Entregador: "Em rota" (padrão) = adicionar + pedidos em rota | "Pedidos" = só finalizados
+    // Entregador: Em rota = sem filtro | Pedidos = filtro + quantidade lado a lado
     const naRota = abaEntregadorAtual === 'rota';
-    if(gridStats) gridStats.style.display = naRota ? 'none' : '';
     if(viewTurnos) viewTurnos.style.display = 'block';
     if(viewCusto) viewCusto.style.display = 'none';
     if(viewFat) viewFat.style.display = 'none';
-    if(filtroDia) filtroDia.style.display = 'none';
+    try{ _setPedidosFiltroStatsRow(!naRota, !naRota); }catch(e){}
+    if(!naRota){ try{ if(!filtroEntregador) filtroEntregador = 'hoje'; atualizarUIFiltroEntregador(); }catch(e){} }
     if(toggleBar) toggleBar.style.display = 'none';
     if(topRow){
       topRow.style.display = naRota ? 'grid' : 'none';
@@ -4667,8 +4703,8 @@ async function renderAbaCustoMaster(){
           });
         }
         try{
-          const {data: res} = await client.from('reservas_entregadores').select('pedido_id,entregador_nome,data').eq('data', dataAlvo);
-          (res||[]).forEach(r=>{ if(r.pedido_id) mapaReservas[r.pedido_id]=r.entregador_nome||''; });
+          const {data: res} = await client.from('reservas_entregadores').select('pedido_id,entregador_nome,data,created_at').eq('data', dataAlvo);
+          (res||[]).forEach(r=>{ if(r.pedido_id){ mapaReservas[r.pedido_id]=r.entregador_nome||''; if(r.created_at) mapaReservasAt[String(r.pedido_id)]=r.created_at; } });
         }catch(e2){}
       }catch(e){ console.warn('renderAbaCustoMaster load', e); }
     }
@@ -4839,8 +4875,8 @@ async function renderAbaCusto(){
           });
         }
         try{
-          const {data: res} = await client.from('reservas_entregadores').select('pedido_id,entregador_nome,data').eq('data', dataAlvo);
-          (res||[]).forEach(r=>{ if(r.pedido_id) mapaReservas[r.pedido_id]=r.entregador_nome||''; });
+          const {data: res} = await client.from('reservas_entregadores').select('pedido_id,entregador_nome,data,created_at').eq('data', dataAlvo);
+          (res||[]).forEach(r=>{ if(r.pedido_id){ mapaReservas[r.pedido_id]=r.entregador_nome||''; if(r.created_at) mapaReservasAt[String(r.pedido_id)]=r.created_at; } });
         }catch(e2){}
         try{ await carregarPedidosVisiveis(); }catch(e3){}
       }catch(e){ console.warn('renderAbaCusto load', e); }
@@ -6509,7 +6545,7 @@ async function carregarPedidosVisiveis(){
       } else if(error){
         console.warn('carregarPedidosVisiveis reservas:', error.message);
       }
-      (res||[]).forEach(r=>{ if(r.pedido_id) mapaReservas[r.pedido_id]=r.entregador_nome||nome; });
+      (res||[]).forEach(r=>{ if(r.pedido_id){ mapaReservas[r.pedido_id]=r.entregador_nome||nome; if(r.created_at) mapaReservasAt[String(r.pedido_id)]=r.created_at; } });
       // Também pedidos com entregador_nome no registro (sem reserva), qualquer data
       try{
         const {data: porNome} = await client.from('pedidos_entrega_dia')
@@ -7433,14 +7469,14 @@ async function carregar(){
  }
  todosPedidos=dataResult;
  // Carrega reservas para o Master saber quem pegou cada pedido
- mapaReservas = {};
+ mapaReservas = {}; mapaReservasAt = {};
  try{
    if(datasParaBuscar.length===1){
-     const {data: res} = await client.from('reservas_entregadores').select('pedido_id,entregador_nome,data').eq('data', datasParaBuscar[0]);
-     (res||[]).forEach(r=>{ if(r.pedido_id) mapaReservas[r.pedido_id]=r.entregador_nome||''; });
+     const {data: res} = await client.from('reservas_entregadores').select('pedido_id,entregador_nome,data,created_at').eq('data', datasParaBuscar[0]);
+     (res||[]).forEach(r=>{ if(r.pedido_id){ mapaReservas[r.pedido_id]=r.entregador_nome||''; if(r.created_at) mapaReservasAt[String(r.pedido_id)]=r.created_at; } });
    } else {
-     const {data: res} = await client.from('reservas_entregadores').select('pedido_id,entregador_nome,data').in('data', datasParaBuscar);
-     (res||[]).forEach(r=>{ if(r.pedido_id) mapaReservas[r.pedido_id]=r.entregador_nome||''; });
+     const {data: res} = await client.from('reservas_entregadores').select('pedido_id,entregador_nome,data,created_at').in('data', datasParaBuscar);
+     (res||[]).forEach(r=>{ if(r.pedido_id){ mapaReservas[r.pedido_id]=r.entregador_nome||''; if(r.created_at) mapaReservasAt[String(r.pedido_id)]=r.created_at; } });
    }
    // Fallback: se o pedido já tem entregador_nome no próprio registro e não há reserva
    dataResult.forEach(p=>{
@@ -7567,11 +7603,14 @@ async function criarReserva(pedido){
       if(atual && ehMesmoEntregador(atual.entregador_nome)) return true;
       return false;
     }
-    // UPDATE: Salva o nome do entregador também em pedidos_entrega_dia para auditoria/visibilidade do Master
     try{
-      await client.from('pedidos_entrega_dia').update({entregador_nome: nome}).eq('id', pedido.id);
+      var ts = new Date().toISOString();
+      var up = await client.from('pedidos_entrega_dia').update({ entregador_nome: nome, entregador_added_at: ts, entregador_nome_added: nome }).eq('id', pedido.id);
+      if(up && up.error) await client.from('pedidos_entrega_dia').update({ entregador_nome: nome }).eq('id', pedido.id);
+      try{ pedido.entregador_added_at = ts; pedido.entregador_nome_added = nome; mapaReservasAt[String(pedido.id)] = ts; }catch(e){}
     }catch(e){
-      console.warn('criarReserva - falha ao atualizar entregador_nome em pedidos_entrega_dia:', e);
+      console.warn('criarReserva update', e);
+      try{ await registrarEntregadorAddedAt(pedido.id, nome); }catch(e2){}
     }
     // Se for dinheiro e recebido vazio, garante 'nao' (controle de caixa)
     try{
@@ -8193,6 +8232,140 @@ function ordenarItensPendentesEntregador(itens){
 function ordenarItensFinalizadosEntregador(itens){
   return (itens||[]).slice().sort((a,b)=> _finalizadoItemEntrega(b) - _finalizadoItemEntrega(a));
 }
+
+// ===================== ROTAS =====================
+var ROTA_JANELA_MS = 10 * 60 * 1000;
+var ROTA_AVULSA_KEY = 'batataria_rota_avulsa_v1';
+var ROTA_COLLAPSE_KEY = 'batataria_rota_collapse_v1';
+var mapaReservasAt = {};
+function _rotaAvulsaMap(){ try{ return JSON.parse(localStorage.getItem(ROTA_AVULSA_KEY)||'{}')||{}; }catch(e){ return {}; } }
+function _rotaAvulsaSalvar(m){ try{ localStorage.setItem(ROTA_AVULSA_KEY, JSON.stringify(m||{})); }catch(e){} }
+function marcarRotaAvulsa(id, ms){
+  if(!id) return;
+  var m = _rotaAvulsaMap(); m[String(id)] = Number(ms)||Date.now(); _rotaAvulsaSalvar(m);
+  try{ var p=(todosPedidos||[]).find(function(x){return x&&x.id===id;}); if(p) p._rota_avulsa_em=m[String(id)]; }catch(e){}
+}
+function limparRotaAvulsa(id){
+  if(!id) return;
+  var m=_rotaAvulsaMap(); delete m[String(id)]; _rotaAvulsaSalvar(m);
+  try{ var p=(todosPedidos||[]).find(function(x){return x&&x.id===id;}); if(p) delete p._rota_avulsa_em; }catch(e){}
+}
+function _rotaCollapseMap(){ try{ return JSON.parse(localStorage.getItem(ROTA_COLLAPSE_KEY)||'{}')||{}; }catch(e){ return {}; } }
+function _rotaCollapseSalvar(m){ try{ localStorage.setItem(ROTA_COLLAPSE_KEY, JSON.stringify(m||{})); }catch(e){} }
+function _rotaKey(r){
+  var ids=(r.pedidos||[]).map(function(p){return p&&p.id;}).filter(Boolean).sort().join(',');
+  return String(r.baseMs||0)+'|'+ids;
+}
+function _rotaEstaExpandida(k){ return _rotaCollapseMap()[k]===true; }
+function toggleRotaPedidos(key){
+  var m=_rotaCollapseMap(); var open=!_rotaEstaExpandida(key); m[key]=open; _rotaCollapseSalvar(m);
+  try{
+    var boxes=document.querySelectorAll('[data-rota-key]');
+    for(var i=0;i<boxes.length;i++){
+      var box=boxes[i];
+      if(box.getAttribute('data-rota-key')!==key) continue;
+      if(open) box.classList.remove('rota-collapsed'); else box.classList.add('rota-collapsed');
+      var tg=box.querySelector('.rota-toggle'); if(tg) tg.textContent=open?'▼ Ocultar':'▶ Mostrar';
+    }
+  }catch(e){}
+}
+function onRotaHeaderClick(ev){
+  var header=ev.currentTarget;
+  var box=header&&header.closest?header.closest('.rota-grupo'):null;
+  if(!box) return;
+  var key=box.getAttribute('data-rota-key');
+  if(key) toggleRotaPedidos(key);
+}
+async function registrarEntregadorAddedAt(pedidoId, nomeEnt, isoOpt){
+  if(!pedidoId) return null;
+  var ts=isoOpt||new Date().toISOString();
+  var nome=nomeEnt||(typeof nomeEntregadorAtual==='function'?nomeEntregadorAtual():null);
+  try{ var p=(todosPedidos||[]).find(function(x){return x&&x.id===pedidoId;}); if(p){ p.entregador_added_at=ts; p.entregador_nome_added=nome; } }catch(e){}
+  try{ mapaReservasAt[String(pedidoId)]=ts; }catch(e){}
+  var client=typeof getSb==='function'?getSb():null; if(!client) return ts;
+  try{
+    var res=await client.from('pedidos_entrega_dia').update({entregador_added_at:ts,entregador_nome_added:nome}).eq('id',pedidoId);
+    if(res&&res.error){ try{ await client.from('pedidos_entrega_dia').update({entregador_nome:nome}).eq('id',pedidoId); }catch(e2){} }
+  }catch(e){}
+  return ts;
+}
+function getRotaBaseMs(p){
+  if(!p) return 0;
+  try{ if(p._rota_avulsa_em!=null){ var n=Number(p._rota_avulsa_em); if(isFinite(n)&&n>0) return n; } }catch(e){}
+  try{ var v=_rotaAvulsaMap()[String(p.id)]; if(v!=null){ var n2=Number(v); if(isFinite(n2)&&n2>0) return n2; } }catch(e){}
+  if(p.entregador_added_at){ var t1=new Date(p.entregador_added_at).getTime(); if(isFinite(t1)&&t1>0) return t1; }
+  try{ var rAt=mapaReservasAt[String(p.id)]; if(rAt){ var t2=typeof rAt==='number'?rAt:new Date(rAt).getTime(); if(isFinite(t2)&&t2>0) return t2; } }catch(e){}
+  var raw=p.added_at||p.created_at; if(!raw) return 0;
+  var t3=new Date(raw).getTime(); return isFinite(t3)?t3:0;
+}
+function _fmtHoraRota(ms){
+  if(!ms) return '--:--';
+  try{ return new Date(ms).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit',hour12:false}); }catch(e){ return '--:--'; }
+}
+function _pedidoRotaAberto(p){ if(!p) return false; var st=String(p.status||''); return st!=='codigo_informado'&&st!=='finalizado'&&st!=='entregue'; }
+function _rotaEstaAberta(r){ return !!(r&&r.pedidos&&r.pedidos.some(_pedidoRotaAberto)); }
+function _rotaFinalizadoEmMs(r){
+  var max=0; (r&&r.pedidos||[]).forEach(function(p){ var raw=p.codigo_informado_em||p.updated_at||p.entregador_added_at||p.created_at; var tt=raw?new Date(raw).getTime():0; if(isFinite(tt)&&tt>max) max=tt; }); return max;
+}
+function getRotasByEntregador(entregas){
+  var lista=(entregas||[]).filter(Boolean).slice(); if(!lista.length) return [];
+  var com=lista.map(function(p,i){ return {p:p,i:i,ms:getRotaBaseMs(p)}; });
+  com.sort(function(a,b){ return a.ms!==b.ms?a.ms-b.ms:a.i-b.i; });
+  var rotas=[], cur=null;
+  for(var i=0;i<com.length;i++){
+    var it=com[i], ms=it.ms||0;
+    if(!cur){ cur={baseMs:ms,pedidos:[it.p]}; rotas.push(cur); continue; }
+    var ultimoMs=getRotaBaseMs(cur.pedidos[cur.pedidos.length-1]);
+    if(ms-ultimoMs>ROTA_JANELA_MS){ cur={baseMs:ms,pedidos:[it.p]}; rotas.push(cur); }
+    else cur.pedidos.push(it.p);
+  }
+  rotas.forEach(function(r){
+    var soUm=r.pedidos.length===1, id0=r.pedidos[0]&&r.pedidos[0].id, av=false;
+    if(soUm&&id0){ try{ if(r.pedidos[0]._rota_avulsa_em!=null) av=true; else if(_rotaAvulsaMap()[String(id0)]!=null) av=true; }catch(e){} }
+    r.avulsa=av; r.horario=_fmtHoraRota(r.baseMs); r.aberta=_rotaEstaAberta(r); r.finalizadoMs=_rotaFinalizadoEmMs(r);
+  });
+  return rotas;
+}
+function _ordenarRotasExibicao(rotas){
+  var a=(rotas||[]).filter(function(r){return r.aberta;});
+  var f=(rotas||[]).filter(function(r){return !r.aberta;});
+  a.sort(function(x,y){return (y.baseMs||0)-(x.baseMs||0);});
+  f.sort(function(x,y){return (y.finalizadoMs||0)-(x.finalizadoMs||0);});
+  return a.concat(f);
+}
+function renderItensGridPorRotas(listaPedidos, ordenarItensFn, opts){
+  opts=opts||{}; var lista=listaPedidos||[]; if(!lista.length) return '';
+  var rotas=_ordenarRotasExibicao(getRotasByEntregador(lista));
+  if(!rotas.length) return typeof renderItensGrid==='function'?renderItensGrid(lista):'';
+  var colapsavel=!!opts.colapsavel, padraoOculto=opts.collapseDefault!==false;
+  var blocos=rotas.map(function(r){
+    var itens=montarItensAgrupados(r.pedidos);
+    if(typeof ordenarItensFn==='function') itens=ordenarItensFn(itens);
+    var htmlCards=itens.map(function(it,i){ return it.tipo==='grupo'?cardGrupoPedidos(it):cardPedido(it.pedido,i,r.pedidos); }).join('');
+    if(!htmlCards||htmlCards.indexOf('pedido-mini')===-1) return '';
+    var key=_rotaKey(r);
+    var keyAttr=String(key).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    var cls='rota-grupo'; if(r.avulsa) cls+=' rota-avulsa'; if(!r.aberta) cls+=' rota-fechada';
+    var expandido=true;
+    if(colapsavel){ expandido=_rotaEstaExpandida(key); if(!_rotaCollapseMap().hasOwnProperty(key)&&padraoOculto) expandido=false; if(!expandido) cls+=' rota-collapsed'; }
+    var titulo=r.avulsa?('ROTA AVULSA - '+r.horario):('ROTA - '+r.horario);
+    var meta=(r.aberta?'aberta':'finalizada')+' · '+itens.length+' entrega(s)';
+    var toggle=colapsavel?('<span class="rota-toggle">'+(expandido?'▼ Ocultar':'▶ Mostrar')+'</span>'):'';
+    return '<div class="'+cls+'" data-rota-key="'+keyAttr+'" data-rota-collapsible="'+(colapsavel?'1':'0')+'">'+
+      '<div class="rota-header"'+(colapsavel?' data-rota-toggle="1"':'')+'><span>'+titulo+'</span>'+
+      '<span class="rota-meta">'+meta+toggle+'</span></div>'+
+      '<div class="pedidos-grid">'+htmlCards+'</div></div>';
+  }).filter(Boolean).join('');
+  return '<div class="rotas-wrap">'+blocos+'</div>';
+}
+function bindRotaToggleHeaders(root){
+  try{
+    var scope=root||document;
+    var headers=scope.querySelectorAll('.rota-header[data-rota-toggle="1"]');
+    for(var i=0;i<headers.length;i++) headers[i].onclick=onRotaHeaderClick;
+  }catch(e){}
+}
+
 function ordenarPorRota(lista, data){
   if(usuarioLogado?.isMaster){ return lista.sort((a,b)=> new Date(a.created_at)-new Date(b.created_at)); }
   const keyOrdem = getKeyOrdem(data);
@@ -9881,23 +10054,26 @@ function render(){
    const _ordPend = ordenarItensPendentesEntregador, _ordConf = ordenarItensFinalizadosEntregador;
    const jantarPendOrd = _ordPend(jantarPendItens), almocoPendOrd = _ordPend(almocoPendItens);
    const jantarConfOrd = _ordConf(jantarConfItens), almocoConfOrd = _ordConf(almocoConfItens);
-   document.getElementById('listaJantarPendente').innerHTML = jantarPendItens.length ? wrapPedidosGrid(cardItens(jantarPendOrd, jantarPend)) : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
-   document.getElementById('listaJantarConfirmado').innerHTML = jantarConfItens.length ? wrapPedidosGrid(cardItens(jantarConfOrd, jantarConf)) : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
-   document.getElementById('listaAlmocoPendente').innerHTML = almocoPendItens.length ? wrapPedidosGrid(cardItens(almocoPendOrd, almocoPend)) : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
-   document.getElementById('listaAlmocoConfirmado').innerHTML = almocoConfItens.length ? wrapPedidosGrid(cardItens(almocoConfOrd, almocoConf)) : '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
-
-   // Aba "Em rota" = só A ENTREGAR | aba "Pedidos" = só FINALIZADOS
    const naRota = abaEntregadorAtual === 'rota';
-   const _setLista = (id, show)=>{ const el=document.getElementById(id); if(el) el.style.display = show ? 'block' : 'none'; };
-   _setLista('listaJantarPendente', naRota);    _setLista('listaAlmocoPendente', naRota);
+   const _htmlRotas = function(listaPed, ordFn, colapsavel){
+     if(!listaPed || !listaPed.length) return '<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>';
+     if(typeof renderItensGridPorRotas === 'function')
+       return renderItensGridPorRotas(listaPed, ordFn, { colapsavel: !!colapsavel, collapseDefault: true });
+     return wrapPedidosGrid(cardItens(ordFn(montarItensAgrupados(listaPed)), listaPed));
+   };
+   document.getElementById('listaJantarPendente').innerHTML = _htmlRotas(jantarPend, _ordPend, false);
+   document.getElementById('listaJantarConfirmado').innerHTML = _htmlRotas(jantarConf, _ordConf, true);
+   document.getElementById('listaAlmocoPendente').innerHTML = _htmlRotas(almocoPend, _ordPend, false);
+   document.getElementById('listaAlmocoConfirmado').innerHTML = _htmlRotas(almocoConf, _ordConf, true);
+   const _setLista = function(id, show){ var el=document.getElementById(id); if(el) el.style.display = show ? 'block' : 'none'; };
+   _setLista('listaJantarPendente', naRota); _setLista('listaAlmocoPendente', naRota);
    _setLista('listaJantarConfirmado', !naRota); _setLista('listaAlmocoConfirmado', !naRota);
    if(naRota){
-     // Em rota: lista única (sem separar por turno), mais atrasados primeiro
-     const itensRota = _ordPend(jantarPendItens.concat(almocoPendItens));
-     const pedidosRota = jantarPend.concat(almocoPend);
-     document.getElementById('listaJantarPendente').innerHTML = itensRota.length ? wrapPedidosGrid(cardItens(itensRota, pedidosRota)) : '';
+     var pedidosRota = jantarPend.concat(almocoPend);
+     document.getElementById('listaJantarPendente').innerHTML = pedidosRota.length ? _htmlRotas(pedidosRota, _ordPend, false) : '';
      document.getElementById('listaAlmocoPendente').innerHTML = '';
    }
+   try{ bindRotaToggleHeaders(document); }catch(e){}
    const nJ = naRota ? (jantarPendItens.length + almocoPendItens.length) : jantarConfItens.length;
    const nA = naRota ? 0 : almocoConfItens.length;
    const estJ = naRota ? turnosRota.jantar : turnosVisiveis.jantar;
