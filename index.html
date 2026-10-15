@@ -882,7 +882,7 @@ create policy "libera tudo anon custo entregas" on config_custo_entregas for all
 </div>
 <div id="abaEnderecos" style="display:none">
 <div style="font-size:11px;color:#8b93a7;margin-bottom:8px;line-height:1.4">
-O campo <b style="color:#f0c14a">R$</b> é o valor base da rua. Toque em <b style="color:#f0c14a">📏</b> para definir valores por <b>faixa de número</b> (ex.: a partir do nº 2000 paga R$ 8,00). Os valores das faixas vêm de "Custo de Entregas".
+O campo <b style="color:#f0c14a">R$</b> é o valor base da rua — só aceita valores cadastrados em <b style="color:#f0c14a">Custo de Entregas</b>. Toque em <b style="color:#f0c14a">📏</b> para definir valores por <b>faixa de número</b> (ex.: a partir do nº 2000 paga R$ 8,00). Os valores das faixas também vêm de "Custo de Entregas".
 </div>
 <div id="endAviso" style="display:none;margin-bottom:10px;padding:10px;background:#0e1118;border:1px solid #f0c14a;border-radius:8px;font-size:10px;color:#8b93a7">
 <b style="color:#f0c14a">Faixas por número: faltam colunas no Supabase.</b> Rode o SQL abaixo no SQL Editor e toque em 🔄 (enquanto isso o sistema funciona como antes):<br/>
@@ -902,7 +902,9 @@ where numero_alto is not null and valor_alto is not null
 <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
 <input id="endNovoNome" placeholder="Nova rua (ex.: Rua das Flores)" style="flex:1;min-width:0" onkeydown="if(event.key==='Enter') enderecoAdicionar()"/>
 <span style="font-size:12px;color:#8b93a7">R$</span>
-<input id="endNovoValor" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0,00" style="width:84px;flex:none;text-align:right" onkeydown="if(event.key==='Enter') enderecoAdicionar()"/>
+<select id="endNovoValor" title="Valores cadastrados em Custo de Entregas" style="width:110px;flex:none;padding:8px 6px;font-weight:700" onkeydown="if(event.key==='Enter') enderecoAdicionar()">
+  <option value="">—</option>
+</select>
 <button class="btn primary" onclick="enderecoAdicionar()" style="flex:none;padding:8px 10px;font-size:11px">➕ Adicionar</button>
 </div>
 <div id="endNovoSt" style="font-size:11px;min-height:14px;margin-bottom:6px"></div>
@@ -2785,6 +2787,20 @@ function _endOpcoesValor(sel){
   vals.forEach(v=>{ html += '<option value="'+v+'"'+((temSel && Math.abs(v-sel) < 0.001) ? ' selected' : '')+'>R$ '+_endMoeda(v)+'</option>'; });
   return html;
 }
+/** Preenche o select de nova rua com os valores de Custo de Entregas. */
+function _endPreencherNovoValorSelect(manter){
+  const sel = document.getElementById('endNovoValor');
+  if(!sel) return;
+  const atual = manter != null ? manter : sel.value;
+  const vals = _endValoresCadastrados();
+  let html = '<option value="">— escolha —</option>';
+  vals.forEach(v=>{
+    const s = String(v);
+    html += '<option value="'+s+'"'+(atual !== '' && Math.abs(Number(atual)-v) < 0.001 ? ' selected' : '')+'>R$ '+_endMoeda(v)+'</option>';
+  });
+  if(!vals.length) html = '<option value="">Cadastre custos em Custo de Entregas</option>';
+  sel.innerHTML = html;
+}
 
 // ---- painel de faixas de uma rua ----
 function _endRenderFaixas(id, faixas){
@@ -2888,7 +2904,8 @@ async function carregarEnderecosConfig(forcar){
   const st = document.getElementById('endStatus');
   const client = getSb();
   if(!client){ if(st){ st.textContent='Supabase não configurado'; st.style.color='#ff6b6b'; } return; }
-  try{ await carregarCustosEntrega(); }catch(e){}          // valores permitidos nas faixas
+  try{ await carregarCustosEntrega(); }catch(e){}          // valores permitidos (base + faixas)
+  _endPreencherNovoValorSelect();
   if(_endCarregado && !forcar){ enderecosAplicarFiltro(false); return; }
   if(st){ st.textContent='Carregando endereços...'; st.style.color='#8b93a7'; }
   try{
@@ -2904,6 +2921,7 @@ async function carregarEnderecosConfig(forcar){
     }));
     _endOrdenar();
     _endCarregado = true;
+    _endPreencherNovoValorSelect();
     enderecosAplicarFiltro(true);
   }catch(e){
     console.warn('carregarEnderecosConfig', e);
@@ -2958,8 +2976,8 @@ function enderecosRender(){
           + '<input id="endNome_'+id+'" type="text" value="'+_endEsc(r.rua)+'" oninput="enderecoMarcar(\''+id+'\')" title="Nome da rua (editável)" style="width:100%;padding:6px 8px;font-weight:700;font-size:13px"/>'
           + '<div id="endSt_'+id+'" style="font-size:10px;color:'+(dup?'#f0c14a':'#5a657a')+';min-height:12px;margin-top:2px">'+(dup?'⚠ duplicada — vale o maior valor; exclua a repetida':'')+'</div>'
           + '</div>'
-          + '<span style="font-size:12px;color:#8b93a7" title="Valor base">R$</span>'
-          + '<input id="endVal_'+id+'" type="number" inputmode="decimal" min="0" step="0.01" value="'+_endEsc(v)+'" oninput="enderecoMarcar(\''+id+'\')" title="Valor base (sem número ou abaixo da 1ª faixa)" style="width:84px;flex:none;padding:8px;text-align:right"/>'
+          + '<span style="font-size:12px;color:#8b93a7" title="Valor base — só valores de Custo de Entregas">R$</span>'
+          + '<select id="endVal_'+id+'" onchange="enderecoMarcar(\''+id+'\')" title="Valor base (sem número ou abaixo da 1ª faixa). Só valores de Custo de Entregas." style="width:110px;flex:none;padding:8px 6px;font-weight:700">'+_endOpcoesValor(v)+'</select>'
           + (_endTemColunas ? '<button class="btn" id="endFxBtn_'+id+'" onclick="enderecoToggleFaixas(\''+id+'\')" style="flex:none;padding:8px 10px;font-size:11px" title="Valores por faixa de número">📏'+(nFx ? ' '+nFx : '')+'</button>' : '')
           + '<button class="btn primary" id="endBtn_'+id+'" onclick="enderecoSalvar(\''+id+'\')" disabled style="flex:none;padding:8px 10px;font-size:11px;opacity:.5" title="Salvar">💾</button>'
           + '<button class="btn" id="endDel_'+id+'" onclick="enderecoExcluir(\''+id+'\')" style="flex:none;padding:8px 10px;font-size:11px" title="Excluir rua">🗑️</button>'
@@ -3011,7 +3029,12 @@ async function enderecoSalvar(id){
   if(!r || !inpV || !inpN) return;
   const erro = t => { if(st){ st.textContent = t; st.style.color = '#ff6b6b'; } };
   const novo = parseFloat(String(inpV.value).replace(',','.'));
-  if(isNaN(novo) || novo < 0){ erro('Valor inválido'); return; }
+  if(isNaN(novo) || novo < 0){ erro('Escolha um valor de Custo de Entregas'); return; }
+  const valsOk = _endValoresCadastrados();
+  if(valsOk.length && !valsOk.some(v => Math.abs(v - novo) < 0.001)){
+    erro('Valor deve ser um dos cadastrados em Custo de Entregas');
+    return;
+  }
   const nome = _endLimparNome(inpN.value);
   const chave = _normNomeRuaCusto(nome);
   if(!nome || !chave){ erro('Informe o nome da rua'); return; }
@@ -3089,7 +3112,10 @@ async function enderecoAdicionar(){
   const nome = _nomeRuaExibicao(inpN ? inpN.value : '');
   const valor = parseFloat(String(inpV ? inpV.value : '').replace(',','.'));
   if(!nome){ msg('Informe o nome da rua','#ff6b6b'); return; }
-  if(isNaN(valor) || valor < 0){ msg('Informe um valor válido','#ff6b6b'); return; }
+  if(isNaN(valor) || valor < 0){ msg('Escolha um valor de Custo de Entregas','#ff6b6b'); return; }
+  const valsOk = _endValoresCadastrados();
+  if(!valsOk.length){ msg('Cadastre ao menos um valor em Custo de Entregas','#ff6b6b'); return; }
+  if(!valsOk.some(v => Math.abs(v - valor) < 0.001)){ msg('Valor deve ser um dos cadastrados em Custo de Entregas','#ff6b6b'); return; }
   const chave = _normNomeRuaCusto(nome);
   if(_endTodos.some(x=>x.chave===chave)){ msg('Essa rua já está cadastrada','#ff6b6b'); return; }
   const client = getSb();
@@ -3103,7 +3129,7 @@ async function enderecoAdicionar(){
     else { await carregarEnderecosConfig(true); }
     _endOrdenar();
     if(inpN) inpN.value = '';
-    if(inpV) inpV.value = '';
+    _endPreencherNovoValorSelect('');
     const b = document.getElementById('endBusca');
     if(b) b.value = nome;            // mostra a rua recém-cadastrada
     enderecosAplicarFiltro(true);
@@ -3137,6 +3163,13 @@ async function carregarCustosEntrega(){
     if(error) throw error;
     cacheCustosEntrega = data || [];
     renderCustosEntrega();
+    try{ _endPreencherNovoValorSelect(); }catch(e){}
+    // se a aba Endereços já estiver aberta, atualiza selects de valor base/faixas
+    try{
+      if(document.getElementById('abaEnderecos') && document.getElementById('abaEnderecos').style.display !== 'none' && _endCarregado){
+        enderecosRender();
+      }
+    }catch(e){}
     if(st){ st.textContent = cacheCustosEntrega.length ? (cacheCustosEntrega.length + ' valor(es) cadastrado(s)') : 'Nenhum custo cadastrado ainda'; st.style.color = '#8b93a7'; }
   }catch(e){
     console.warn('carregarCustosEntrega', e);
