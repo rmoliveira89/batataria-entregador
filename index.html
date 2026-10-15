@@ -1633,7 +1633,6 @@ Após confirmar, os valores das entregas serão gravados e <b style="color:#ff6b
 <button class="btn small" id="btnCustoOntem" onclick="setFiltroCustoEnt('ontem')" style="font-size:11px;padding:8px 12px">Ontem</button>
 <input type="date" id="inputDataCustoEnt" onchange="setFiltroCustoEnt('data')" style="width:auto;padding:8px 10px;border-radius:10px;border:1px solid #2c3340;background:#0e1118;color:#fff;font-size:12px"/>
 <button class="btn small" style="font-size:11px;padding:8px 12px" onclick="renderAbaCusto()">🔄 Atualizar</button>
-<button class="btn small" id="btnSugerirValores" onclick="sugerirValoresCusto()" style="font-size:11px;padding:8px 12px;background:#1a2a3a;border-color:#2a4a5a;color:#6ab7ff;font-weight:800" title="Preenche as entregas sem valor com o valor cadastrado para a mesma rua">💡 Sugerir valores</button>
 </div>
 <div id="custoSugerirStatus" style="font-size:11px;color:#8b93a7;margin-bottom:8px;min-height:14px"></div>
 <div style="font-size:11px;color:#8b93a7;line-height:1.35">Escolha o valor de cada entrega. Envie <b style="color:#f0c14a">por turno</b> (Jantar ou Almoço). Após enviar um turno, só aquele fica bloqueado — o outro continua livre. Toque no cabeçalho do turno para mostrar/ocultar.</div>
@@ -4516,7 +4515,7 @@ function _htmlCardCustoMaster(p){
       : `<span style="font-size:10px;color:#8b93a7">sem valor</span>`;
   }
   const stTxt = pedBloq ? '🔒 Bloqueado após envio (reabra o turno para alterar)'
-    : (trav!=null ? (_extrairNumeroCasa(end)!=null ? '📌 Valor por numeração' : '📌 RUA COM VALOR CONSOLIDADO') : '');
+    : (trav!=null ? (_extrairNumeroCasa(end)!=null ? '📌 Valor consolidado' : '📌 RUA COM VALOR CONSOLIDADO') : '');
   return `<div class="custo-item${pedBloq?' ok':''}${_enderecoAlterado(p)?' alterado':''}" id="custoMasterItem_${p.id}">
     <div class="ci-top">
       <div>
@@ -5011,7 +5010,7 @@ async function renderAbaCusto(){
       <div class="ci-row">
         ${_htmlSelectCusto(p.id, val, pedBloq, trav)}
       </div>
-      <div id="custoSt_${p.id}" style="font-size:10px;color:#8b93a7;min-height:12px">${pedBloq?'🔒 Bloqueado após envio':(trav!=null?(_extrairNumeroCasa(end)!=null?'📌 Valor por numeração':'📌 RUA COM VALOR CONSOLIDADO'):'')}</div>
+      <div id="custoSt_${p.id}" style="font-size:10px;color:#8b93a7;min-height:12px">${pedBloq?'🔒 Bloqueado após envio':(trav!=null?(_extrairNumeroCasa(end)!=null?'📌 Valor consolidado':'📌 RUA COM VALOR CONSOLIDADO'):'')}</div>
     </div>`;
   }
 
@@ -8582,7 +8581,6 @@ function atualizarModoEntregadorBody(){
     document.body.classList.toggle('modo-entregador', isEnt);
   }catch(e){}
 }
-
 
 function ordenarPorRota(lista, data){
   if(usuarioLogado?.isMaster){ return lista.sort((a,b)=> new Date(a.created_at)-new Date(b.created_at)); }
