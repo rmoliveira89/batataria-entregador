@@ -512,7 +512,7 @@ body.ifood-modal-open{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 121026.190526</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 141026.210524</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -881,10 +881,31 @@ create policy "libera tudo anon custo entregas" on config_custo_entregas for all
 </div>
 </div>
 <div id="abaEnderecos" style="display:none">
+<div style="font-size:11px;color:#8b93a7;margin-bottom:8px;line-height:1.4">
+O campo <b style="color:#f0c14a">R$</b> é o valor base da rua. Toque em <b style="color:#f0c14a">📏</b> para definir valores por <b>faixa de número</b> (ex.: a partir do nº 2000 paga R$ 8,00). Os valores das faixas vêm de "Custo de Entregas".
+</div>
+<div id="endAviso" style="display:none;margin-bottom:10px;padding:10px;background:#0e1118;border:1px solid #f0c14a;border-radius:8px;font-size:10px;color:#8b93a7">
+<b style="color:#f0c14a">Faixas por número: faltam colunas no Supabase.</b> Rode o SQL abaixo no SQL Editor e toque em 🔄 (enquanto isso o sistema funciona como antes):<br/>
+<code style="color:#fff;display:block;margin-top:6px;white-space:pre-wrap">alter table public.config_ruas_custo
+  add column if not exists faixas jsonb default '[]'::jsonb,
+  add column if not exists amostras jsonb default '[]'::jsonb;
+
+update public.config_ruas_custo
+set faixas = jsonb_build_array(jsonb_build_object('de', numero_alto, 'valor', valor_alto))
+where numero_alto is not null and valor_alto is not null
+  and (faixas is null or faixas = '[]'::jsonb);</code>
+</div>
 <div style="display:flex;gap:8px;margin-bottom:8px">
 <input id="endBusca" placeholder="Buscar rua..." oninput="enderecosBuscaDigitou()" style="flex:1;min-width:0"/>
 <button class="btn" onclick="carregarEnderecosConfig(true)" title="Atualizar lista">🔄</button>
 </div>
+<div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+<input id="endNovoNome" placeholder="Nova rua (ex.: Rua das Flores)" style="flex:1;min-width:0" onkeydown="if(event.key==='Enter') enderecoAdicionar()"/>
+<span style="font-size:12px;color:#8b93a7">R$</span>
+<input id="endNovoValor" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0,00" style="width:84px;flex:none;text-align:right" onkeydown="if(event.key==='Enter') enderecoAdicionar()"/>
+<button class="btn primary" onclick="enderecoAdicionar()" style="flex:none;padding:8px 10px;font-size:11px">➕ Adicionar</button>
+</div>
+<div id="endNovoSt" style="font-size:11px;min-height:14px;margin-bottom:6px"></div>
 <div id="endStatus" style="font-size:11px;color:#8b93a7;margin-bottom:8px"></div>
 <div id="endLista"></div>
 <div id="endPag" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px">
@@ -2721,24 +2742,167 @@ function clientesRender(){
 }
 
 // ===================== ENDEREÇOS / VALOR POR RUA (Master) — tabela config_ruas_custo =====================
+// Valor base (valor_normal) + faixas por número do imóvel (coluna faixas = [{de, valor}]).
+// Faixa = "a partir do nº X vale R$ Y". Valores das faixas vêm dos custos cadastrados em "Custo de Entregas".
 const END_POR_PAGINA = 30;
-let _endTodos = [];       // [{id, rua, valor}]
+let _endTodos = [];       // [{id, rua, chave, valor, faixas:[{de,valor}], amostras:[{n,v}]}]
 let _endFiltrados = [];
 let _endPagina = 1;
 let _endCarregado = false;
 let _endBuscaTimer = null;
+let _endTemColunas = false;   // colunas faixas/amostras existem no banco?
 
+function _endEsc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function _endLimparNome(v){ return String(v||'').replace(/\s+/g,' ').trim(); }
+function _endOrdenar(){ _endTodos.sort((a,b)=> a.chave.localeCompare(b.chave,'pt-BR')); }
+function _endMoeda(v){ return Number(v).toFixed(2).replace('.',','); }
+/** Busca: normaliza sem acento e só expande "r"/"av"/"al"/"est"... para "rua"/"avenida"... quando a palavra já
+ *  está completa (tem mais texto depois). Digitando só "al" ou "est" busca o texto literal (não vira "alameda"/"estrada"). */
+function _endNormBusca(txt){
+  const base = String(txt||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+  return /\s/.test(base) ? _normNomeRuaCusto(base) : base;
+}
+function _endEhDuplicada(r){ return _endTodos.filter(x=>x.chave===r.chave).length > 1; }
+function _endTextoBase(r){
+  return _endEhDuplicada(r)
+    ? { txt:'⚠ duplicada — vale o maior valor; exclua a repetida', cor:'#f0c14a' }
+    : { txt:'', cor:'#5a657a' };
+}
+
+// ---- valores cadastrados em "Custo de Entregas" (config_custo_entregas) = valores permitidos nas faixas ----
+function _endValoresCadastrados(){
+  const set = new Set();
+  (cacheCustosEntrega||[]).forEach(c=>{ const v = Number(c.custo); if(!isNaN(v)) set.add(Math.round(v*100)/100); });
+  return Array.from(set).sort((a,b)=>a-b);
+}
+/** Valor base + faixas não podem passar da quantidade de valores cadastrados → máx. de faixas = cadastrados - 1. */
+function _endMaxFaixas(){ return Math.max(0, _endValoresCadastrados().length - 1); }
+function _endOpcoesValor(sel){
+  const vals = _endValoresCadastrados();
+  const temSel = sel != null && sel !== '' && !isNaN(sel);
+  let html = '';
+  if(temSel && !vals.some(v=>Math.abs(v-sel) < 0.001)) html += '<option value="'+sel+'" selected>R$ '+_endMoeda(sel)+' (fora do cadastro)</option>';
+  vals.forEach(v=>{ html += '<option value="'+v+'"'+((temSel && Math.abs(v-sel) < 0.001) ? ' selected' : '')+'>R$ '+_endMoeda(v)+'</option>'; });
+  return html;
+}
+
+// ---- painel de faixas de uma rua ----
+function _endRenderFaixas(id, faixas){
+  const box = document.getElementById('endFx_'+id);
+  const r = _endTodos.find(x=>x.id===id);
+  if(!box || !r) return;
+  const eid = _endEsc(id);
+  const max = _endMaxFaixas();
+  let h = '<div style="border-top:1px dashed #2c3340;padding-top:8px;font-size:11px;color:#8b93a7;line-height:1.4">'
+        + 'O <b style="color:#f0c14a">valor base</b> (campo R$ da linha) vale para endereço <b>sem número</b> ou com número <b>abaixo da 1ª faixa</b>. '
+        + 'Cada faixa vale <b>a partir do nº</b> informado.</div><div style="margin-top:8px">';
+  faixas.forEach((f,i)=>{
+    h += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">'
+       + '<span style="font-size:11px;color:#8b93a7">A partir do nº</span>'
+       + '<input id="endFxDe_'+eid+'_'+i+'" type="number" inputmode="numeric" min="1" step="1" value="'+(f.de > 0 ? f.de : '')+'" oninput="enderecoMarcar(\''+eid+'\')" style="width:90px;flex:none;padding:6px 8px;text-align:right"/>'
+       + '<span style="font-size:11px;color:#8b93a7">→ R$</span>'
+       + '<select id="endFxVal_'+eid+'_'+i+'" onchange="enderecoMarcar(\''+eid+'\')" style="flex:none;padding:6px 8px">'+_endOpcoesValor(f.valor)+'</select>'
+       + '<button class="btn" onclick="enderecoRemFaixa(\''+eid+'\','+i+')" style="flex:none;padding:6px 9px;font-size:11px" title="Remover faixa">✕</button>'
+       + '</div>';
+  });
+  const podeAdd = faixas.length < max;
+  h += '<button class="btn" id="endFxAdd_'+eid+'" onclick="enderecoAddFaixa(\''+eid+'\')" '+(podeAdd ? '' : 'disabled ')+'style="padding:6px 10px;font-size:11px">➕ Faixa</button>'
+     + '<span style="font-size:10px;color:#5a657a;margin-left:8px">'
+     + (max < 1 ? 'Cadastre 2 ou mais valores em "Custo de Entregas" para criar faixas'
+                : (faixas.length + ' de ' + max + ' faixa(s) — limite = valores cadastrados em "Custo de Entregas" (' + (max+1) + ')'))
+     + '</span></div>';
+  const am = (r.amostras||[]).slice().sort((a,b)=>a.n-b.n);
+  if(am.length){
+    h += '<div style="margin-top:8px;font-size:10px;color:#8b93a7">Valores já pagos nesta rua (nº → R$):</div>'
+       + '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">'
+       + am.slice(0,40).map(a=>'<span style="background:#151b26;border:1px solid #2c3340;border-radius:6px;padding:2px 6px;font-size:10px;color:#cfd6e6">'+a.n+' → <b style="color:#f0c14a">'+_endMoeda(a.v)+'</b></span>').join('')
+       + (am.length > 40 ? '<span style="font-size:10px;color:#5a657a">+'+(am.length-40)+'</span>' : '')
+       + '</div>';
+  } else {
+    h += '<div style="margin-top:8px;font-size:10px;color:#5a657a">Ainda sem números registrados nesta rua (passam a ser gravados nos próximos envios e no "Sugerir valores").</div>';
+  }
+  box.innerHTML = h;
+  box.dataset.pronto = '1';
+}
+/** Faixas como estão na tela (se o painel ainda não foi aberto, as salvas). Itens podem vir incompletos (NaN). */
+function _endLerFaixas(id){
+  const r = _endTodos.find(x=>x.id===id);
+  if(!r) return [];
+  const box = document.getElementById('endFx_'+id);
+  if(!box || box.dataset.pronto !== '1') return (r.faixas||[]).map(f=>({ de:f.de, valor:f.valor }));
+  const out = [];
+  for(let i=0; ; i++){
+    const de = document.getElementById('endFxDe_'+id+'_'+i);
+    const vl = document.getElementById('endFxVal_'+id+'_'+i);
+    if(!de || !vl) break;
+    out.push({ de: parseInt(de.value,10), valor: parseFloat(vl.value) });
+  }
+  return out;
+}
+function _endFaixasErro(fx){
+  if(fx.some(f=> !(f.de > 0) || isNaN(f.valor) || f.valor < 0)) return 'Preencha o nº e o valor de todas as faixas';
+  const des = fx.map(f=>f.de);
+  if(new Set(des).size !== des.length) return 'Há duas faixas com o mesmo nº';
+  return '';
+}
+function _endAtualizarBadge(id){
+  const r = _endTodos.find(x=>x.id===id);
+  const b = document.getElementById('endFxBtn_'+id);
+  if(r && b) b.textContent = '📏' + ((r.faixas||[]).length ? ' ' + r.faixas.length : '');
+}
+function enderecoToggleFaixas(id){
+  const r = _endTodos.find(x=>x.id===id);
+  const box = document.getElementById('endFx_'+id);
+  if(!r || !box) return;
+  if(box.style.display === 'none' || !box.style.display){
+    if(box.dataset.pronto !== '1') _endRenderFaixas(id, (r.faixas||[]).map(f=>({ de:f.de, valor:f.valor })));
+    box.style.display = 'block';
+  } else {
+    box.style.display = 'none';
+  }
+}
+function enderecoAddFaixa(id){
+  const fx = _endLerFaixas(id);
+  const vals = _endValoresCadastrados();
+  if(!vals.length || fx.length >= _endMaxFaixas()) return;
+  const inpV = document.getElementById('endVal_'+id);
+  const base = inpV ? parseFloat(String(inpV.value).replace(',','.')) : NaN;
+  const ref = fx.length ? Math.max.apply(null, fx.map(f=> isNaN(f.valor) ? 0 : f.valor)) : (isNaN(base) ? 0 : base);
+  const padrao = vals.find(v=> v > ref + 0.001);
+  fx.push({ de:'', valor: padrao != null ? padrao : vals[vals.length-1] });
+  _endRenderFaixas(id, fx);
+  enderecoMarcar(id);
+  const novo = document.getElementById('endFxDe_'+id+'_'+(fx.length-1));
+  if(novo) novo.focus();
+}
+function enderecoRemFaixa(id, i){
+  const fx = _endLerFaixas(id);
+  fx.splice(i, 1);
+  _endRenderFaixas(id, fx);
+  enderecoMarcar(id);
+}
+
+// ---- carga / lista ----
 async function carregarEnderecosConfig(forcar){
   if(!usuarioLogado?.isMaster) return;
   const st = document.getElementById('endStatus');
-  if(_endCarregado && !forcar){ enderecosAplicarFiltro(false); return; }
   const client = getSb();
   if(!client){ if(st){ st.textContent='Supabase não configurado'; st.style.color='#ff6b6b'; } return; }
+  try{ await carregarCustosEntrega(); }catch(e){}          // valores permitidos nas faixas
+  if(_endCarregado && !forcar){ enderecosAplicarFiltro(false); return; }
   if(st){ st.textContent='Carregando endereços...'; st.style.color='#8b93a7'; }
   try{
+    _endTemColunas = await _ruasTemColunasFaixas(client, true);
+    const aviso = document.getElementById('endAviso');
+    if(aviso) aviso.style.display = _endTemColunas ? 'none' : 'block';
     const rows = await _cliLerTudo(()=> client.from('config_ruas_custo')
-      .select('id,rua,valor_normal').order('rua',{ascending:true}));
-    _endTodos = rows.map(r=>({ id: String(r.id), rua: String(r.rua||''), valor: Number(r.valor_normal) }));
+      .select(_endTemColunas ? 'id,rua,valor_normal,faixas,amostras' : 'id,rua,valor_normal').order('rua',{ascending:true}));
+    _endTodos = rows.map(r=>({
+      id: String(r.id), rua: String(r.rua||''), chave: _normNomeRuaCusto(r.rua), valor: Number(r.valor_normal),
+      faixas: _endTemColunas ? _normFaixas(r.faixas) : [],
+      amostras: _endTemColunas ? _normAmostras(r.amostras) : []
+    }));
+    _endOrdenar();
     _endCarregado = true;
     enderecosAplicarFiltro(true);
   }catch(e){
@@ -2751,8 +2915,8 @@ function enderecosBuscaDigitou(){
   _endBuscaTimer = setTimeout(()=> enderecosAplicarFiltro(true), 200);
 }
 function enderecosAplicarFiltro(voltarPrimeira){
-  const q = _normNomeRuaCusto((document.getElementById('endBusca')||{}).value||'');
-  _endFiltrados = !q ? _endTodos.slice() : _endTodos.filter(r => _normNomeRuaCusto(r.rua).includes(q));
+  const q = _endNormBusca((document.getElementById('endBusca')||{}).value||'');
+  _endFiltrados = !q ? _endTodos.slice() : _endTodos.filter(r => r.chave.includes(q));
   if(voltarPrimeira) _endPagina = 1;
   enderecosRender();
 }
@@ -2781,16 +2945,26 @@ function enderecosRender(){
     if(!fatia.length){
       lista.innerHTML = '<div style="color:#8b93a7;font-size:12px;text-align:center;padding:16px">Nenhuma rua encontrada</div>';
     } else {
+      const cont = {};
+      _endTodos.forEach(x=>{ cont[x.chave] = (cont[x.chave]||0) + 1; });
       lista.innerHTML = fatia.map(r=>{
+        const id = _endEsc(r.id);
         const v = isNaN(r.valor) ? '' : r.valor;
-        return '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #2c3340;border-radius:10px;margin-bottom:6px;background:#0e1118">'
+        const dup = (cont[r.chave]||0) > 1;
+        const nFx = (r.faixas||[]).length;
+        return '<div id="endRow_'+id+'" style="border:1px solid #2c3340;border-radius:10px;margin-bottom:6px;background:#0e1118">'
+          + '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px">'
           + '<div style="min-width:0;flex:1">'
-          + '<div style="font-weight:700;font-size:13px;color:#e6e8ef;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:capitalize" title="'+_escAttrTxt(r.rua).replace(/"/g,'&quot;')+'">📍 '+_escAttrTxt(r.rua)+'</div>'
-          + '<div id="endSt_'+_escAttrTxt(r.id)+'" style="font-size:10px;color:#5a657a;min-height:12px"></div>'
+          + '<input id="endNome_'+id+'" type="text" value="'+_endEsc(r.rua)+'" oninput="enderecoMarcar(\''+id+'\')" title="Nome da rua (editável)" style="width:100%;padding:6px 8px;font-weight:700;font-size:13px"/>'
+          + '<div id="endSt_'+id+'" style="font-size:10px;color:'+(dup?'#f0c14a':'#5a657a')+';min-height:12px;margin-top:2px">'+(dup?'⚠ duplicada — vale o maior valor; exclua a repetida':'')+'</div>'
           + '</div>'
-          + '<span style="font-size:12px;color:#8b93a7">R$</span>'
-          + '<input id="endVal_'+_escAttrTxt(r.id)+'" type="number" inputmode="decimal" min="0" step="0.01" value="'+v+'" oninput="enderecoMarcar(\''+_escAttrTxt(r.id)+'\')" style="width:84px;flex:none;padding:8px;text-align:right"/>'
-          + '<button class="btn primary" id="endBtn_'+_escAttrTxt(r.id)+'" onclick="enderecoSalvar(\''+_escAttrTxt(r.id)+'\')" disabled style="flex:none;padding:8px 10px;font-size:11px;opacity:.5">💾</button>'
+          + '<span style="font-size:12px;color:#8b93a7" title="Valor base">R$</span>'
+          + '<input id="endVal_'+id+'" type="number" inputmode="decimal" min="0" step="0.01" value="'+_endEsc(v)+'" oninput="enderecoMarcar(\''+id+'\')" title="Valor base (sem número ou abaixo da 1ª faixa)" style="width:84px;flex:none;padding:8px;text-align:right"/>'
+          + (_endTemColunas ? '<button class="btn" id="endFxBtn_'+id+'" onclick="enderecoToggleFaixas(\''+id+'\')" style="flex:none;padding:8px 10px;font-size:11px" title="Valores por faixa de número">📏'+(nFx ? ' '+nFx : '')+'</button>' : '')
+          + '<button class="btn primary" id="endBtn_'+id+'" onclick="enderecoSalvar(\''+id+'\')" disabled style="flex:none;padding:8px 10px;font-size:11px;opacity:.5" title="Salvar">💾</button>'
+          + '<button class="btn" id="endDel_'+id+'" onclick="enderecoExcluir(\''+id+'\')" style="flex:none;padding:8px 10px;font-size:11px" title="Excluir rua">🗑️</button>'
+          + '</div>'
+          + (_endTemColunas ? '<div id="endFx_'+id+'" style="display:none;padding:0 10px 10px"></div>' : '')
           + '</div>';
       }).join('');
     }
@@ -2799,47 +2973,144 @@ function enderecosRender(){
   if(prev) prev.disabled = _endPagina <= 1;
   if(next) next.disabled = _endPagina >= total;
 }
+
+// ---- edição ----
 function enderecoMarcar(id){
   const r = _endTodos.find(x=>x.id===id);
-  const inp = document.getElementById('endVal_'+id);
+  const inpV = document.getElementById('endVal_'+id);
+  const inpN = document.getElementById('endNome_'+id);
   const btn = document.getElementById('endBtn_'+id);
   const st = document.getElementById('endSt_'+id);
-  if(!r || !inp || !btn) return;
-  const novo = parseFloat(String(inp.value).replace(',','.'));
-  const mudou = !isNaN(novo) && Math.abs(novo - r.valor) > 0.0001;
+  if(!r || !inpV || !inpN || !btn) return;
+  const novo = parseFloat(String(inpV.value).replace(',','.'));
+  const nome = _endLimparNome(inpN.value);
+  const valMudou = !isNaN(novo) && (isNaN(r.valor) || Math.abs(novo - r.valor) > 0.0001);
+  const nomeMudou = !!nome && nome !== r.rua;
+  let fxMudou = false, fxMsg = '';
+  if(_endTemColunas){
+    const fx = _endLerFaixas(id);
+    fxMsg = _endFaixasErro(fx);
+    if(!fxMsg) fxMudou = JSON.stringify(_normFaixas(fx)) !== JSON.stringify(r.faixas||[]);
+  }
+  const mudou = !isNaN(novo) && !!nome && !fxMsg && (valMudou || nomeMudou || fxMudou);
   btn.disabled = !mudou;
   btn.style.opacity = mudou ? '1' : '.5';
-  if(st){ st.textContent = mudou ? 'alterado — toque em 💾 para salvar' : ''; st.style.color = '#f0c14a'; }
+  if(st){
+    if(fxMsg){ st.textContent = fxMsg; st.style.color = '#f0c14a'; }
+    else if(mudou){ st.textContent = 'alterado — toque em 💾 para salvar'; st.style.color = '#f0c14a'; }
+    else { const b = _endTextoBase(r); st.textContent = b.txt; st.style.color = b.cor; }
+  }
 }
 async function enderecoSalvar(id){
   if(!usuarioLogado?.isMaster) return;
   const r = _endTodos.find(x=>x.id===id);
-  const inp = document.getElementById('endVal_'+id);
+  const inpV = document.getElementById('endVal_'+id);
+  const inpN = document.getElementById('endNome_'+id);
   const btn = document.getElementById('endBtn_'+id);
   const st = document.getElementById('endSt_'+id);
-  if(!r || !inp) return;
-  const novo = parseFloat(String(inp.value).replace(',','.'));
-  if(isNaN(novo) || novo < 0){
-    if(st){ st.textContent = 'Valor inválido'; st.style.color = '#ff6b6b'; }
-    return;
+  if(!r || !inpV || !inpN) return;
+  const erro = t => { if(st){ st.textContent = t; st.style.color = '#ff6b6b'; } };
+  const novo = parseFloat(String(inpV.value).replace(',','.'));
+  if(isNaN(novo) || novo < 0){ erro('Valor inválido'); return; }
+  const nome = _endLimparNome(inpN.value);
+  const chave = _normNomeRuaCusto(nome);
+  if(!nome || !chave){ erro('Informe o nome da rua'); return; }
+  const nomeMudou = nome !== r.rua;
+  if(nomeMudou && _endTodos.some(x=> x.id!==id && x.chave===chave)){ erro('Já existe outra rua com esse nome'); return; }
+  let fxNorm = r.faixas || [], fxMudou = false;
+  if(_endTemColunas){
+    const fx = _endLerFaixas(id);
+    const m = _endFaixasErro(fx);
+    if(m){ erro(m); return; }
+    fxNorm = _normFaixas(fx);
+    fxMudou = JSON.stringify(fxNorm) !== JSON.stringify(r.faixas||[]);
   }
   const client = getSb();
-  if(!client){ if(st){ st.textContent = 'Supabase não configurado'; st.style.color = '#ff6b6b'; } return; }
+  if(!client){ erro('Supabase não configurado'); return; }
   if(btn){ btn.disabled = true; btn.textContent = '⏳'; }
   try{
-    const {error} = await client.from('config_ruas_custo')
-      .update({ valor_normal: novo, updated_at: new Date().toISOString() })
-      .eq('id', id);
+    const upd = { valor_normal: novo, updated_at: new Date().toISOString() };
+    if(nomeMudou) upd.rua = nome;
+    if(fxMudou){
+      upd.faixas = fxNorm;
+      upd.numero_alto = fxNorm.length ? fxNorm[0].de : null;       // espelho da 1ª faixa (colunas antigas)
+      upd.valor_alto = fxNorm.length ? fxNorm[0].valor : null;
+    }
+    // .select('id') confirma que a linha foi realmente alterada (RLS pode bloquear sem devolver erro)
+    const {data, error} = await client.from('config_ruas_custo').update(upd).eq('id', id).select('id');
     if(error) throw error;
+    if(!data || !data.length) throw new Error('nenhuma linha alterada (sem permissão ou rua já removida)');
     r.valor = novo;
+    if(nomeMudou){ r.rua = nome; r.chave = chave; }
+    if(fxMudou){
+      r.faixas = fxNorm;
+      const box = document.getElementById('endFx_'+id);
+      if(box && box.dataset.pronto === '1') _endRenderFaixas(id, fxNorm.map(f=>({ de:f.de, valor:f.valor })));
+      _endAtualizarBadge(id);
+    }
+    inpN.value = r.rua;
     if(st){ st.textContent = '✓ salvo'; st.style.color = '#3dcc8a'; }
     if(btn){ btn.style.opacity = '.5'; }
   }catch(e){
     console.warn('enderecoSalvar', e);
-    if(st){ st.textContent = 'Erro ao salvar: ' + (e && e.message ? e.message : e); st.style.color = '#ff6b6b'; }
+    erro('Erro ao salvar: ' + (e && e.message ? e.message : e));
     if(btn){ btn.disabled = false; btn.style.opacity = '1'; }
   }finally{
     if(btn) btn.textContent = '💾';
+  }
+}
+async function enderecoExcluir(id){
+  if(!usuarioLogado?.isMaster) return;
+  const r = _endTodos.find(x=>x.id===id);
+  if(!r) return;
+  const st = document.getElementById('endSt_'+id);
+  const valTxt = isNaN(r.valor) ? '—' : r.valor.toFixed(2);
+  const ok = await mostrarConfirmacao('Excluir a rua "' + r.rua + '" (R$ ' + valTxt + ')? Os pedidos já enviados não mudam. Se a rua voltar a aparecer no histórico de pedidos, o "Sugerir valores" pode cadastrá-la de novo.', { titulo:'Excluir rua', icone:'🗑️', okTexto:'Excluir' });
+  if(!ok) return;
+  const client = getSb();
+  if(!client){ if(st){ st.textContent = 'Supabase não configurado'; st.style.color = '#ff6b6b'; } return; }
+  try{
+    const {data, error} = await client.from('config_ruas_custo').delete().eq('id', id).select('id');
+    if(error) throw error;
+    if(!data || !data.length) throw new Error('nenhuma linha excluída (sem permissão ou rua já removida)');
+    _endTodos = _endTodos.filter(x=>x.id!==id);
+    enderecosAplicarFiltro(false);
+  }catch(e){
+    console.warn('enderecoExcluir', e);
+    if(st){ st.textContent = 'Erro ao excluir: ' + (e && e.message ? e.message : e); st.style.color = '#ff6b6b'; }
+  }
+}
+async function enderecoAdicionar(){
+  if(!usuarioLogado?.isMaster) return;
+  const inpN = document.getElementById('endNovoNome');
+  const inpV = document.getElementById('endNovoValor');
+  const st = document.getElementById('endNovoSt');
+  const msg = (t,c)=>{ if(st){ st.textContent = t; st.style.color = c || '#8b93a7'; } };
+  const nome = _nomeRuaExibicao(inpN ? inpN.value : '');
+  const valor = parseFloat(String(inpV ? inpV.value : '').replace(',','.'));
+  if(!nome){ msg('Informe o nome da rua','#ff6b6b'); return; }
+  if(isNaN(valor) || valor < 0){ msg('Informe um valor válido','#ff6b6b'); return; }
+  const chave = _normNomeRuaCusto(nome);
+  if(_endTodos.some(x=>x.chave===chave)){ msg('Essa rua já está cadastrada','#ff6b6b'); return; }
+  const client = getSb();
+  if(!client){ msg('Supabase não configurado','#ff6b6b'); return; }
+  msg('Salvando...');
+  try{
+    const {data, error} = await client.from('config_ruas_custo').insert({ rua: nome, valor_normal: valor }).select('id,rua,valor_normal');
+    if(error) throw error;
+    const row = data && data[0];
+    if(row) _endTodos.push({ id:String(row.id), rua:String(row.rua||nome), chave, valor:Number(row.valor_normal), faixas:[], amostras:[] });
+    else { await carregarEnderecosConfig(true); }
+    _endOrdenar();
+    if(inpN) inpN.value = '';
+    if(inpV) inpV.value = '';
+    const b = document.getElementById('endBusca');
+    if(b) b.value = nome;            // mostra a rua recém-cadastrada
+    enderecosAplicarFiltro(true);
+    msg('✓ rua cadastrada','#3dcc8a');
+  }catch(e){
+    console.warn('enderecoAdicionar', e);
+    msg('Erro ao cadastrar: ' + (e && e.message ? e.message : e),'#ff6b6b');
   }
 }
 
@@ -3653,12 +3924,70 @@ function toggleTurnoCusto(turno){
   if(icon) icon.textContent = turnosCustoVisiveis[t] ? '👁️ Ocultar' : '🙈 Mostrar';
 }
 
-function _htmlSelectCusto(pedidoId, valorAtual, bloqueado){
+// ---- Trava por rua: rua com valor ÚNICO cadastrado (sem faixas) oferece só esse valor no card do entregador ----
+let _ruasTravaCache = { ts: 0, mapa: {} };   // chave da rua -> { v, faixas, conflito }
+async function carregarRuasTravaCusto(forcar){
+  if(!forcar && _ruasTravaCache.ts && (Date.now() - _ruasTravaCache.ts) < 300000) return;   // cache de 5 min
+  const client = getSb();
+  if(!client) return;
+  try{
+    const temCols = await _ruasTemColunasFaixas(client);
+    const rows = await _cliLerTudo(()=> client.from('config_ruas_custo')
+      .select(temCols ? 'rua,valor_normal,faixas' : 'rua,valor_normal').order('rua',{ascending:true}));
+    const mapa = {};
+    rows.forEach(r=>{
+      const k = _normNomeRuaCusto(r.rua);
+      const v = Number(r.valor_normal);
+      if(!k || isNaN(v)) return;
+      const nFx = temCols ? _normFaixas(r.faixas).length : 0;
+      const m = mapa[k];
+      if(!m) mapa[k] = { v: v, faixas: nFx, conflito: false };
+      else {   // duplicata antiga com valores diferentes: rua não está "consolidada" → sem trava
+        if(Math.abs(m.v - v) > 0.001 || nFx !== m.faixas) m.conflito = true;
+        if(nFx > m.faixas) m.faixas = nFx;
+        if(v > m.v) m.v = v;
+      }
+    });
+    _ruasTravaCache = { ts: Date.now(), mapa: mapa };
+  }catch(e){
+    console.warn('carregarRuasTravaCusto', e);   // falhou: sem trava (cards continuam com todas as opções)
+  }
+}
+/** Valor único da rua para o card (1 pedido ou grupo): só trava se TODOS os endereços forem de ruas cadastradas
+ *  com valor único (sem faixas e sem duplicata conflitante) e o mesmo valor. Senão devolve null (sem trava). */
+function _valorTravadoRua(membros){
+  const ms = Array.isArray(membros) ? membros : [membros];
+  let alvo = null;
+  for(const m of ms){
+    const k = _chaveRuaCusto(m && m.cliente_endereco);
+    const e = k ? _ruasTravaCache.mapa[k] : null;
+    if(!e || e.faixas > 0 || e.conflito) return null;
+    if(alvo == null) alvo = e.v;
+    else if(Math.abs(alvo - e.v) > 0.001) return null;
+  }
+  return alvo;
+}
+
+function _htmlSelectCusto(pedidoId, valorAtual, bloqueado, travado){
   const opts = cacheOpcoesCusto || [];
   const atual = (valorAtual != null && valorAtual !== '') ? Number(valorAtual) : null;
   const dis = bloqueado ? ' disabled' : '';
+  const trav = (!bloqueado && travado != null && !isNaN(travado)) ? Number(travado) : null;
   let html = `<select id="selCusto_${pedidoId}" onchange="onChangeCustoPedido('${pedidoId}')"${dis}>`;
   html += `<option value="">— escolher —</option>`;
+  if(trav != null){
+    // Rua com valor único: só a opção já cadastrada para a rua
+    const o = opts.find(x=> Math.abs(Number(x.custo) - trav) < 0.001);
+    const selT = (atual != null && !isNaN(atual) && Math.abs(atual - trav) < 0.001) ? ' selected' : '';
+    html += o
+      ? `<option value="${o.id}" data-custo="${trav}"${selT}>R$ ${trav.toFixed(2)}</option>`
+      : `<option value="__manual_${trav}" data-custo="${trav}"${selT}>R$ ${trav.toFixed(2)}</option>`;
+    if(atual != null && !isNaN(atual) && Math.abs(atual - trav) >= 0.001){
+      html += `<option value="__manual_${atual}" data-custo="${atual}" selected>R$ ${atual.toFixed(2)} (atual)</option>`;
+    }
+    html += `</select>`;
+    return html;
+  }
   opts.forEach(o=>{
     const v = Number(o.custo);
     const sel = (atual != null && !isNaN(atual) && Math.abs(atual - v) < 0.001) ? ' selected' : '';
@@ -4430,6 +4759,7 @@ async function renderAbaCusto(){
   if(!cacheOpcoesCusto.length){
     await carregarOpcoesCusto();
   }
+  await carregarRuasTravaCusto();   // ruas com valor único (trava do card)
 
   const dataAlvo = getDataFiltroCustoEnt();
   const temDia = (todosPedidos || []).some(p => (p.data||'') === dataAlvo);
@@ -4508,6 +4838,7 @@ async function renderAbaCusto(){
     const turnoP = getTurno(p);
     const turnoLab = turnoP==='almoco' ? '☀️' : '🌙';
     const pedBloq = isCustoTurnoBloqueado(turnoP) || isPedidoCustoBloqueado(p);
+    const trav = pedBloq ? null : _valorTravadoRua([p]);
     let badge;
     if(pedBloq){
       badge = val != null
@@ -4531,9 +4862,9 @@ async function renderAbaCusto(){
       ${_htmlAlteradoEnd(p)}
       <div class="ci-ent">🛵 ${ent}</div>
       <div class="ci-row">
-        ${_htmlSelectCusto(p.id, val, pedBloq)}
+        ${_htmlSelectCusto(p.id, val, pedBloq, trav)}
       </div>
-      <div id="custoSt_${p.id}" style="font-size:10px;color:#8b93a7;min-height:12px">${pedBloq?'🔒 Bloqueado após envio':''}</div>
+      <div id="custoSt_${p.id}" style="font-size:10px;color:#8b93a7;min-height:12px">${pedBloq?'🔒 Bloqueado após envio':(trav!=null?'📌 Rua com valor único cadastrado':'')}</div>
     </div>`;
   }
 
@@ -4554,6 +4885,7 @@ async function renderAbaCusto(){
       if(v != null && !isNaN(v)){ val = v; break; }
     }
     const pedBloq = membros.every(m => isCustoTurnoBloqueado(getTurno(m)) || isPedidoCustoBloqueado(m));
+    const trav = pedBloq ? null : _valorTravadoRua(membros);
     // Select ancorado no 1º pedido; _propagarCustoGrupo aplica aos demais
     const idAncora = p0.id;
     let badge;
@@ -4588,9 +4920,9 @@ async function renderAbaCusto(){
       <div class="ci-ent">🛵 ${ent}</div>
       <div style="background:#0e1118;border:1px solid #2c3340;border-radius:8px;padding:6px 8px;margin-top:4px">${linhas}</div>
       <div class="ci-row" style="margin-top:8px">
-        ${_htmlSelectCusto(idAncora, val, pedBloq)}
+        ${_htmlSelectCusto(idAncora, val, pedBloq, trav)}
       </div>
-      <div id="custoSt_${idAncora}" style="font-size:10px;color:#8b93a7;min-height:12px">${pedBloq?'🔒 Bloqueado após envio':'🔗 1 valor para o grupo inteiro'}</div>
+      <div id="custoSt_${idAncora}" style="font-size:10px;color:#8b93a7;min-height:12px">${pedBloq?'🔒 Bloqueado após envio':('🔗 1 valor para o grupo inteiro'+(trav!=null?' · 📌 valor único da rua':''))}</div>
     </div>`;
   }
 
@@ -4682,27 +5014,177 @@ function _normNomeRuaCusto(rua){
   if(!k) return '';
   k = k.replace(/^(r|rua)\b/,'rua').replace(/^(av|avenida)\b/,'avenida').replace(/^(tv|trav|travessa)\b/,'travessa')
        .replace(/^(al|alameda)\b/,'alameda').replace(/^(rod|rodovia)\b/,'rodovia').replace(/^(est|estrada)\b/,'estrada')
-       .replace(/^(pc|praca)\b/,'praca');
+       .replace(/^(pc|pca|praca)\b/,'praca');
   return k.replace(/\s+/g,' ').trim();
 }
 
-/** SUGERIR VALORES: extrai só o NOME DA RUA de um endereço completo (sem número, complemento, bairro ou cidade)
- *  e devolve a chave normalizada usada para buscar/gravar o valor da rua. */
-function _chaveRuaCusto(end){
-  let e = String(end||'').trim();
+/** Extrai o NOME DA RUA (texto original, com acentos) de um endereço completo.
+ *  Corta bairro/cidade (" - " e vírgula), número do imóvel ("123", "nº 123", "n 123", "s/n")
+ *  e complementos ("apto 3", "casa 5", "bloco B", "lote 2"...).
+ *  Preserva números que fazem parte do nome ("Rua 7", "Rua 7 de Setembro"). Devolve '' se não houver rua. */
+function _extrairRuaBruta(end){
+  const e = String(end||'').trim();
   if(!e || /^sem\s*endere/i.test(e)) return '';
-  const principal = (e.split(/\s+[-–—]\s+/)[0] || e).trim();
-  let rua = principal;
-  let m = principal.match(/^(.+?),\s*(\d|s\/?n\b)/i);
-  if(m) rua = m[1];
-  else {
-    m = principal.match(/^(.+?)\s+(\d+[A-Za-z]?|s\/?n)\s*$/i);
-    // "Rua 1" (sem número do imóvel): o "1" faz parte do nome — só corta se sobrar um nome além do tipo (Rua/Av...)
-    if(m && _normNomeRuaCusto(m[1]).split(' ').length > 1) rua = m[1];
-    else if(!m) rua = principal.split(',')[0];
+  let rua = (e.split(/\s+[-–—]\s+/)[0] || e).split(',')[0].replace(/\s+/g,' ').trim();
+  const soTipo = s => /^(rua|avenida|travessa|alameda|rodovia|estrada|praca)$/.test(_normNomeRuaCusto(s));
+  const COMPL = 'ap(?:t|to|artamento)?|casa|bloco|bl|lote|lt|quadra|qd|sala|cj|conjunto|fundos|frente';
+  const cortes = [
+    /\s+s\/?n\b.*$/i,                                                        // "s/n", "sn" (sem número)
+    /\s+(?:n[º°o]?|num|n[úu]mero)\.?\s*\d+.*$/i,                            // "nº 123", "n 123", "numero 123"
+    new RegExp('\\s+(?:'+COMPL+')\\.?\\s*\\d+.*$', 'i'),                     // "apto 3", "casa 5", "bloco 2"
+    new RegExp('\\s+\\d+[a-z]?(?:\\s+(?:'+COMPL+')\\b.*)?$', 'i')            // número no FIM (+ complemento opcional)
+  ];
+  for(const re of cortes){
+    const novo = rua.replace(re,'').trim();
+    // nunca corta se sobrar só o tipo ("Rua 7" continua "Rua 7")
+    if(novo && novo !== rua && !soTipo(novo)) rua = novo;
   }
-  return _normNomeRuaCusto(rua);
+  rua = rua.replace(/[.\s]+$/,'').trim();
+  if(!rua || soTipo(rua)) return '';
+  return rua;
 }
+
+/** Chave normalizada da rua (usada para buscar/gravar o valor da rua). */
+function _chaveRuaCusto(end){
+  const r = _extrairRuaBruta(end);
+  return r ? _normNomeRuaCusto(r) : '';
+}
+
+/** Nome da rua para EXIBIR/gravar em config_ruas_custo: mantém acentos; expande "R."/"Av."...;
+ *  se o texto vier todo em maiúsculas/minúsculas, aplica Title Case (preposições em minúsculo, "XV" em maiúsculo). */
+function _nomeRuaExibicao(end){
+  const bruta = _extrairRuaBruta(end);
+  if(!bruta) return '';
+  const abrev = {r:'Rua',rua:'Rua',av:'Avenida',avenida:'Avenida',tv:'Travessa',trav:'Travessa',travessa:'Travessa',
+                 al:'Alameda',alameda:'Alameda',rod:'Rodovia',rodovia:'Rodovia',est:'Estrada',estrada:'Estrada',
+                 pc:'Praça',pca:'Praça','pça':'Praça',praca:'Praça','praça':'Praça'};
+  const ligacao = {de:1,da:1,do:1,das:1,dos:1,e:1};
+  const mista = /[a-zà-ÿ]/.test(bruta) && /[A-ZÀ-ß]/.test(bruta);
+  const toks = bruta.split(' ');
+  return toks.map((t,i)=>{
+    if(i===0){
+      const a = abrev[t.replace(/\.$/,'').toLowerCase()];
+      if(a) return a;
+    }
+    if(mista) return t;
+    const l = t.toLowerCase();
+    if(i>0 && ligacao[l]) return l;
+    if(/^[ivx]{2,5}$/.test(l)) return l.toUpperCase();
+    return l.charAt(0).toUpperCase() + l.slice(1);
+  }).join(' ');
+}
+
+/** Número do imóvel (inteiro) de um endereço, ou null (sem número, "s/n"). Ignora números de complemento (apto/casa/bloco...).
+ *  "Rua X, 123 - Centro" → 123 · "Rua X 123, Centro" → 123 · "Rua X nº 2.500" → 2500 · "Rua 7" → null · "Rua 7, 15" → 15 */
+function _extrairNumeroCasa(end){
+  const e = String(end||'').trim();
+  if(!e) return null;
+  const princ = (e.split(/\s+[-–—]\s+/)[0] || e).replace(/\s+/g,' ').trim();
+  const rua = _extrairRuaBruta(end);
+  if(!rua || !princ.toLowerCase().startsWith(rua.toLowerCase())) return null;
+  const tail = princ.slice(rua.length).replace(/,/g,' ').replace(/\s+/g,' ').trim();
+  if(!tail) return null;
+  const COMPL = /^(ap|apt|apto|apartamento|casa|bloco|bl|lote|lt|quadra|qd|sala|cj|conjunto)\.?$/i;
+  const toks = tail.split(' ');
+  for(let i=0; i<toks.length; i++){
+    const t = toks[i];
+    if(/^s\/?n$/i.test(t)) return null;
+    if(COMPL.test(t)){ i++; continue; }                       // "apto 3" / "casa 5": número do complemento
+    if(/^(n[º°o]?|num|n[úu]mero)\.?$/i.test(t)) continue;     // "nº" / "n" / "numero" (o número vem no próximo token)
+    const m = t.match(/^(?:n[º°o]?\.?)?(\d{1,3}(?:\.\d{3})+|\d{1,5})[a-z]?$/i);
+    if(m){ const n = parseInt(m[1].replace(/\./g,''),10); return n > 0 ? n : null; }
+  }
+  return null;
+}
+
+/** Faixas por número da rua: [{de, valor}] — "a partir do nº `de`, vale `valor`". Aceita array ou JSON; ordena e remove inválidas/duplicadas. */
+function _normFaixas(raw){
+  let arr = raw;
+  if(typeof arr === 'string'){ try{ arr = JSON.parse(arr); }catch(e){ arr = []; } }
+  if(!Array.isArray(arr)) return [];
+  const mapa = new Map();
+  arr.forEach(f=>{
+    const de = parseInt(f && f.de, 10);
+    const valor = Number(f && f.valor);
+    if(!(de > 0) || isNaN(valor) || valor < 0) return;
+    mapa.set(de, valor);
+  });
+  return Array.from(mapa.entries()).sort((a,b)=>a[0]-b[0]).map(([de,valor])=>({de, valor}));
+}
+/** Valor da entrega numa rua: valor base; se houver faixas e o endereço tiver número, vale a última faixa com `de` <= número. */
+function _valorPorNumero(ent, n){
+  if(!ent) return null;
+  let v = ent.v;
+  if(n != null && ent.faixas && ent.faixas.length){
+    for(const f of ent.faixas){ if(n >= f.de) v = f.valor; else break; }
+  }
+  return v;
+}
+
+/** Amostras da rua: [{n, v}] = valores já pagos por número (ajudam o master a definir as faixas). */
+function _normAmostras(raw){
+  let arr = raw;
+  if(typeof arr === 'string'){ try{ arr = JSON.parse(arr); }catch(e){ arr = []; } }
+  if(!Array.isArray(arr)) return [];
+  const out = [];
+  arr.forEach(a=>{
+    const n = parseInt(a && a.n, 10), v = Number(a && a.v);
+    if(n > 0 && !isNaN(v)) out.push({n, v});
+  });
+  return out;
+}
+/** Junta amostras novas nas antigas (mesmo nº → maior valor; máx. 150, descarta as mais antigas). */
+function _mergeAmostras(velhas, novas){
+  const m = new Map();
+  _normAmostras(velhas).forEach(a=>{ m.set(a.n, a.v); });
+  let mudou = false;
+  (novas||[]).forEach(a=>{
+    if(!(a.n > 0) || isNaN(a.v)) return;
+    if(!m.has(a.n) || a.v > m.get(a.n)){ m.set(a.n, a.v); mudou = true; }
+  });
+  let lista = Array.from(m.entries()).map(([n,v])=>({n,v}));
+  if(lista.length > 150){ lista = lista.slice(lista.length - 150); mudou = true; }
+  return { lista, mudou };
+}
+
+/** As colunas `faixas` e `amostras` existem em config_ruas_custo? (sem elas o sistema continua funcionando como antes) */
+let _ruasColsOk = null, _ruasColsTs = 0;
+async function _ruasTemColunasFaixas(client, forcar){
+  if(_ruasColsOk === true && !forcar) return true;
+  if(_ruasColsOk === false && !forcar && (Date.now() - _ruasColsTs) < 60000) return false;
+  try{
+    const {error} = await client.from('config_ruas_custo').select('faixas,amostras').limit(1);
+    _ruasColsOk = !error;
+  }catch(e){ _ruasColsOk = false; }
+  _ruasColsTs = Date.now();
+  return _ruasColsOk;
+}
+/** Mescla amostras (nº → valor) nas ruas JÁ cadastradas. Mexe só na coluna `amostras` (nunca no valor base nem nas faixas).
+ *  linhas: [{id, rua, amostras}] · porChave: { chaveRua: [{n,v}] } · máx. 60 atualizações por chamada. */
+async function _sincronizarAmostrasRuas(client, linhas, porChave){
+  try{
+    const vistos = new Set(), tarefas = [];
+    (linhas||[]).forEach(r=>{
+      const k = _normNomeRuaCusto(r.rua);
+      if(!k || vistos.has(k) || r.id == null) return;
+      vistos.add(k);
+      const novas = porChave[k];
+      if(!novas || !novas.length) return;
+      const {lista, mudou} = _mergeAmostras(r.amostras, novas);
+      if(mudou) tarefas.push({ id: r.id, lista });
+    });
+    const lote = tarefas.slice(0, 60);
+    for(let i=0; i<lote.length; i+=10){
+      await Promise.all(lote.slice(i, i+10).map(async t=>{
+        try{
+          const {error} = await client.from('config_ruas_custo').update({ amostras: t.lista }).eq('id', t.id);
+          if(error) console.warn('config_ruas_custo (amostras)', error);
+        }catch(e){ console.warn('config_ruas_custo (amostras)', e); }
+      }));
+    }
+  }catch(e){ console.warn('_sincronizarAmostrasRuas', e); }
+}
+
 
 let _sugerindoCusto = false;
 /** Botão "Sugerir valores": preenche as entregas SEM valor do dia.
@@ -4721,37 +5203,56 @@ async function sugerirValoresCusto(){
   if(btn){ btn.disabled = true; btn.style.opacity = '0.6'; }
   msg('Buscando valores cadastrados por rua...');
   try{
-    // 1) Tabela de ruas já cadastradas (valor_normal)
+    // 1) Tabela de ruas já cadastradas (valor base + faixas por número do imóvel)
     const cfg = {};
-    let cfgOk = true;
+    let cfgOk = true, rowsCfg = [];
+    const temCols = await _ruasTemColunasFaixas(client);
     try{
-      const rowsCfg = await _cliLerTudo(()=> client.from('config_ruas_custo').select('rua,valor_normal').order('rua',{ascending:true}));
+      rowsCfg = await _cliLerTudo(()=> client.from('config_ruas_custo')
+        .select(temCols ? 'id,rua,valor_normal,faixas,amostras' : 'rua,valor_normal').order('rua',{ascending:true}));
       rowsCfg.forEach(r=>{
         const k = _normNomeRuaCusto(r.rua);
         const v = Number(r.valor_normal);
         if(!k || isNaN(v)) return;
-        if(!(k in cfg)) cfg[k] = v; // 1 valor por rua (se houver duplicata antiga, mantém o primeiro)
+        const ent = { v: v, faixas: temCols ? _normFaixas(r.faixas) : [] };
+        const at = cfg[k];
+        // 1 valor por rua (duplicata: prefere a que tem faixas; depois vale o MAIOR — resultado não depende da ordem)
+        if(!at || ent.faixas.length > at.faixas.length || (ent.faixas.length === at.faixas.length && v > at.v)) cfg[k] = ent;
       });
     }catch(eCfg){
-      cfgOk = false;
+      cfgOk = false; rowsCfg = [];
       console.warn('config_ruas_custo (leitura)', eCfg);
     }
 
-    // 2) Histórico de pedidos: MAIOR valor por rua
-    const hist = await _cliLerTudo(()=> client.from('pedidos_entrega_dia')
-      .select('cliente_endereco,valor_entrega')
-      .not('valor_entrega','is',null)
-      .order('created_at',{ascending:false}));
+    // 2) Histórico de pedidos: MAIOR valor por rua (+ amostras nº → valor das entregas de endereço único)
+    let hist;
+    try{
+      hist = await _cliLerTudo(()=> client.from('pedidos_entrega_dia')
+        .select('cliente_endereco,valor_entrega,grupo_entrega')
+        .not('valor_entrega','is',null)
+        .order('created_at',{ascending:false}));
+    }catch(eH){
+      hist = await _cliLerTudo(()=> client.from('pedidos_entrega_dia')
+        .select('cliente_endereco,valor_entrega')
+        .not('valor_entrega','is',null)
+        .order('created_at',{ascending:false}));
+    }
     (todosPedidos||[]).forEach(p=>{
-      if(p && p.valor_entrega != null && p.valor_entrega !== '') hist.push({cliente_endereco:p.cliente_endereco, valor_entrega:p.valor_entrega});
+      if(p && p.valor_entrega != null && p.valor_entrega !== '') hist.push({cliente_endereco:p.cliente_endereco, valor_entrega:p.valor_entrega, grupo_entrega:p.grupo_entrega});
     });
-    const ped = {};
+    const ped = {}, amHist = {};
     hist.forEach(r=>{
       const v = Number(r.valor_entrega);
       if(isNaN(v)) return;
       const k = _chaveRuaCusto(r.cliente_endereco);
       if(!k) return;
-      if(!(k in ped) || v > ped[k]) ped[k] = v;
+      const nomeRua = _nomeRuaExibicao(r.cliente_endereco);
+      if(!(k in ped)) ped[k] = { v: v, nome: nomeRua };
+      else { if(v > ped[k].v) ped[k].v = v; if(!ped[k].nome) ped[k].nome = nomeRua; }
+      if(!r.grupo_entrega){            // grupo de várias paradas tem valor de rota: não vira amostra
+        const n = _extrairNumeroCasa(r.cliente_endereco);
+        if(n) (amHist[k] = amHist[k] || []).push({ n: n, v: v });
+      }
     });
 
     // 3) Aplica nas entregas abertas (sem valor e não bloqueadas): primeiro config_ruas_custo, depois pedidos
@@ -4767,8 +5268,8 @@ async function sugerirValoresCusto(){
       for(const m of membros){
         const k = _chaveRuaCusto(m.cliente_endereco);
         if(!k) continue;
-        if(k in cfg){ val = cfg[k]; fonte = 'cfg'; break; }
-        if(k in ped){ val = ped[k]; fonte = 'ped'; break; }
+        if(k in cfg){ val = _valorPorNumero(cfg[k], _extrairNumeroCasa(m.cliente_endereco)); fonte = 'cfg'; break; }
+        if(k in ped){ val = ped[k].v; fonte = 'ped'; break; }
       }
       if(val == null){ semHistorico++; return; }
       membros.forEach(m=>{ rascunhoCusto[m.id] = val; });
@@ -4779,9 +5280,14 @@ async function sugerirValoresCusto(){
     turnosPreenchidos.forEach(t=>{ turnosCustoVisiveis[t === 'almoco' ? 'almoco' : 'jantar'] = true; });
 
     // 4) Grava em config_ruas_custo as ruas novas (vindas dos pedidos). Nunca substitui rua já cadastrada.
+    //    Ruas já cadastradas só recebem novas "amostras" (nº → valor); valor base e faixas ficam como estão.
     let novas = 0, erroGravar = '';
     if(cfgOk){
-      const novasLinhas = Object.keys(ped).filter(k => !(k in cfg)).map(k => ({ rua: k, valor_normal: ped[k] }));
+      const novasLinhas = Object.keys(ped).filter(k => !(k in cfg)).map(k => {
+        const linha = { rua: ped[k].nome || k, valor_normal: ped[k].v };
+        if(temCols) linha.amostras = _mergeAmostras([], amHist[k] || []).lista;
+        return linha;
+      });
       for(let i=0; i<novasLinhas.length; i+=200){
         const bloco = novasLinhas.slice(i, i+200);
         // ignoreDuplicates => "ON CONFLICT DO NOTHING": se a rua já existir, mantém o cadastro atual
@@ -4789,8 +5295,10 @@ async function sugerirValoresCusto(){
         if(error){ erroGravar = error.message || String(error); console.warn('config_ruas_custo (gravação)', error); break; }
         novas += bloco.length;
       }
+      if(temCols && !erroGravar) await _sincronizarAmostrasRuas(client, rowsCfg, amHist);
     }
 
+    await carregarRuasTravaCusto(true);
     await renderAbaCusto();
     // Sucesso: sem mensagem (limpa o "Buscando..."). Só avisa quando algo deu errado.
     let aviso = '';
@@ -4996,24 +5504,45 @@ async function _salvarRuasConfigCusto(itens){
   try{
     const client = getSb();
     if(!client || !itens || !itens.length) return;
-    const mapa = {};
+    const mapa = {}, amostras = {};
     itens.forEach(r=>{
       const v = Number(r.valor);
       if(isNaN(v)) return;
       const k = _chaveRuaCusto(r.end);
       if(!k) return;
-      if(!(k in mapa) || v > mapa[k]) mapa[k] = v;
+      const nomeRua = _nomeRuaExibicao(r.end);
+      if(!(k in mapa)) mapa[k] = { v: v, nome: nomeRua };
+      else { if(v > mapa[k].v) mapa[k].v = v; if(!mapa[k].nome) mapa[k].nome = nomeRua; }
+      if(!r.grupo){                      // grupo de várias paradas tem valor de rota: não vira amostra
+        const n = _extrairNumeroCasa(r.end);
+        if(n) (amostras[k] = amostras[k] || []).push({ n: n, v: v });
+      }
     });
     const chaves = Object.keys(mapa);
     if(!chaves.length) return;
+    let temCols = await _ruasTemColunasFaixas(client);
+    let rows;
+    try{
+      rows = await _cliLerTudo(()=> client.from('config_ruas_custo').select(temCols ? 'id,rua,amostras' : 'rua').order('rua',{ascending:true}));
+    }catch(eSel){
+      if(!temCols) throw eSel;
+      temCols = false;
+      rows = await _cliLerTudo(()=> client.from('config_ruas_custo').select('rua').order('rua',{ascending:true}));
+    }
     const existentes = new Set();
-    const rows = await _cliLerTudo(()=> client.from('config_ruas_custo').select('rua').order('rua',{ascending:true}));
     rows.forEach(r=>{ const k = _normNomeRuaCusto(r.rua); if(k) existentes.add(k); });
-    const novas = chaves.filter(k => !existentes.has(k)).map(k => ({ rua: k, valor_normal: mapa[k] }));
+    const novas = chaves.filter(k => !existentes.has(k)).map(k => {
+      const linha = { rua: mapa[k].nome || k, valor_normal: mapa[k].v };
+      if(temCols) linha.amostras = _mergeAmostras([], amostras[k] || []).lista;
+      return linha;
+    });
+    let gravou = true;
     for(let i=0; i<novas.length; i+=200){
       const {error} = await client.from('config_ruas_custo').upsert(novas.slice(i,i+200), { onConflict: 'rua', ignoreDuplicates: true });
-      if(error){ console.warn('config_ruas_custo (gravação no envio)', error); break; }
+      if(error){ console.warn('config_ruas_custo (gravação no envio)', error); gravou = false; break; }
     }
+    // ruas já cadastradas: só acrescenta amostras (nº → valor); valor base e faixas não mudam
+    if(temCols && gravou) await _sincronizarAmostrasRuas(client, rows, amostras);
   }catch(e){
     console.warn('_salvarRuasConfigCusto', e);
   }
@@ -5116,7 +5645,7 @@ async function _executarEnvioCalcEntregasInterno(){
     for(const p of lista){
       const custo = _valorCustoEfetivo(p);
       if(custo == null) continue;
-      ruasEnvio.push({ end: p.cliente_endereco, valor: custo });
+      ruasEnvio.push({ end: p.cliente_endereco, valor: custo, grupo: p.grupo_entrega || null });
       const {error} = await client.from('pedidos_entrega_dia')
         .update({
           valor_entrega: custo,
