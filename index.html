@@ -4095,10 +4095,15 @@ function _valorTravadoRua(membros){
 function _htmlSelectCusto(pedidoId, valorAtual, bloqueado, travado){
   const opts = cacheOpcoesCusto || [];
   const atual = (valorAtual != null && valorAtual !== '') ? Number(valorAtual) : null;
-  const dis = bloqueado ? ' disabled' : '';
-  const trav = (!bloqueado && travado != null && !isNaN(travado)) ? Number(travado) : null;
+  const isEnt = !!(usuarioLogado && !usuarioLogado.isMaster);
+  const travNum = (travado != null && !isNaN(Number(travado))) ? Number(travado) : null;
+  // Entregador: valor consolidado da rua → select travado (não altera)
+  const travaEntregador = isEnt && travNum != null && !bloqueado;
+  const dis = (bloqueado || travaEntregador) ? ' disabled' : '';
+  // Mantém lógica antiga de opções: só o valor consolidado quando travado no cadastro
+  const trav = (!bloqueado && travNum != null) ? travNum : null;
   let html = `<select id="selCusto_${pedidoId}" onchange="onChangeCustoPedido('${pedidoId}')"${dis}>`;
-  html += `<option value="">— escolher —</option>`;
+  if(!travaEntregador) html += `<option value="">— escolher —</option>`;
   if(trav != null){
     // Valor do cadastro (base ou faixa por número): só essa opção; pré-seleciona se ainda sem valor
     const o = opts.find(x=> Math.abs(Number(x.custo) - trav) < 0.001);
@@ -4106,10 +4111,16 @@ function _htmlSelectCusto(pedidoId, valorAtual, bloqueado, travado){
     html += o
       ? `<option value="${o.id}" data-custo="${trav}"${selT}>R$ ${trav.toFixed(2)}</option>`
       : `<option value="__manual_${trav}" data-custo="${trav}"${selT}>R$ ${trav.toFixed(2)}</option>`;
-    if(atual != null && !isNaN(atual) && Math.abs(atual - trav) >= 0.001){
+    if(!travaEntregador && atual != null && !isNaN(atual) && Math.abs(atual - trav) >= 0.001){
       html += `<option value="__manual_${atual}" data-custo="${atual}" selected>R$ ${atual.toFixed(2)} (atual)</option>`;
     }
     html += `</select>`;
+    if(travaEntregador){
+      return `<div class="custo-select-travado" style="position:relative;width:100%;cursor:not-allowed" onclick="avisoValorConsolidadoTravado(event)" title="Valor consolidado — solicite alteração ao administrador">
+      ${html}
+      <div style="position:absolute;inset:0;z-index:2;cursor:not-allowed" aria-hidden="true"></div>
+    </div>`;
+    }
     return html;
   }
   opts.forEach(o=>{
@@ -4122,6 +4133,19 @@ function _htmlSelectCusto(pedidoId, valorAtual, bloqueado, travado){
   }
   html += `</select>`;
   return html;
+}
+
+/** Entregador clicou no select de valor já consolidado na rua. */
+function avisoValorConsolidadoTravado(ev){
+  try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(e){}
+  const msg = 'O valor dessa rua já está definido, para alterar solicite ao administrador!';
+  try{
+    if(typeof mostrarAlerta === 'function'){
+      mostrarAlerta(msg, { tipo:'aviso', titulo:'Valor consolidado', icone:'🔒' });
+      return;
+    }
+  }catch(e){}
+  try{ alert(msg); }catch(e){}
 }
 
 function getPedidosAbaCusto(){
@@ -5491,6 +5515,17 @@ function onChangeCustoPedido(pedidoId){
     renderAbaCusto();
     return;
   }
+  // Valor consolidado da rua: não permite alteração pelo entregador
+  try{
+    if(p && typeof _valorTravadoRua === 'function'){
+      const tv = _valorTravadoRua([p]);
+      if(tv != null && !isNaN(Number(tv))){
+        avisoValorConsolidadoTravado();
+        renderAbaCusto();
+        return;
+      }
+    }
+  }catch(e){}
   const st = document.getElementById('custoSt_'+pedidoId);
   const sel = document.getElementById('selCusto_'+pedidoId);
   if(!sel) return;
