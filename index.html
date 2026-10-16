@@ -713,7 +713,7 @@ body.modo-entregador .btn-entregador-localizador{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 151026.140800</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 151026.212353</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -723,6 +723,7 @@ body.modo-entregador .btn-entregador-localizador{
 <button class="btn" id="btnDinheiro" onclick="abrirModalDinheiro()" style="display:none;font-size:11px;padding:8px 10px;position:relative;background:#1a2a1a;border-color:#2a5a3a;color:#3dcc8a" title="Controle de dinheiro (somente leitura)">
   💵 <span id="badgeDinheiro" style="display:none;position:absolute;top:-6px;right:-6px;background:#ff6b6b;color:#fff;font-size:10px;font-weight:900;min-width:18px;height:18px;border-radius:999px;align-items:center;justify-content:center;padding:0 4px">0</span>
 </button>
+<button class="btn" id="btnRelatorio" onclick="abrirModalRelatorios()" style="display:none;font-size:15px;padding:6px 10px;line-height:1;background:#141a2a;border-color:#2a4a7a;color:#6ab7ff" title="Relatórios" aria-label="Relatórios">📈</button>
 <button class="btn red" id="btnLimpeza30" onclick="abrirAlertaLimpeza30()" style="display:none;font-size:11px;padding:8px 10px" title="Excluir pedidos com mais de 30 dias no Supabase" aria-label="Limpeza 30 dias">🗑️ <span class="hlbl">Limpeza 30d</span></button>
 <button class="btn" id="btnModoAgrupar" onclick="toggleModoAgrupamento()" style="display:none;font-size:11px;padding:8px 10px;background:#1c1c12;border-color:#5a4a2a;color:#f0c14a" title="Agrupar pedidos com mesmo endereço (1 entrega)" aria-label="Agrupar">🔗 <span class="hlbl">Agrupar</span></button>
 <button class="btn" id="btnTrocarConta" onclick="abrirModalTrocarConta()" style="display:none;font-size:15px;padding:6px 10px;line-height:1;background:#141a2a;border-color:#2a4a7a;color:#6ab7ff" title="Trocar de conta (Master)" aria-label="Trocar de conta">🔄</button>
@@ -783,6 +784,27 @@ Pedidos <b>finalizados</b> em <b style="color:#ff6b6b">DINHEIRO</b> que ainda n�
 </div>
 </div>
 
+<div id="modalRelatorios" class="overlay" style="display:none;z-index:245">
+<div id="relCard" class="card" style="width:100%;max-width:560px;max-height:92vh;overflow:auto;margin:0">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+<h3 style="margin:0;color:#6ab7ff">📈 Relatórios</h3>
+<button class="btn" onclick="fecharModalRelatorios()">✕</button>
+</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+<button class="btn small" id="relPerHoje" onclick="relSetPeriodo('hoje')">Hoje</button>
+<button class="btn small" id="relPerSemana" onclick="relSetPeriodo('semana')">Semana</button>
+<button class="btn small" id="relPerMes" onclick="relSetPeriodo('mes')">Mês</button>
+<select id="relEntregador" onchange="relSetEntregador(this.value)" style="display:none;flex:1;min-width:150px;padding:7px 8px;font-size:12px;border-radius:10px;border:1px solid #2c3340;background:#0e1118;color:#fff"><option value="">👥 Todos os entregadores</option></select>
+</div>
+<div id="relStatus" style="font-size:11px;color:#8b93a7;margin-bottom:10px;min-height:14px"></div>
+<div id="relConteudo"></div>
+<div style="margin-top:14px;display:flex;gap:8px">
+<button class="btn" style="flex:1" onclick="relAtualizar()">🔄 Atualizar</button>
+<button class="btn" style="flex:1" onclick="fecharModalRelatorios()">Fechar</button>
+</div>
+</div>
+</div>
+
 <div id="cfgPass" class="overlay" style="display:none;z-index:210"><!-- senha removida -->
 <div class="card" style="width:100%;max-width:360px;">
 <h3 style="color:#f0c14a;margin:0 0 10px">Senha do menu</h3>
@@ -823,10 +845,10 @@ create table if not exists entregadores (
   senha text not null,
   is_master boolean default false,
   ativo boolean default true,
-  abas_visiveis jsonb default '{"rota":true,"pedidos":true,"custo":true,"faturamento":true}'::jsonb,
+  abas_visiveis jsonb default '{"rota":true,"pedidos":true,"custo":true,"faturamento":true,"relatorio":true}'::jsonb,
   created_at timestamp default now()
 );
-alter table entregadores add column if not exists abas_visiveis jsonb default '{"rota":true,"pedidos":true,"custo":true,"faturamento":true}'::jsonb;
+alter table entregadores add column if not exists abas_visiveis jsonb default '{"rota":true,"pedidos":true,"custo":true,"faturamento":true,"relatorio":true}'::jsonb;
 alter table entregadores enable row level security;
 create policy "libera tudo anon entregadores" on entregadores for all using (true) with check (true);
 -- Cadastre usuários apenas pela tela Configurações → Entregadores (Master).
@@ -1133,13 +1155,13 @@ where numero_alto is not null and valor_alto is not null
 </div>
 <div id="abaFuncoes" style="display:none">
 <div style="font-size:11px;color:#8b93a7;margin-bottom:12px;line-height:1.4">
-Controle quais <b style="color:#f0c14a">abas</b> cada entregador vê no app. Marque para exibir e desmarque para ocultar. Salvo na tabela <b style="color:#f0c14a">entregadores</b> (coluna <code style="color:#f0c14a">abas_visiveis</code>).
+Controle quais <b style="color:#f0c14a">abas</b> e o botão <b style="color:#f0c14a">📈 Relatórios</b> (cabeçalho) cada entregador vê no app. Marque para exibir e desmarque para ocultar. Salvo na tabela <b style="color:#f0c14a">entregadores</b> (coluna <code style="color:#f0c14a">abas_visiveis</code>).
 </div>
 <div id="funcoesStatus" style="font-size:11px;color:#8b93a7;text-align:center;margin:0 0 10px;min-height:16px"></div>
 <div id="listaFuncoesAbas" style="display:flex;flex-direction:column;gap:10px;max-height:55vh;overflow:auto"></div>
 <div style="margin-top:12px;padding:10px;background:#0e1118;border:1px solid #2c3340;border-radius:8px;font-size:10px;color:#8b93a7">
 <b style="color:#f0c14a">SQL - rode uma vez no Supabase:</b><br/>
-<code style="color:#fff;display:block;margin-top:6px;white-space:pre-wrap">alter table entregadores add column if not exists abas_visiveis jsonb default '{"rota":true,"pedidos":true,"custo":true,"faturamento":true}'::jsonb;</code>
+<code style="color:#fff;display:block;margin-top:6px;white-space:pre-wrap">alter table entregadores add column if not exists abas_visiveis jsonb default '{"rota":true,"pedidos":true,"custo":true,"faturamento":true,"relatorio":true}'::jsonb;</code>
 </div>
 </div>
 <div id="abaHorarios" style="display:none">
@@ -2225,9 +2247,10 @@ const ABAS_ENTREGADOR_KEYS = [
   { key: 'rota', label: '🛵 Em rota' },
   { key: 'pedidos', label: '📋 Pedidos' },
   { key: 'custo', label: '💵 Custo' },
-  { key: 'faturamento', label: '📊 Faturamento' }
+  { key: 'faturamento', label: '📊 Faturamento' },
+  { key: 'relatorio', label: '📈 Relatórios' } // botão 📈 no cabeçalho (não é aba da barra)
 ];
-const ABAS_DEFAULT = { rota: true, pedidos: true, custo: true, faturamento: true };
+const ABAS_DEFAULT = { rota: true, pedidos: true, custo: true, faturamento: true, relatorio: true };
 
 function normalizarAbasVisiveis(raw){
   const out = Object.assign({}, ABAS_DEFAULT);
@@ -2270,9 +2293,10 @@ function aplicarVisibilidadeAbasEntregador(){
     if(!el) return;
     el.style.display = (isMaster || abas[k]) ? '' : 'none';
   });
+  try{ atualizarBotaoRelatorio(); }catch(e){}
   // Se a aba atual ficou oculta, muda para a primeira visível e re-renderiza
   if(!isMaster && usuarioLogado && !abas[abaEntregadorAtual]){
-    const primeira = ABAS_ENTREGADOR_KEYS.find(a => abas[a.key]);
+    const primeira = ABAS_ENTREGADOR_KEYS.find(a => a.key !== 'relatorio' && abas[a.key]);
     if(primeira){
       try{ setAbaEntregador(primeira.key); }catch(e){ abaEntregadorAtual = primeira.key; }
     }
@@ -2398,10 +2422,10 @@ async function salvarAbaVisivelEntregador(chk){
     if(k) abas[k] = !!b.checked;
   });
   // Garante ao menos uma aba visível
-  if(!Object.values(abas).some(Boolean)){
+  if(!ABAS_ENTREGADOR_KEYS.some(a => a.key !== 'relatorio' && abas[a.key])){
     chk.checked = true;
     abas[abaKey] = true;
-    if(st){ st.textContent = '⚠️ Deixe pelo menos uma aba visível'; st.style.color = '#f0c14a'; }
+    if(st){ st.textContent = '⚠️ Deixe pelo menos uma aba visível (Em rota, Pedidos, Custo ou Faturamento)'; st.style.color = '#f0c14a'; }
     return;
   }
   if(st){ st.textContent = 'Salvando…'; st.style.color = '#8b93a7'; }
@@ -6675,6 +6699,7 @@ function _executarLogout(){
   const btnLimpeza = document.getElementById('btnLimpeza30'); if(btnLimpeza) btnLimpeza.style.display='none';
   const btnAgrupar = document.getElementById('btnModoAgrupar'); if(btnAgrupar) btnAgrupar.style.display='none';
   const btnDin = document.getElementById('btnDinheiro'); if(btnDin) btnDin.style.display='none';
+  try{ atualizarBotaoRelatorio(); }catch(e){}
   const btnCh = document.getElementById('btnChamar'); if(btnCh){ btnCh.style.display='none'; btnCh.classList.remove('chamando'); }
   const btnChM = document.getElementById('btnChamarMaster'); if(btnChM){ btnChM.style.display='none'; btnChM.classList.remove('chamando'); }
   try{ pararTudoChamadaLocal(); }catch(e){}
@@ -12020,6 +12045,474 @@ function trocarContaIdx(i){
   location.reload();
 }
 // =================== FIM TROCAR CONTA ===================
+
+// ===================== RELATÓRIOS DO ENTREGADOR (somente leitura) =====================
+// Fonte: pedidos_entrega_dia. Finalizado = codigo_informado | finalizado | entregue (isPedidoFinalizado).
+// Rota = pedidos do mesmo entregador agrupados por janela de ~10 min (entregador_added_at) — ROTA_JANELA_MS.
+const REL_MAX_INTERVALO_MIN = 120; // intervalos maiores que isso são ignorados no ritmo (finalização esquecida/automática)
+const REL_MAX_ROTA_MIN = 180;      // rotas mais longas que isso são ignoradas no ritmo
+const REL_DIAS = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+const REL_DIAS_LONGO = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
+const REL_LISTA = [
+  { id:'volume', ico:'📦', nome:'Volume de entregas',
+    obj:'Quantas entregas você fez hoje, na semana e no mês, e como está em relação à semana passada.',
+    formula:'<b>Total</b> = nº de pedidos finalizados no dia / semana (seg→hoje) / mês.<br><b>Média por dia</b> = total do período ÷ dias com pelo menos 1 entrega.<br><b>Vs. semana anterior</b> = (esta semana seg→hoje) − (semana passada seg→mesmo dia); % = diferença ÷ semana passada.',
+    campos:'data, status, entregador_nome',
+    formato:'Cartões com números + tabela dia a dia (esta semana × semana passada).',
+    filtros:'Hoje · Semana · Mês (afeta a média) · Entregador (Master). Os totais de dia/semana/mês aparecem sempre.' },
+  { id:'turno', ico:'🌗', nome:'Almoço × Jantar',
+    obj:'Em qual turno você entrega mais e em qual ganha mais.',
+    formula:'<b>Quantidade</b> = pedidos finalizados por turno.<br><b>Valor</b> = soma de valor_entrega por turno.<br><b>% do total</b> = valor do turno ÷ valor dos dois turnos.',
+    campos:'created_at (horário do pedido; o turno é deduzido pelos horários de almoço/jantar das Configurações), valor_entrega, status, data, entregador_nome',
+    formato:'Dois cartões + barras comparando quantidade e valor.',
+    filtros:'Hoje · Semana · Mês · Entregador (Master)' },
+  { id:'ritmo', ico:'⏱️', nome:'Ritmo das rotas',
+    obj:'Quanto tempo você leva entre uma entrega e outra e quanto dura uma rota inteira.',
+    formula:'<b>Rota</b> = pedidos do mesmo entregador com entregador_added_at a até 10 min do anterior.<br><b>Tempo entre entregas</b> = média das diferenças entre finalizações seguidas na mesma rota (rotas com 2+ entregas).<br><b>Duração da rota</b> = último − primeiro codigo_informado_em da rota.<br><b>Da pegada à última entrega</b> = último codigo_informado_em − primeiro entregador_added_at.<br>Intervalos acima de 2 h e rotas acima de 3 h são ignorados (finalização esquecida).',
+    campos:'entregador_added_at, codigo_informado_em, status, data, entregador_nome',
+    formato:'Três números + tabela das últimas rotas.',
+    filtros:'Hoje · Semana · Mês · Entregador (Master)' },
+  { id:'ganho', ico:'💰', nome:'Ganho',
+    obj:'Quanto você ganhou no período, o valor médio por entrega e em quais faixas de valor estão suas entregas.',
+    formula:'<b>Total</b> = soma de valor_entrega dos pedidos finalizados.<br><b>Valor médio</b> = total ÷ nº de entregas com valor lançado (> 0).<br><b>Faixas</b> = cada valor cadastrado em Custo de Entregas (config_custo_entregas): contagem e soma das entregas com aquele valor_entrega; valores fora da lista aparecem em “Outros valores”.',
+    campos:'valor_entrega, status, data, entregador_nome; config_custo_entregas.custo (faixas)',
+    formato:'Cartões + barras por valor cadastrado.',
+    filtros:'Hoje · Semana · Mês · Entregador (Master)' },
+  { id:'semanal', ico:'📅', nome:'Padrão semanal',
+    obj:'Quais dias da semana (seg–dom) têm mais entregas, para você se planejar.',
+    formula:'<b>Entregas por dia da semana</b> = pedidos finalizados agrupados pelo dia da semana de data.<br><b>Média por dia</b> = entregas ÷ nº de datas diferentes daquele dia da semana com entrega.<br>Use Semana ou Mês para ver o padrão (com “Hoje” só aparece o dia de hoje).',
+    campos:'data, status, entregador_nome',
+    formato:'Barras de segunda a domingo + dia mais forte / mais fraco.',
+    filtros:'Hoje · Semana · Mês · Entregador (Master)' },
+  { id:'operacional', ico:'💵', nome:'Operacional (dinheiro e pagamento)',
+    obj:'Quanto dinheiro você ainda precisa repassar à loja e como seus clientes pagam.',
+    formula:'<b>A repassar</b> = pedidos finalizados em dinheiro/espécie com recebido ≠ sim (de qualquer data); valor = soma de valor.<br><b>Proporção</b> = pedidos finalizados no período por forma de pagamento (pago, cartão, dinheiro) ÷ total.',
+    campos:'forma_pagamento, recebido, status, valor (valor do pedido, para o repasse), data, entregador_nome',
+    formato:'Cartões + tabela de pendências por dia + barras de proporção.',
+    filtros:'Hoje · Semana · Mês (afeta a proporção) · Entregador (Master). O repasse pendente ignora o período.' },
+  { id:'rotas', ico:'🛵', nome:'Rotas',
+    obj:'Quantos pedidos você leva por saída e quantas saídas são de 1 pedido só.',
+    formula:'<b>Média de pedidos por rota</b> = pedidos finalizados ÷ nº de rotas.<br><b>% com 1 pedido</b> = rotas de 1 pedido ÷ total de rotas; <b>% agrupadas</b> = rotas com 2+ pedidos ÷ total.<br>Rota = janela de 10 min em entregador_added_at.',
+    campos:'entregador_added_at, status, data, entregador_nome',
+    formato:'Cartões + barras por tamanho de rota (1, 2, 3, 4+).',
+    filtros:'Hoje · Semana · Mês · Entregador (Master)' }
+];
+let _rel = { periodo:'semana', entregador:'', tela:'menu', rel:'', rows:[], pend:[], custos:[], carregadoEm:0, carregando:false, erro:'' };
+
+function atualizarBotaoRelatorio(){
+  const b = document.getElementById('btnRelatorio'); if(!b) return;
+  b.style.display = (usuarioLogado && abaVisivelParaUsuario('relatorio')) ? 'inline-block' : 'none';
+}
+
+/* ---------- utilidades ---------- */
+function _relEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function _relAdd(iso, n){ const d = new Date(iso+'T12:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); }
+function _relDow(iso){ return (new Date(iso+'T12:00:00Z').getUTCDay()+6)%7; } // 0=seg … 6=dom
+function _relIniSemana(iso){ return _relAdd(iso, -_relDow(iso)); }
+function _relIntervalo(periodo, hoje){
+  if(periodo==='hoje') return [hoje, hoje];
+  if(periodo==='mes') return [hoje.slice(0,8)+'01', hoje];
+  return [_relIniSemana(hoje), hoje];
+}
+function _relFmtData(iso){ return iso ? iso.slice(8,10)+'/'+iso.slice(5,7) : ''; }
+function _relNum(n, d){ return Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:(d==null?1:d)}); }
+function _relMoeda(n){ return 'R$ '+Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function _relPct(a,b){ return b>0 ? _relNum(a/b*100,0)+'%' : '0%'; }
+function _relDur(min){
+  if(min==null || !isFinite(min)) return '–';
+  if(min < 60) return _relNum(min, min<10?1:0)+' min';
+  const h = Math.floor(min/60), m = Math.round(min%60);
+  return h+'h '+String(m).padStart(2,'0')+'min';
+}
+function _relMedia(arr){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null; }
+function _relValor(p){ const v = Number(p && p.valor_entrega); return isFinite(v) && v>0 ? v : 0; }
+function _relTurno(p){
+  // A tabela não tem coluna turno: deduz pelo horário do pedido (created_at) e pelos horários de turno configurados.
+  try{
+    const t = getTurno({ created_at: p.created_at || p.entregador_added_at || p.codigo_informado_em });
+    if(t==='almoco' || t==='jantar') return t;
+  }catch(e){}
+  return 'jantar';
+}
+function _relHoraFmt(ms){
+  try{ return new Date(ms).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).replace(',',''); }
+  catch(e){ return ''; }
+}
+
+/* ---------- blocos visuais ---------- */
+function _relCards(arr){
+  return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px;margin:10px 0">'
+    + arr.map(c=>'<div style="background:#0e1118;border:1px solid #2c3340;border-radius:12px;padding:10px">'
+      + '<div style="font-size:10px;color:#8b93a7;font-weight:700">'+c.t+'</div>'
+      + '<div style="font-size:20px;font-weight:900;color:'+(c.cor||'#f0c14a')+';margin-top:2px">'+c.v+'</div>'
+      + (c.s ? '<div style="font-size:10px;color:#8b93a7;margin-top:3px;line-height:1.3">'+c.s+'</div>' : '')
+      + '</div>').join('')
+    + '</div>';
+}
+function _relBarras(linhas){
+  const max = Math.max(1, ...linhas.map(l=>l.v));
+  return linhas.map(l=>'<div style="margin:8px 0">'
+    + '<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;margin-bottom:3px"><span>'+l.r+'</span><span style="color:#8b93a7;text-align:right">'+l.txt+'</span></div>'
+    + '<div style="height:10px;background:#0e1118;border-radius:999px;overflow:hidden"><div style="height:100%;width:'+(l.v/max*100).toFixed(1)+'%;background:'+(l.cor||'#f0c14a')+';border-radius:999px"></div></div>'
+    + '</div>').join('');
+}
+function _relTabela(cab, linhas){
+  return '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>'
+    + cab.map((c,i)=>'<th style="text-align:'+(i?'right':'left')+';padding:6px 4px;color:#8b93a7;font-size:10px;border-bottom:1px solid #2c3340;white-space:nowrap">'+c+'</th>').join('')
+    + '</tr></thead><tbody>'
+    + linhas.map(l=>'<tr>'+l.map((c,i)=>'<td style="text-align:'+(i?'right':'left')+';padding:6px 4px;border-bottom:1px solid #1c212e;white-space:nowrap">'+c+'</td>').join('')+'</tr>').join('')
+    + '</tbody></table></div>';
+}
+function _relTitulo(t){ return '<div style="font-size:12px;font-weight:800;color:#6ab7ff;margin:14px 0 4px">'+t+'</div>'; }
+function _relVazio(msg){ return '<div style="text-align:center;color:#8b93a7;font-size:12px;padding:18px 8px">'+msg+'</div>'; }
+function _relDelta(atual, ant){
+  if(!ant) return '<span style="color:#8b93a7">semana passada: '+ant+'</span>';
+  const d = atual-ant, pc = d/ant*100;
+  const cor = d>0 ? '#3dcc8a' : (d<0 ? '#ff6b6b' : '#8b93a7');
+  const seta = d>0 ? '▲' : (d<0 ? '▼' : '■');
+  return '<span style="color:'+cor+'">'+seta+' '+(d>0?'+':'')+d+' ('+(pc>0?'+':'')+_relNum(pc,0)+'%)</span>';
+}
+
+/* ---------- rotas (janela de 10 min em entregador_added_at) ---------- */
+function _relAnalisarRotas(lista){
+  const porEnt = {}; let semMarca = 0;
+  lista.forEach(p=>{
+    const t = p.entregador_added_at ? new Date(p.entregador_added_at).getTime() : NaN;
+    if(!isFinite(t)){ semMarca++; return; }
+    const k = String(p.entregador_nome||'').trim().toLowerCase();
+    (porEnt[k] = porEnt[k] || []).push({ p, t });
+  });
+  const rotas = [];
+  Object.keys(porEnt).forEach(k=>{
+    const arr = porEnt[k].sort((a,b)=>a.t-b.t);
+    let atual = null;
+    arr.forEach(it=>{
+      if(!atual || (it.t - atual.ultT) > ROTA_JANELA_MS){
+        atual = { ent:k, pedidos:[it.p], iniT:it.t, ultT:it.t };
+        rotas.push(atual);
+      } else { atual.pedidos.push(it.p); atual.ultT = it.t; }
+    });
+  });
+  rotas.forEach(r=>{
+    const fins = r.pedidos.map(p=> p.codigo_informado_em ? new Date(p.codigo_informado_em).getTime() : NaN).filter(x=>isFinite(x)).sort((a,b)=>a-b);
+    r.fins = fins; r.intervalos = []; r.dur = null; r.saidaAteUlt = null;
+    if(fins.length){
+      const s = (fins[fins.length-1] - r.iniT)/60000;
+      if(s >= 0 && s <= REL_MAX_ROTA_MIN) r.saidaAteUlt = s;
+    }
+    if(fins.length >= 2){
+      const d = (fins[fins.length-1] - fins[0])/60000;
+      if(d <= REL_MAX_ROTA_MIN){
+        r.dur = d;
+        for(let i=1;i<fins.length;i++){
+          const iv = (fins[i]-fins[i-1])/60000;
+          if(iv <= REL_MAX_INTERVALO_MIN) r.intervalos.push(iv);
+        }
+      }
+    }
+  });
+  rotas.sort((a,b)=>b.iniT-a.iniT);
+  return { rotas, semMarca };
+}
+
+/* ---------- carga de dados ---------- */
+async function _relCarregar(){
+  if(_rel.carregando) return;
+  const client = getSb();
+  if(!client){ _rel.erro = 'Supabase não configurado'; _relRender(); return; }
+  _rel.carregando = true; _rel.erro = ''; _relRender();
+  try{
+    const hoje = getHojeSP();
+    const iniMes = hoje.slice(0,8)+'01';
+    const iniAnt = _relAdd(_relIniSemana(hoje), -7);
+    const ini = iniMes < iniAnt ? iniMes : iniAnt;
+    const master = !!(usuarioLogado && usuarioLogado.isMaster);
+    const nome = nomeEntregadorAtual();
+    const rows = await _cliLerTudo(()=>{
+      let q = client.from('pedidos_entrega_dia')
+        .select('id,data,status,entregador_nome,created_at,valor_entrega,forma_pagamento,recebido,entregador_added_at,codigo_informado_em')
+        .gte('data', ini).lte('data', hoje)
+        .not('entregador_nome','is',null)
+        .order('data',{ascending:true}).order('id',{ascending:true});
+      if(!master) q = q.ilike('entregador_nome', nome);
+      return q;
+    });
+    _rel.rows = (rows||[]).filter(p=> p && String(p.entregador_nome||'').trim());
+    // Dinheiro pendente: qualquer data (não depende do período)
+    try{
+      const pend = await _cliLerTudo(()=>{
+        let q = client.from('pedidos_entrega_dia')
+          .select('id,data,status,entregador_nome,forma_pagamento,recebido,valor')
+          .or('forma_pagamento.ilike.%dinheiro%,forma_pagamento.ilike.%especie%,forma_pagamento.ilike.%espécie%')
+          .not('entregador_nome','is',null)
+          .order('data',{ascending:true}).order('id',{ascending:true});
+        if(!master) q = q.ilike('entregador_nome', nome);
+        return q;
+      });
+      _rel.pend = (pend||[]).filter(p=> p && String(p.entregador_nome||'').trim());
+    }catch(e){ console.warn('relatorio pendentes', e); _rel.pend = _rel.rows.slice(); }
+    try{ _rel.custos = (await carregarOpcoesCusto() || []).map(o=>Number(o.custo)).filter(v=>isFinite(v) && v>0); }
+    catch(e){ _rel.custos = []; }
+    _rel.carregadoEm = Date.now();
+    _relPreencherEntregadores();
+  }catch(e){
+    console.warn('relatorios', e);
+    _rel.erro = 'Erro ao carregar: ' + String((e && e.message) || e);
+  }finally{
+    _rel.carregando = false;
+    _relRender();
+  }
+}
+function _relPreencherEntregadores(){
+  const sel = document.getElementById('relEntregador'); if(!sel) return;
+  const master = !!(usuarioLogado && usuarioLogado.isMaster);
+  sel.style.display = master ? '' : 'none';
+  if(!master) return;
+  const nomes = {};
+  _rel.rows.concat(_rel.pend).forEach(p=>{
+    const n = String(p.entregador_nome||'').trim(); const k = n.toLowerCase();
+    if(n && !nomes[k]) nomes[k] = n;
+  });
+  const ks = Object.keys(nomes).sort((a,b)=>nomes[a].localeCompare(nomes[b],'pt-BR'));
+  if(_rel.entregador && ks.indexOf(_rel.entregador) < 0) _rel.entregador = '';
+  sel.innerHTML = '<option value="">👥 Todos os entregadores</option>'
+    + ks.map(k=>'<option value="'+_relEsc(k)+'"'+(k===_rel.entregador?' selected':'')+'>🛵 '+_relEsc(nomes[k])+'</option>').join('');
+}
+function _relCtx(){
+  const hoje = getHojeSP();
+  const par = _relIntervalo(_rel.periodo, hoje);
+  const master = !!(usuarioLogado && usuarioLogado.isMaster);
+  const ent = master ? _rel.entregador : '';
+  const doEnt = p => !ent || String(p.entregador_nome||'').trim().toLowerCase() === ent;
+  const fin = _rel.rows.filter(p=> isPedidoFinalizado(p) && doEnt(p));
+  const pend = _rel.pend.filter(p=> precisaControleCaixa(p) && doEnt(p));
+  const ini = par[0], fim = par[1];
+  return { hoje, ini, fim, master, ent, fin, pend, noPer: fin.filter(p=> p.data >= ini && p.data <= fim) };
+}
+
+/* ---------- relatórios ---------- */
+function _relVolume(c){
+  const h = c.hoje, iniSem = _relIniSemana(h), iniMes = h.slice(0,8)+'01';
+  const cnt = (a,b)=> c.fin.filter(p=> p.data>=a && p.data<=b).length;
+  const totDia = cnt(h,h), totSem = cnt(iniSem,h), totMes = cnt(iniMes,h);
+  const dow = _relDow(h), iniAnt = _relAdd(iniSem,-7), fimAntMesmo = _relAdd(iniAnt,dow);
+  const semAnt = cnt(iniAnt, fimAntMesmo), semAntInteira = cnt(iniAnt, _relAdd(iniSem,-1));
+  const dias = new Set(c.noPer.map(p=>p.data)).size;
+  const media = dias ? c.noPer.length/dias : 0;
+  let html = _relCards([
+    { t:'Hoje', v:totDia },
+    { t:'Esta semana (seg→hoje)', v:totSem, s:_relDelta(totSem, semAnt)+' vs semana passada' },
+    { t:'Este mês', v:totMes },
+    { t:'Média por dia trabalhado', v:_relNum(media,1), s:c.noPer.length+' entrega(s) em '+dias+' dia(s) · filtro atual' }
+  ]);
+  html += _relTitulo('Semana atual × semana passada');
+  const linhas = [];
+  for(let i=0;i<7;i++){
+    const dA = _relAdd(iniSem,i), dP = _relAdd(iniAnt,i);
+    linhas.push([ REL_DIAS[i]+' <span style="color:#5a657a;font-size:10px">'+_relFmtData(dA)+'</span>', (i<=dow ? cnt(dA,dA) : '–'), cnt(dP,dP) ]);
+  }
+  linhas.push(['<b>Total</b>', '<b>'+totSem+'</b>', '<b>'+semAntInteira+'</b>']);
+  html += _relTabela(['Dia','Esta semana','Semana passada'], linhas);
+  if(c.master && !c.ent){
+    const por = {};
+    c.noPer.forEach(p=>{ const k = String(p.entregador_nome).trim(); (por[k] = por[k] || []).push(p); });
+    const ls = Object.keys(por).map(k=>{ const d = new Set(por[k].map(p=>p.data)).size; return [_relEsc(k), por[k].length, _relNum(por[k].length/d,1)]; })
+      .sort((a,b)=>b[1]-a[1]);
+    if(ls.length){ html += _relTitulo('Por entregador (filtro atual)') + _relTabela(['Entregador','Entregas','Média/dia'], ls); }
+  }
+  return html;
+}
+function _relTurnoRel(c){
+  if(!c.noPer.length) return _relVazio('Nenhuma entrega finalizada neste período.');
+  const t = { almoco:{q:0,v:0}, jantar:{q:0,v:0} };
+  c.noPer.forEach(p=>{ const k = _relTurno(p); t[k].q++; t[k].v += _relValor(p); });
+  const totQ = t.almoco.q + t.jantar.q, totV = t.almoco.v + t.jantar.v;
+  let html = _relCards([
+    { t:'☀️ Almoço', v:t.almoco.q+' entregas', s:_relMoeda(t.almoco.v)+' · '+_relPct(t.almoco.v,totV)+' do valor', cor:'#f0c14a' },
+    { t:'🌙 Jantar', v:t.jantar.q+' entregas', s:_relMoeda(t.jantar.v)+' · '+_relPct(t.jantar.v,totV)+' do valor', cor:'#b79cff' }
+  ]);
+  html += _relTitulo('Quantidade de entregas');
+  html += _relBarras([
+    { r:'☀️ Almoço', v:t.almoco.q, txt:t.almoco.q+' ('+_relPct(t.almoco.q,totQ)+')', cor:'#f0c14a' },
+    { r:'🌙 Jantar', v:t.jantar.q, txt:t.jantar.q+' ('+_relPct(t.jantar.q,totQ)+')', cor:'#b79cff' }
+  ]);
+  html += _relTitulo('Valor ganho');
+  html += _relBarras([
+    { r:'☀️ Almoço', v:t.almoco.v, txt:_relMoeda(t.almoco.v), cor:'#f0c14a' },
+    { r:'🌙 Jantar', v:t.jantar.v, txt:_relMoeda(t.jantar.v), cor:'#b79cff' }
+  ]);
+  const mA = t.almoco.q ? t.almoco.v/t.almoco.q : 0, mJ = t.jantar.q ? t.jantar.v/t.jantar.q : 0;
+  html += '<div style="font-size:11px;color:#8b93a7;margin-top:10px">Valor médio por entrega — almoço: <b style="color:#e6e8ef">'+_relMoeda(mA)+'</b> · jantar: <b style="color:#e6e8ef">'+_relMoeda(mJ)+'</b></div>';
+  return html;
+}
+function _relRitmo(c){
+  const an = _relAnalisarRotas(c.noPer);
+  const comIv = an.rotas.filter(r=> r.intervalos.length);
+  const ivs = []; comIv.forEach(r=> r.intervalos.forEach(x=> ivs.push(x)));
+  const durs = an.rotas.filter(r=> r.dur != null).map(r=>r.dur);
+  const saidas = an.rotas.filter(r=> r.saidaAteUlt != null).map(r=>r.saidaAteUlt);
+  if(!an.rotas.length) return _relVazio('Nenhuma rota finalizada neste período.');
+  let html = _relCards([
+    { t:'Tempo médio entre entregas', v:_relDur(_relMedia(ivs)), s:ivs.length ? ('base: '+ivs.length+' intervalo(s) em '+comIv.length+' rota(s)') : 'precisa de rotas com 2+ entregas' },
+    { t:'Duração média da rota', v:_relDur(_relMedia(durs)), s:'1ª → última entrega finalizada · '+durs.length+' rota(s)', cor:'#6ab7ff' },
+    { t:'Da pegada à última entrega', v:_relDur(_relMedia(saidas)), s:'inclui rotas de 1 pedido · '+saidas.length+' rota(s)', cor:'#3dcc8a' }
+  ]);
+  html += _relTitulo('Últimas rotas');
+  html += _relTabela(['Saída','Pedidos','Duração','Entre entregas'],
+    an.rotas.slice(0,8).map(r=>[ _relHoraFmt(r.iniT)+(c.master && !c.ent ? ' <span style="color:#5a657a;font-size:10px">'+_relEsc(r.pedidos[0].entregador_nome)+'</span>' : ''), r.pedidos.length, _relDur(r.dur), _relDur(_relMedia(r.intervalos)) ]));
+  return html;
+}
+function _relGanho(c){
+  if(!c.noPer.length) return _relVazio('Nenhuma entrega finalizada neste período.');
+  const comValor = c.noPer.filter(p=> _relValor(p) > 0);
+  const total = comValor.reduce((a,p)=>a+_relValor(p),0);
+  const media = comValor.length ? total/comValor.length : 0;
+  const dias = new Set(c.noPer.map(p=>p.data)).size;
+  let html = _relCards([
+    { t:'Total do período', v:_relMoeda(total), s:c.noPer.length+' entrega(s)', cor:'#3dcc8a' },
+    { t:'Valor médio por entrega', v:_relMoeda(media), s:'base: '+comValor.length+' com valor lançado' },
+    { t:'Média por dia trabalhado', v:_relMoeda(dias ? total/dias : 0), s:dias+' dia(s)', cor:'#6ab7ff' }
+  ]);
+  html += _relTitulo('Entregas por valor (Custo de Entregas)');
+  // Faixas = valores cadastrados em "Custo de Entregas" (config_custo_entregas); valores fora da lista vão em "Outros valores"
+  const cad = (_rel.custos||[]).slice().sort((a,b)=>a-b);
+  const eq = (a,b)=> Math.abs(a-b) < 0.005;
+  const faixas = cad.map(v=>{ const l = comValor.filter(p=> eq(_relValor(p), v)); return { r:_relMoeda(v), q:l.length, s:l.reduce((a,p)=>a+_relValor(p),0) }; });
+  const outros = comValor.filter(p=> !cad.some(v=> eq(_relValor(p), v)));
+  if(outros.length || !cad.length) faixas.push({ r: cad.length ? 'Outros valores' : 'Valores lançados', q:outros.length, s:outros.reduce((a,p)=>a+_relValor(p),0) });
+  html += _relBarras(faixas.map(x=>({ r:x.r, v:x.q, txt:x.q+' ('+_relPct(x.q,comValor.length)+') · '+_relMoeda(x.s), cor:'#3dcc8a' })));
+  return html;
+}
+function _relSemanal(c){
+  const ini = c.ini, fim = c.fim;
+  const lista = c.fin.filter(p=> p.data>=ini && p.data<=fim);
+  if(!lista.length) return _relVazio('Nenhuma entrega finalizada neste período.');
+  const por = REL_DIAS.map(()=>({ q:0, datas:new Set() }));
+  lista.forEach(p=>{ const i = _relDow(p.data); por[i].q++; por[i].datas.add(p.data); });
+  const med = por.map(x=> x.datas.size ? x.q/x.datas.size : 0);
+  const comDado = por.map((x,i)=>i).filter(i=>por[i].q>0);
+  const forte = comDado.reduce((a,i)=> por[i].q>por[a].q ? i : a, comDado[0]);
+  const fraco = comDado.reduce((a,i)=> por[i].q<por[a].q ? i : a, comDado[0]);
+  let html = _relCards([
+    { t:'Dia mais forte', v:REL_DIAS_LONGO[forte], s:por[forte].q+' entregas · média '+_relNum(med[forte],1)+'/dia', cor:'#3dcc8a' },
+    { t:'Dia mais fraco', v:REL_DIAS_LONGO[fraco], s:por[fraco].q+' entregas · média '+_relNum(med[fraco],1)+'/dia', cor:'#ff6b6b' }
+  ]);
+  html += _relBarras(por.map((x,i)=>({ r:REL_DIAS_LONGO[i], v:x.q, txt:x.q+' entregas · média '+_relNum(med[i],1)+'/dia', cor:i===forte?'#3dcc8a':'#f0c14a' })));
+  html += '<div style="font-size:10px;color:#5a657a;margin-top:8px">Período: '+_relFmtData(ini)+' a '+_relFmtData(fim)+'.</div>';
+  return html;
+}
+function _relOperacional(c){
+  const totPend = c.pend.reduce((a,p)=> a + (Number(p.valor)||0), 0);
+  let html = _relCards([
+    { t:'💵 A repassar à loja', v:_relMoeda(totPend), s:c.pend.length+' pedido(s) em dinheiro · qualquer data', cor:c.pend.length?'#ff6b6b':'#3dcc8a' }
+  ]);
+  if(c.pend.length){
+    const porDia = {};
+    c.pend.forEach(p=>{ const d = p.data||''; porDia[d] = porDia[d] || {q:0,v:0}; porDia[d].q++; porDia[d].v += (Number(p.valor)||0); });
+    html += _relTitulo('Pendências por dia');
+    html += _relTabela(['Data','Pedidos','Valor'], Object.keys(porDia).sort().reverse().slice(0,10).map(d=>[ _relFmtData(d), porDia[d].q, _relMoeda(porDia[d].v) ]));
+  } else {
+    html += '<div style="font-size:12px;color:#3dcc8a;margin:6px 0">✅ Nada pendente de repasse.</div>';
+  }
+  html += _relTitulo('Como os clientes pagaram (filtro atual)');
+  if(!c.noPer.length){ html += _relVazio('Nenhuma entrega finalizada neste período.'); return html; }
+  const g = { pago:0, cartao:0, dinheiro:0, outros:0 };
+  c.noPer.forEach(p=>{ if(isFormaJaPago(p)) g.pago++; else if(isFormaCartao(p)) g.cartao++; else if(isFormaDinheiro(p)) g.dinheiro++; else g.outros++; });
+  const tot = c.noPer.length;
+  const itens = [
+    { r:'✅ Pago (online)', v:g.pago, cor:'#3dcc8a' },
+    { r:'💳 Cartão', v:g.cartao, cor:'#6ab7ff' },
+    { r:'💵 Dinheiro', v:g.dinheiro, cor:'#ff6b6b' },
+    { r:'❔ Outros', v:g.outros, cor:'#8b93a7' }
+  ].filter(x=> x.v>0 || x.r.indexOf('Outros')<0);
+  html += _relBarras(itens.map(x=>({ r:x.r, v:x.v, txt:x.v+' ('+_relPct(x.v,tot)+')', cor:x.cor })));
+  return html;
+}
+function _relRotasRel(c){
+  const an = _relAnalisarRotas(c.noPer);
+  if(!an.rotas.length) return _relVazio('Nenhuma rota finalizada neste período.');
+  const n = an.rotas.length, ped = an.rotas.reduce((a,r)=>a+r.pedidos.length,0);
+  const uma = an.rotas.filter(r=>r.pedidos.length===1).length, agr = n - uma;
+  let html = _relCards([
+    { t:'Rotas no período', v:n, s:ped+' pedido(s)' },
+    { t:'Média de pedidos por rota', v:_relNum(ped/n,1), cor:'#6ab7ff' },
+    { t:'Rotas com 1 pedido', v:_relPct(uma,n), s:uma+' rota(s)', cor:'#ff6b6b' },
+    { t:'Rotas agrupadas (2+)', v:_relPct(agr,n), s:agr+' rota(s)', cor:'#3dcc8a' }
+  ]);
+  html += _relTitulo('Rotas por tamanho');
+  const tam = [1,2,3,4].map(k=> an.rotas.filter(r=> k<4 ? r.pedidos.length===k : r.pedidos.length>=4).length);
+  html += _relBarras(['1 pedido','2 pedidos','3 pedidos','4 ou mais'].map((r,i)=>({ r:r, v:tam[i], txt:tam[i]+' ('+_relPct(tam[i],n)+')', cor:i===0?'#ff6b6b':'#3dcc8a' })));
+  return html;
+}
+
+/* ---------- tela ---------- */
+function _relRender(){
+  const box = document.getElementById('relConteudo'); if(!box) return;
+  const st = document.getElementById('relStatus');
+  const hoje = getHojeSP();
+  [['hoje','relPerHoje'],['semana','relPerSemana'],['mes','relPerMes']].forEach(a=>{
+    const b = document.getElementById(a[1]); if(!b) return;
+    const on = _rel.periodo===a[0];
+    b.style.background = on ? 'linear-gradient(180deg,#f0c14a,#e8a93c)' : '#1c212e';
+    b.style.color = on ? '#1a1200' : '#fff';
+    b.style.border = on ? 'none' : '1px solid #2c3340';
+  });
+  const par = _relIntervalo(_rel.periodo, hoje);
+  const lbl = _rel.periodo==='hoje' ? ('Hoje · '+_relFmtData(hoje)) : (_rel.periodo==='semana' ? ('Semana · '+_relFmtData(par[0])+' a '+_relFmtData(par[1])) : ('Mês · '+_relFmtData(par[0])+' a '+_relFmtData(par[1])));
+  if(st){
+    if(_rel.carregando){ st.textContent = '⏳ Carregando dados…'; st.style.color = '#8b93a7'; }
+    else if(_rel.erro){ st.textContent = _rel.erro; st.style.color = '#ff6b6b'; }
+    else {
+      st.style.color = '#8b93a7';
+      st.innerHTML = '<b style="color:#e6e8ef">'+_relEsc(lbl)+'</b>';
+    }
+  }
+  if(_rel.carregando && !_rel.carregadoEm){ box.innerHTML = ''; return; }
+  if(_rel.erro && !_rel.carregadoEm){ box.innerHTML = ''; return; }
+  if(_rel.tela==='menu'){
+    box.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px">'
+      + REL_LISTA.map(r=>'<button class="btn" style="text-align:left;padding:12px;display:flex;gap:10px;align-items:flex-start;background:#0e1118" onclick="relAbrir(\''+r.id+'\')">'
+        + '<span style="font-size:22px;line-height:1">'+r.ico+'</span>'
+        + '<span style="flex:1"><span style="display:block;font-size:13px;font-weight:800;color:#f0c14a">'+r.nome+'</span>'
+        + '<span style="display:block;font-size:11px;color:#8b93a7;font-weight:500;margin-top:2px;line-height:1.35">'+r.obj+'</span></span>'
+        + '<span style="color:#5a657a;font-size:16px">›</span></button>').join('')
+      + '</div>';
+    return;
+  }
+  const def = REL_LISTA.find(r=>r.id===_rel.rel) || REL_LISTA[0];
+  const c = _relCtx();
+  let corpo = '';
+  try{
+    corpo = ({ volume:_relVolume, turno:_relTurnoRel, ritmo:_relRitmo, ganho:_relGanho, semanal:_relSemanal, operacional:_relOperacional, rotas:_relRotasRel })[def.id](c);
+  }catch(e){ console.warn('relatorio '+def.id, e); corpo = _relVazio('Não foi possível montar este relatório.'); }
+  box.innerHTML = '<button class="btn small" onclick="relVoltar()" style="margin-bottom:8px">← Relatórios</button>'
+    + '<div style="font-size:16px;font-weight:900;color:#f0c14a">'+def.ico+' '+def.nome+'</div>'
+    + '<div style="font-size:11px;color:#8b93a7;margin:3px 0 4px;line-height:1.4">'+def.obj+'</div>'
+    + corpo
+    + '<details style="margin-top:14px;background:#0e1118;border:1px solid #2c3340;border-radius:10px;padding:8px 10px">'
+    + '<summary style="cursor:pointer;font-size:11px;font-weight:800;color:#6ab7ff">Como é calculado</summary>'
+    + '<div style="font-size:11px;color:#c0c8d8;line-height:1.5;margin-top:8px">'+def.formula
+    + '<div style="margin-top:6px"><b style="color:#f0c14a">Campos:</b> '+def.campos+'</div>'
+    + '<div style="margin-top:4px"><b style="color:#f0c14a">Exibição:</b> '+def.formato+'</div>'
+    + '<div style="margin-top:4px"><b style="color:#f0c14a">Filtros:</b> '+def.filtros+'</div></div></details>';
+}
+function abrirModalRelatorios(){
+  if(!usuarioLogado || !abaVisivelParaUsuario('relatorio')) return;
+  const m = document.getElementById('modalRelatorios'); if(!m) return;
+  m.style.display = 'flex';
+  _rel.tela = 'menu'; _rel.rel = '';
+  _relPreencherEntregadores();
+  const velho = !_rel.carregadoEm || (Date.now() - _rel.carregadoEm) > 120000;
+  _relRender();
+  if(velho) _relCarregar();
+}
+function fecharModalRelatorios(){ const m = document.getElementById('modalRelatorios'); if(m) m.style.display = 'none'; }
+function relSetPeriodo(p){ _rel.periodo = p; _relRender(); }
+function relSetEntregador(v){ _rel.entregador = String(v||''); _relRender(); }
+function relAbrir(id){ _rel.tela = 'rel'; _rel.rel = id; _relRender(); const cd = document.getElementById('relCard'); if(cd) cd.scrollTop = 0; }
+function relVoltar(){ _rel.tela = 'menu'; _rel.rel = ''; _relRender(); }
+function relAtualizar(){ _relCarregar(); }
+// =================== FIM RELATÓRIOS ===================
 
 // ===================== CONTROLE DE DINHEIRO (somente leitura) =====================
 let _timerDinheiro = null;
