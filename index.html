@@ -278,41 +278,38 @@ body.ifood-modal-open{
 .rota-par .rota-lado{flex:0 0 22px;display:flex;align-items:center;justify-content:center;background:#0e1118;border:1px dashed #2a4a7a;border-radius:8px;color:#6ab7ff;font-size:9px;font-weight:800;line-height:1}
 .rota-par .rota-lado span{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap}
 .master-rota-grid3 .rota-par .pedido-mini{width:auto !important;flex:1 1 0;min-width:0 !important}
-/* Master Em rota: cards lado a lado; tempo ENTRE cards finalizados */
+/* Master Em rota: FINALIZADAS — 3 cards por linha; cada "unidade" = [tempo + seta →] + card.
+   O tempo/seta acompanha sempre o card seguinte (mesmo quando quebra de linha). */
 .master-rota-fin-row{
-  display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;align-items:stretch;
   grid-column:1 / -1;
   width:100%;
   box-sizing:border-box;
-  padding:2px 0 0;
+  padding:4px 0 0;
   border-top:1px dashed #2a3a5a;
   margin-top:4px;
-  justify-content:flex-start;
 }
-/* Largura travada (~1/3): não estica quando fica sozinho na linha */
-.master-rota-fin-row > .pedido-mini{
-  flex:0 0 calc((100% - 64px) / 3);
-  width:calc((100% - 64px) / 3);
-  max-width:calc((100% - 64px) / 3);
-  min-width:0;
-  box-sizing:border-box;
-  margin:0 !important;
+.master-rota-fin-unit{display:flex;gap:4px;min-width:0;align-items:stretch}
+.master-rota-fin-unit > .pedido-mini{
+  flex:1 1 0 !important;width:auto !important;max-width:none !important;min-width:0 !important;
+  box-sizing:border-box;margin:0 !important;
 }
-.master-rota-fin-row > .rota-lado-entre{
-  flex:0 0 26px;
-  width:26px;
+.master-rota-fin-unit > .rota-lado-entre,
+.master-rota-fin-unit > .rota-lado-vazio{
+  flex:0 0 24px;width:24px;box-sizing:border-box;
+}
+.master-rota-fin-unit > .rota-lado-entre{
   align-self:stretch;
-  display:flex;align-items:center;justify-content:center;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
   background:#0e1118;border:1px dashed #2a4a7a;border-radius:8px;
   color:#6ab7ff;font-size:9px;font-weight:800;line-height:1.1;
-  padding:4px 2px;box-sizing:border-box;min-height:48px;
+  padding:4px 2px;min-height:48px;
 }
-.master-rota-fin-row > .rota-lado-entre span{
-  writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;
-  letter-spacing:0.02em;
+.master-rota-fin-unit > .rota-lado-entre .rte-arrow{
+  display:block;font-size:13px;font-weight:900;line-height:1;color:#6ab7ff;
 }
-.master-rota-fin-row > .rota-lado-entre .rte-arrow{
-  display:block;font-size:11px;line-height:1;margin-top:3px;color:#6ab7ff;opacity:.95;
+.master-rota-fin-unit > .rota-lado-entre .rte-tempo{
+  writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;letter-spacing:0.02em;
 }
 .master-rota-pend-label,
 .master-rota-fin-label{
@@ -323,28 +320,17 @@ body.ifood-modal-open{
 .master-rota-pend-label{color:#f0c14a}
 .master-rota-fin-label{color:#3dcc8a;margin-top:2px}
 @media (max-width:640px){
-  .master-rota-fin-row > .pedido-mini{
-    flex:0 0 calc((100% - 38px) / 2);
-    width:calc((100% - 38px) / 2);
-    max-width:calc((100% - 38px) / 2);
-  }
+  .master-rota-fin-row{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media (max-width:400px){
-  .master-rota-fin-row > .pedido-mini{
-    flex:0 0 100%;
-    width:100%;
-    max-width:100%;
+  .master-rota-fin-row{grid-template-columns:1fr}
+  .master-rota-fin-unit{flex-direction:column}
+  .master-rota-fin-unit > .rota-lado-entre{
+    flex:0 0 auto;width:100%;min-height:26px;flex-direction:row;justify-content:center;
   }
-  .master-rota-fin-row > .rota-lado-entre{
-    flex:0 0 100%;width:100%;min-height:28px;
-  }
-  .master-rota-fin-row > .rota-lado-entre span{
-    writing-mode:horizontal-tb;transform:none;
-    display:inline-flex;align-items:center;gap:4px;
-  }
-  .master-rota-fin-row > .rota-lado-entre .rte-arrow{
-    display:inline;margin-top:0;transform:none;
-  }
+  .master-rota-fin-unit > .rota-lado-entre .rte-tempo{writing-mode:horizontal-tb;transform:none}
+  .master-rota-fin-unit > .rota-lado-entre .rte-arrow{transform:rotate(90deg)}
+  .master-rota-fin-unit > .rota-lado-vazio{display:none}
 }
 .rota-intervalo.ultima{color:#3dcc8a}
 .rota-intervalo.ultima::before,.rota-intervalo.ultima::after{border-top-color:#2a5a3a}
@@ -606,6 +592,8 @@ body.modo-entregador .btn-entregador-localizador{
 .conf-alerta-info{background:#f4f4f5;color:#71717a;border-radius:12px;padding:8px 12px;margin-bottom:8px;font-size:11px;font-weight:700}
 @keyframes bebidaPulse{0%,100%{background:#b91c1c;box-shadow:0 0 0 0 rgba(239,68,68,.7)}50%{background:#ef4444;box-shadow:0 0 0 4px rgba(239,68,68,0)}}
 .tag-bebida{flex:none;display:inline-block;font-size:8px;font-weight:900;letter-spacing:.05em;line-height:1;color:#fff;background:#dc2626;padding:3px 5px;border-radius:999px;margin-top:1px;white-space:nowrap;animation:bebidaPulse 1.1s infinite}
+.btn-refri-lista{display:inline-flex;align-items:center;gap:4px;flex:none;border:1px solid #ef4444;color:#fff;background:#b91c1c;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:900;line-height:1.2;cursor:pointer;white-space:nowrap;animation:bebidaPulse 1.1s infinite}
+.btn-refri-lista:active{transform:scale(.96)}
 .nome-bebida-wrap{display:flex;align-items:flex-start;gap:5px;min-width:0}
 @keyframes dinPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,107,107,.55)}50%{box-shadow:0 0 0 7px rgba(255,107,107,0)}}
 #btnDinheiro.din-alerta{animation:dinPulse 1.6s infinite;background:#2a1414 !important}
@@ -790,7 +778,7 @@ body.modo-entregador .btn-entregador-localizador{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 151026.225100</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 161026.133151</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -1504,6 +1492,17 @@ select '06:00','15:59','16:00','05:59','07:00','23:30',5,false where not exists 
   <code style="color:#c0c8d8">alter table public.pedidos_entrega_dia add column if not exists alerta_bebida text default 'nao';
 alter table public.pedidos_entrega_dia add column if not exists alerta_receber_valor text;</code>
 </div>
+</div>
+</div>
+
+<!-- MODAL LISTA DE REFRIGERANTES -->
+<div id="modalRefriLista" class="overlay" style="display:none;z-index:263" onclick="if(event.target===this)fecharModalRefri()">
+<div class="card" style="width:100%;max-width:440px;max-height:85vh;overflow:auto">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+<h3 id="refriListaTitulo" style="margin:0;color:#ff8a8a">🥤 Refrigerantes</h3>
+<button class="btn" onclick="fecharModalRefri()">✕</button>
+</div>
+<div id="refriListaBody"></div>
 </div>
 </div>
 
@@ -8855,7 +8854,7 @@ function _htmlTempoEntreCards(ant, it){
     if(!ta || !tb) return '';
     const ini = Math.min(ta,tb), fim = Math.max(ta,tb);
     // Seta indica o fluxo da rota (entrega anterior → próxima)
-    return '<div class="rota-lado-entre" title="Tempo entre entregas: ' + _fmtHoraRota(ini) + ' → ' + _fmtHoraRota(fim) + '"><span>⏱️ ' + _fmtIntervaloMin(fim-ini) + '<span class="rte-arrow" aria-hidden="true">↓</span></span></div>';
+    return '<div class="rota-lado-entre" title="Tempo entre entregas: ' + _fmtHoraRota(ini) + ' → ' + _fmtHoraRota(fim) + '"><span class="rte-arrow" aria-hidden="true">→</span><span class="rte-tempo">⏱️ ' + _fmtIntervaloMin(fim-ini) + '</span></div>';
   }catch(e){ return ''; }
 }
 /** Rota ainda aberta (aba Em rota): mostra a última entrega já finalizada da mesma rota e há quanto tempo. */
@@ -8908,12 +8907,21 @@ function renderItensGridPorRotas(listaPedidos, ordenarItensFn){
     if(colapsavel) cls += ' rota-colapsavel rota-colapsada';
     const titulo = r.avulsa ? ('ROTA AVULSA - ' + r.horario) : ('ROTA - ' + r.horario);
     const meta = (r.aberta ? 'aberta' : 'finalizada') + ' · ' + qtd + ' entrega(s)';
+    let btnRefriRota = '';
+    try{
+      if(usuarioLogado && !usuarioLogado.isMaster && typeof abaEntregadorAtual !== 'undefined' && abaEntregadorAtual === 'rota' && r.aberta && r.pedidos && r.pedidos.length){
+        const kRota = String(r.pedidos[0].id).replace(/[^\w-]/g,'');
+        _refriRotas[kRota] = r.pedidos;
+        const rr = _refriResumoLista(r.pedidos.filter(p => !isPedidoFinalizado(p)));
+        if(rr.total) btnRefriRota = _htmlBotaoRefri(rr.total, "abrirModalRefriRota('" + kRota + "')", 'Refrigerantes dos pedidos desta rota');
+      }
+    }catch(e){}
     const toggleIcon = colapsavel ? '<span class="rota-toggle-icon" aria-hidden="true">🙈</span>' : '';
     const headerAttrs = colapsavel
       ? ' class="rota-header" role="button" tabindex="0" onclick="toggleRotaPedidos(this)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleRotaPedidos(this);}"'
       : ' class="rota-header"';
     return `<div class="${cls}">
-      <div${headerAttrs}><span>${titulo}</span><span style="display:flex;align-items:center;gap:4px"><span class="rota-meta">${meta}</span>${toggleIcon}</span></div>
+      <div${headerAttrs}><span>${titulo}</span><span style="display:flex;align-items:center;gap:4px">${btnRefriRota}<span class="rota-meta">${meta}</span>${toggleIcon}</span></div>
       <div class="pedidos-grid"${colapsavel ? ' style="display:none"' : ''}>${r.aberta ? _htmlUltimaFinalRota(r) : ''}${htmlCards}</div>
     </div>`;
   }).filter(Boolean).join('');
@@ -9197,11 +9205,15 @@ function htmlMasterEmRotaColunas(pedidosDoTurno){
   const abertoEsp = !!masterEntVisiveis[keyEsp];
   const itensEsp = montarItensAgrupados(espera);
   const pendEsp = itensEsp.filter(it=>!itemEhConfirmado(it)).length;
+  _refriEsperaLista = espera;
+  const refriEsp = _refriResumoLista(espera);
+  _refreshModalRefri();
   let out = `<div class="master-ent-header espera" onclick="toggleMasterEnt('${keyEsp}')" style="margin-left:12px;margin-right:12px">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <h2 style="margin:0;font-size:14px">⏳ EM ESPERA (sem entregador)</h2>
       <span class="count">${itensEsp.length} entrega(s) · ${espera.length} pedido(s)</span>
       ${pendEsp?`<span class="count" style="color:#f0c14a">${pendEsp} a entregar</span>`:''}
+      ${refriEsp.total?_htmlBotaoRefri(refriEsp.total,'abrirModalRefriEspera()','Lista de refrigerantes dos pedidos em espera'):''}
     </div>
     <span id="iconMaster_${keyEsp}">${abertoEsp?'👁️ Ocultar':'🙈 Mostrar'}</span>
   </div>
@@ -9282,10 +9294,13 @@ function _htmlMasterEntColuna(nome, lista){
       if(itensPend.length) htmlCards += '<div class="master-rota-fin-label">✅ FINALIZADAS</div>';
       let finRow = '<div class="master-rota-fin-row">';
       itensFin.forEach((x,j)=>{
+        // Unidade = [tempo + seta →] + card. Se a linha quebrar, o tempo/seta vai junto do card seguinte.
+        let chip = '';
         if(j > 0 && x.ant){
-          finRow += (typeof _htmlTempoEntreCards === 'function' ? _htmlTempoEntreCards(x.ant, x.it) : _htmlTempoLado(x.ant, x.it)) || '';
+          chip = (typeof _htmlTempoEntreCards === 'function' ? _htmlTempoEntreCards(x.ant, x.it) : '') || '';
         }
-        finRow += cardHtml(x.it, itensPend.length + j, listaSegura);
+        if(!chip) chip = '<div class="rota-lado-vazio" aria-hidden="true"></div>';
+        finRow += '<div class="master-rota-fin-unit">' + chip + cardHtml(x.it, itensPend.length + j, listaSegura) + '</div>';
       });
       finRow += '</div>';
       htmlCards += finRow;
@@ -10598,7 +10613,7 @@ function toggleMasterTopRow(){ toggleBarraAdd(); }
 function atualizarBotaoToggleMaster(){ atualizarBotoesToggleBarras(); }
 
 // ===================== BEBIDA (refri_pedidos) NOS CARDS =====================
-let _refriCache = { rows:{}, datas:'', ts:0, loading:false };
+let _refriCache = { rows:{}, itens:{}, datas:'', ts:0, loading:false };
 function _normNumRefri(v){
   return String(v==null?'':v).toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^WA/,'').replace(/^0+/,'');
 }
@@ -10654,19 +10669,21 @@ async function _agendarRefriCache(force){
   if(!force && key === _refriCache.datas && !velho) return;
   _refriCache.loading = true;
   try{
-    const {data, error} = await client.from('refri_pedidos').select('num_pedido,qtd,data').in('data', datas);
+    const {data, error} = await client.from('refri_pedidos').select('num_pedido,qtd,descricao,data').in('data', datas);
     _refriCache.ts = Date.now();
     _refriCache.datas = key;
     if(error){ console.warn('refri cache', error); return; }
-    const mapa = {};
+    const mapa = {}, mapaItens = {};
     (data||[]).forEach(r=>{
       if(Number(r.qtd||0) <= 0) return;
       const k = _normNumRefri(r.num_pedido);
       if(!k) return;
       (mapa[k] = mapa[k] || []).push(String(r.data||'').slice(0,10));
+      (mapaItens[k] = mapaItens[k] || []).push({ qtd:Number(r.qtd||0), descricao:String(r.descricao||'').trim(), data:String(r.data||'').slice(0,10) });
     });
-    const mudou = JSON.stringify(mapa) !== JSON.stringify(_refriCache.rows);
+    const mudou = JSON.stringify(mapa) !== JSON.stringify(_refriCache.rows) || JSON.stringify(mapaItens) !== JSON.stringify(_refriCache.itens);
     _refriCache.rows = mapa;
+    _refriCache.itens = mapaItens;
     if(mudou){
       try{ render(); }catch(e){}
       try{
@@ -10677,6 +10694,90 @@ async function _agendarRefriCache(force){
     }
   }catch(e){ console.warn('refri cache', e); }
   finally{ _refriCache.loading = false; }
+}
+
+
+// ===================== LISTA DE REFRIGERANTES (modal) =====================
+let _refriEsperaLista = [];   // pedidos em espera (Master) — atualizado a cada render da aba Em rota
+let _refriRotas = {};         // entregador: pedidos de cada rota, por chave
+let _refriModalCtx = null;    // {tipo:'espera'} | {tipo:'rota', key}
+
+/** Itens de refrigerante de 1 pedido: [{qtd, desc}] (usa refri_pedidos; se só houver aviso do Master, devolve item genérico). */
+function _refriItensDoPedido(p){
+  if(!p) return [];
+  const linhas = _refriCache.itens[_normNumRefri(p.numero_pedido)] || [];
+  const d = String(p.data||'').slice(0,10);
+  let externo = false;
+  try{ externo = !!isPedidoExterno(p.numero_pedido); }catch(e){}
+  const itens = linhas.filter(x => externo || !x.data || !d || x.data === d)
+    .map(x => ({ qtd:x.qtd, desc:x.descricao || 'Refrigerante' }));
+  if(!itens.length && pedidoTemBebida(p)) return [{ qtd:0, desc:'Bebida (aviso do Master)' }];
+  return itens;
+}
+/** Resumo de uma lista de pedidos: total de refrigerantes, pedidos com refri e soma por descrição. */
+function _refriResumoLista(lista){
+  const pedidos = [], soma = {};
+  let total = 0;
+  (lista||[]).forEach(p=>{
+    const itens = _refriItensDoPedido(p);
+    if(!itens.length) return;
+    pedidos.push({ p, itens });
+    itens.forEach(it=>{
+      total += (it.qtd > 0 ? it.qtd : 1);
+      if(it.qtd > 0) soma[it.desc] = (soma[it.desc]||0) + it.qtd;
+    });
+  });
+  return { total, pedidos, soma };
+}
+function _htmlBotaoRefri(total, onclick, titulo){
+  return '<button type="button" class="btn-refri-lista" title="' + _escAttrTxt(titulo) + '" onclick="event.stopPropagation();' + onclick + '">🥤 ' + total + '</button>';
+}
+function _renderModalRefri(){
+  const box = document.getElementById('refriListaBody');
+  const tit = document.getElementById('refriListaTitulo');
+  if(!box || !_refriModalCtx) return;
+  let lista = [], titulo = '🥤 Refrigerantes';
+  if(_refriModalCtx.tipo === 'espera'){ lista = _refriEsperaLista; titulo = '🥤 Refrigerantes · pedidos em espera'; }
+  else { lista = (_refriRotas[_refriModalCtx.key] || []).filter(p => !isPedidoFinalizado(p)); titulo = '🥤 Refrigerantes · esta rota'; }
+  if(tit) tit.textContent = titulo;
+  const r = _refriResumoLista(lista);
+  if(!r.pedidos.length){
+    box.innerHTML = '<div style="text-align:center;color:#8b93a7;font-size:13px;padding:14px">Nenhum refrigerante pendente.</div>';
+    return;
+  }
+  const chaves = Object.keys(r.soma);
+  let h = '<div style="background:#2a1414;border:1px solid #ef4444;border-radius:12px;padding:10px 12px;margin-bottom:10px">'
+    + '<div style="font-size:10px;font-weight:900;letter-spacing:.08em;color:#ff8a8a;margin-bottom:4px">TOTAL: ' + r.total + ' · ' + r.pedidos.length + ' pedido(s)</div>'
+    + chaves.map(k => '<div style="font-size:14px;font-weight:900;color:#fff">' + r.soma[k] + 'x ' + _escAttrTxt(k) + '</div>').join('')
+    + '</div>';
+  r.pedidos.forEach(x=>{
+    const p = x.p;
+    h += '<div style="border:1px solid #2c3340;background:#161a22;border-radius:12px;padding:8px 12px;margin-bottom:8px">'
+      + '<div style="font-size:13px;font-weight:900;color:#f0c14a">#' + _escAttrTxt(p.numero_pedido) + ' <span style="color:#e6e9f0;font-weight:800">' + _escAttrTxt(p.cliente_nome||'') + '</span></div>'
+      + x.itens.map(it => '<div style="font-size:13px;font-weight:800;color:#ff8a8a;margin-top:3px">' + (it.qtd>0 ? it.qtd + 'x ' : '') + _escAttrTxt(it.desc) + '</div>').join('')
+      + '</div>';
+  });
+  box.innerHTML = h;
+}
+function _abrirModalRefri(ctx){
+  _refriModalCtx = ctx;
+  _renderModalRefri();
+  const m = document.getElementById('modalRefriLista');
+  if(m) m.style.display = 'flex';
+}
+function abrirModalRefriEspera(){ _abrirModalRefri({ tipo:'espera' }); }
+function abrirModalRefriRota(key){ _abrirModalRefri({ tipo:'rota', key:String(key) }); }
+function fecharModalRefri(){
+  _refriModalCtx = null;
+  const m = document.getElementById('modalRefriLista');
+  if(m) m.style.display = 'none';
+}
+/** Se o modal estiver aberto, atualiza a lista (ex.: pedido adicionado por um entregador some da lista). */
+function _refreshModalRefri(){
+  try{
+    const m = document.getElementById('modalRefriLista');
+    if(m && m.style.display !== 'none' && _refriModalCtx) _renderModalRefri();
+  }catch(e){}
 }
 
 function render(){
