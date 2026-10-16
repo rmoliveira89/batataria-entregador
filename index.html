@@ -504,7 +504,7 @@ body.modo-entregador .btn-entregador-localizador{
 }
 .pedido-mini .pm-rota{
   display:grid;
-  grid-template-columns:1fr 1fr auto;
+  grid-template-columns:1fr auto;
   gap:6px;
   margin-bottom:8px;
   width:100%;
@@ -519,6 +519,13 @@ body.modo-entregador .btn-entregador-localizador{
   min-height:31px;
   border-radius:8px;
   white-space:nowrap;
+}
+.pedido-mini .pm-rota .btn-ligar{
+  background:#1a3a2a !important;
+  color:#3dcc8a !important;
+  border-color:#2a5a3a !important;
+  font-weight:900 !important;
+  letter-spacing:0.03em;
 }
 .pedido-mini .pm-actions-entregador .btn,
 .btn-entregador-mapa,
@@ -632,6 +639,40 @@ body.modo-entregador .btn-entregador-localizador{
 </div>
 </div>
 
+
+
+<!-- MODAL LIGAR CLIENTE -->
+<div id="modalLigar" class="overlay" style="display:none;z-index:260" role="dialog" aria-modal="true">
+<div class="card" style="width:100%;max-width:400px;margin:0;padding:18px 16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px">
+    <h3 style="margin:0;color:#3dcc8a;font-size:16px;font-weight:900" id="ligarTitulo">📞 Ligar</h3>
+    <button class="btn" onclick="fecharModalLigar()" style="padding:6px 10px">✕</button>
+  </div>
+  <div id="ligarInfo" style="background:#0e1118;border:1px solid #2c3340;border-radius:10px;padding:10px;font-size:12px;color:#8b93a7;margin-bottom:12px;text-align:center"></div>
+
+  <!-- iFood -->
+  <div id="ligarIfoodBox" style="display:none">
+    <div style="font-size:11px;color:#8b93a7;font-weight:700;text-align:center;margin-bottom:8px;letter-spacing:0.04em">iFOOD · discagem com localizador</div>
+    <div id="ligarIfoodNumero" style="font-size:18px;font-weight:900;color:#f0c14a;text-align:center;letter-spacing:0.04em;padding:14px;background:#0e1118;border:1px solid #2a5a3a;border-radius:12px;margin-bottom:12px;word-break:break-all"></div>
+    <button class="btn green" style="width:100%;padding:16px;font-weight:900;font-size:15px" onclick="executarLigarIfood()">📞 Ligar agora</button>
+  </div>
+
+  <!-- Aiqfome / WhatsApp -->
+  <div id="ligarExternoBox" style="display:none">
+    <label style="font-size:11px;color:#8b93a7;font-weight:700;display:block;margin-bottom:6px">Telefone do cliente (comanda)</label>
+    <input id="ligarTelefone" inputmode="tel" placeholder="(XX) X XXXX-XXXX" maxlength="16"
+      style="font-size:20px;font-weight:900;text-align:center;letter-spacing:0.08em;padding:14px;margin-bottom:8px;width:100%;border-radius:12px;border:1px solid #2c3340;background:#0e1118;color:#fff"
+      oninput="mascaraTelefoneLigar(this)"/>
+    <div id="ligarTelStatus" style="font-size:11px;color:#8b93a7;text-align:center;min-height:16px;margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn green" style="flex:1;padding:14px;font-weight:900;background:#128C7E;border-color:#0e6b5f;color:#fff" onclick="executarWhatsAppLigar()">💬 WhatsApp</button>
+      <button class="btn green" style="flex:1;padding:14px;font-weight:900" onclick="executarChamarLigar()">📞 Chamar</button>
+    </div>
+  </div>
+
+  <button class="btn" style="width:100%;padding:12px;margin-top:10px" onclick="fecharModalLigar()">Cancelar</button>
+</div>
+</div>
 
 <!-- MODAL DETALHES DO GRUPO -->
 <div id="modalDetalheGrupo" class="overlay" style="display:none;z-index:265">
@@ -11049,7 +11090,8 @@ function cardPedido(p, idx, lista){
   let htmlAcoes = '';
   const custoBloq = isPedidoCustoBloqueado(p);
   if(isMasterUser){
-    let acoes = `<button class="btn blue" onclick="event.stopPropagation(); abrirMapaPorId('${p.id}')"><span>📍</span><span>Mapa</span></button>`;
+    let acoes = `<button class="btn green" onclick="event.stopPropagation(); abrirModalLigar('${p.id}')"><span>📞</span><span>Ligar</span></button>`;
+    acoes += `<button class="btn blue" onclick="event.stopPropagation(); abrirMapaPorId('${p.id}')"><span>📍</span><span>Mapa</span></button>`;
     acoes += `<button class="btn" style="background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="event.stopPropagation(); abrirModalEditarEndereco('${p.id}')"><span>✏️</span><span>Editar</span></button>`;
     if(custoBloq){
       acoes += `<button class="btn" style="background:#3a2a1a;color:#f0c14a;border-color:#5a4a2a" onclick="event.stopPropagation(); reativarPedido('${p.id}')"><span>↺</span><span>Liberar</span></button>`;
@@ -11085,8 +11127,8 @@ function cardPedido(p, idx, lista){
     }
     const rota = showRota
       ? (custoBloq
-        ? `<div class="pm-rota"><button class="btn small" onclick="moverCima('${p.id}')">↑ Subir</button><button class="btn small" onclick="moverBaixo('${p.id}')">↓ Descer</button><button class="btn small" style="color:#f0c14a;border-color:#5a4a2a;background:#1c1c12" disabled>🔒</button></div>`
-        : `<div class="pm-rota"><button class="btn small" onclick="moverCima('${p.id}')">↑ Subir</button><button class="btn small" onclick="moverBaixo('${p.id}')">↓ Descer</button><button class="btn small red" onclick="excluirPedido('${p.id}')">🗑️</button></div>`)
+        ? `<div class="pm-rota"><button class="btn small btn-ligar" onclick="abrirModalLigar('${p.id}')">📞 LIGAR</button><button class="btn small" style="color:#f0c14a;border-color:#5a4a2a;background:#1c1c12" disabled>🔒</button></div>`
+        : `<div class="pm-rota"><button class="btn small btn-ligar" onclick="abrirModalLigar('${p.id}')">📞 LIGAR</button><button class="btn small red" onclick="excluirPedido('${p.id}')">🗑️</button></div>`)
       : '';
     if(custoBloq){
       btnLocalizador = `<div style="width:100%;padding:12px;text-align:center;font-size:11px;font-weight:800;color:#f0c14a;background:#1c1c12;border:1px solid #5a4a2a;border-radius:10px">🔒 Custo enviado — bloqueado</div>`;
@@ -11148,11 +11190,11 @@ function cardGrupoPedidos(item){
     </div>`;
   }).join('');
 
-  // Entregador: Mapa + Subir/Descer + excluir no card
+  // Entregador: LIGAR + excluir no card
+  const idPrimeiroGrupo = membros[0] ? membros[0].id : '';
   const acoesEntregador = !isMasterUser
-    ? `<div class="pm-rota" style="grid-template-columns:1fr 1fr auto;margin-top:6px;margin-bottom:0">
-        <button class="btn small" onclick="event.stopPropagation();moverGrupoCima('${gidEsc}')">↑ Subir</button>
-        <button class="btn small" onclick="event.stopPropagation();moverGrupoBaixo('${gidEsc}')">↓ Descer</button>
+    ? `<div class="pm-rota" style="grid-template-columns:1fr auto;margin-top:6px;margin-bottom:0">
+        <button class="btn small btn-ligar" onclick="event.stopPropagation();abrirModalLigar('${idPrimeiroGrupo}')">📞 LIGAR</button>
         <button class="btn small red" onclick="event.stopPropagation();excluirGrupoDaLista('${gidEsc}')">🗑️</button>
       </div>
       <button type="button" class="btn blue btn-entregador-mapa" style="margin-top:6px" onclick="event.stopPropagation();abrirMapa('${endEsc}')">📍 ABRIR MAPA</button>`
@@ -11162,6 +11204,7 @@ function cardGrupoPedidos(item){
   const idPrimeiro = membros[0] ? membros[0].id : '';
   const acoesMaster = isMasterUser
     ? `<div class="pm-actions" style="margin-top:6px">
+        <button class="btn green" onclick="event.stopPropagation();abrirModalLigar('${idPrimeiro}')"><span>📞</span><span>Ligar</span></button>
         <button class="btn blue" onclick="event.stopPropagation();abrirMapa('${endEsc}')"><span>📍</span><span>Mapa</span></button>
         <button class="btn" style="background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="event.stopPropagation();abrirModalEditarEndereco('${idPrimeiro}')"><span>✏️</span><span>Editar</span></button>
         <button class="btn blue" onclick="event.stopPropagation();abrirModalMasterGrupo('${gidEsc}')"><span>${nomeRes?'🔄':'📤'}</span><span>${nomeRes?'Mover':'Enviar'}</span></button>
@@ -13151,6 +13194,132 @@ function iniciarMonitorFilaOffline(){
  * COPIAR: copia localizador + grava no Supabase (ou fila offline) + abre iFood.
  * Não grava de novo se já confirmado neste aparelho.
  */
+
+
+// ===================== LIGAR CLIENTE =====================
+let _ligarPedidoAtual = null;
+let _ligarIfoodUri = '';
+
+function _telDigitos(v){
+  return String(v||'').replace(/\D/g,'');
+}
+function _telDoPedido(p){
+  if(!p) return '';
+  const cands = [p.telefone, p.cliente_telefone, p.telefone_cliente, p.contato, p.celular, p.fone, p.phone];
+  for(const c of cands){
+    const d = _telDigitos(c);
+    if(d.length >= 8) return d;
+  }
+  return '';
+}
+function mascaraTelefoneLigar(el){
+  if(!el) return;
+  let d = _telDigitos(el.value).slice(0,11);
+  let out = '';
+  if(d.length === 0) out = '';
+  else if(d.length <= 2) out = '(' + d;
+  else if(d.length <= 3) out = '(' + d.slice(0,2) + ') ' + d.slice(2);
+  else if(d.length <= 7) out = '(' + d.slice(0,2) + ') ' + d.slice(2,3) + ' ' + d.slice(3);
+  else out = '(' + d.slice(0,2) + ') ' + d.slice(2,3) + ' ' + d.slice(3,7) + '-' + d.slice(7);
+  el.value = out;
+}
+function fecharModalLigar(){
+  const m = document.getElementById('modalLigar');
+  if(m) m.style.display = 'none';
+  _ligarPedidoAtual = null;
+  _ligarIfoodUri = '';
+  const inp = document.getElementById('ligarTelefone');
+  if(inp) inp.value = '';
+  const st = document.getElementById('ligarTelStatus');
+  if(st) st.textContent = '';
+}
+function abrirModalLigar(id){
+  const pedido = (todosPedidos||[]).find(x=>x && x.id===id);
+  if(!pedido){
+    try{ mostrarAlerta('Pedido não encontrado', {tipo:'erro', titulo:'Ligar', icone:'📞'}); }catch(e){ alert('Pedido não encontrado'); }
+    return;
+  }
+  _ligarPedidoAtual = pedido;
+  const info = document.getElementById('ligarInfo');
+  const tit = document.getElementById('ligarTitulo');
+  const boxI = document.getElementById('ligarIfoodBox');
+  const boxE = document.getElementById('ligarExternoBox');
+  const numEl = document.getElementById('ligarIfoodNumero');
+  if(info){
+    info.innerHTML = '<b style="color:#f0c14a">#'+String(pedido.numero_pedido||'')+'</b> · '
+      + (pedido.cliente_nome||'—') + '<br>📍 ' + (pedido.cliente_endereco||'—');
+  }
+  const externo = isPedidoExterno(pedido.numero_pedido);
+  if(!externo){
+    // iFood: 08007053040;LOCALIZADOR
+    const loc = String(pedido.localizador||'').trim();
+    if(!loc){
+      try{ mostrarAlerta('Este pedido iFood não tem localizador cadastrado.', {tipo:'aviso', titulo:'Sem localizador', icone:'⚠️'}); }catch(e){ alert('Sem localizador'); }
+      return;
+    }
+    const discar = '08007053040;' + loc;
+    _ligarIfoodUri = 'tel:' + discar;
+    if(tit) tit.textContent = '📞 Ligar iFood';
+    if(numEl) numEl.textContent = discar;
+    if(boxI) boxI.style.display = 'block';
+    if(boxE) boxE.style.display = 'none';
+  } else {
+    const plat = getLabelPlataformaExterna(pedido.numero_pedido);
+    if(tit) tit.textContent = '📞 Ligar · ' + plat;
+    if(boxI) boxI.style.display = 'none';
+    if(boxE) boxE.style.display = 'block';
+    const inp = document.getElementById('ligarTelefone');
+    if(inp){
+      const pre = _telDoPedido(pedido);
+      if(pre){
+        inp.value = pre;
+        mascaraTelefoneLigar(inp);
+      } else {
+        inp.value = '';
+      }
+      setTimeout(()=>{ try{ inp.focus(); }catch(e){} }, 200);
+    }
+  }
+  const m = document.getElementById('modalLigar');
+  if(m) m.style.display = 'flex';
+}
+function executarLigarIfood(){
+  const uri = _ligarIfoodUri;
+  if(!uri){ alert('Número inválido'); return; }
+  try{ window.location.href = uri; }catch(e){
+    try{ window.open(uri, '_self'); }catch(e2){}
+  }
+}
+function _telLigarValido(){
+  const inp = document.getElementById('ligarTelefone');
+  const d = _telDigitos(inp ? inp.value : '');
+  const st = document.getElementById('ligarTelStatus');
+  if(d.length < 10 || d.length > 11){
+    if(st){ st.textContent = 'Informe um telefone válido (10 ou 11 dígitos)'; st.style.color = '#ff6b6b'; }
+    try{ inp && inp.focus(); }catch(e){}
+    return null;
+  }
+  if(st){ st.textContent = ''; st.style.color = '#8b93a7'; }
+  return d;
+}
+function executarChamarLigar(){
+  const d = _telLigarValido();
+  if(!d) return;
+  const uri = 'tel:+55' + d;
+  try{ window.location.href = uri; }catch(e){
+    try{ window.open(uri, '_self'); }catch(e2){}
+  }
+}
+function executarWhatsAppLigar(){
+  const d = _telLigarValido();
+  if(!d) return;
+  const num = '55' + d;
+  const uri = 'https://wa.me/' + num;
+  try{ window.open(uri, '_blank'); }catch(e){
+    try{ window.location.href = uri; }catch(e2){}
+  }
+}
+// =================== FIM LIGAR CLIENTE ===================
 
 // ===================== OUTRAS PLATAFORMAS (Aiqfome / WhatsApp) =====================
 function isPedidoExterno(numero){
