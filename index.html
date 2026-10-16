@@ -332,6 +332,8 @@ body.ifood-modal-open{
   .master-rota-fin-unit > .rota-lado-entre .rte-arrow{transform:rotate(90deg)}
   .master-rota-fin-unit > .rota-lado-vazio{display:none}
 }
+.rota-grupo.rota-unida{border-color:#2a4a7a;background:rgba(18,26,44,.45)}
+.rota-grupo.rota-unida .rota-header{color:#6ab7ff}
 .rota-intervalo.ultima{color:#3dcc8a}
 .rota-intervalo.ultima::before,.rota-intervalo.ultima::after{border-top-color:#2a5a3a}
 .rota-intervalo small{font-weight:600;color:#8b93a7;font-size:10px}
@@ -819,7 +821,7 @@ body.modo-entregador .btn-entregador-localizador{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 161026.133151</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 161026.201953</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -8783,7 +8785,7 @@ function _rotaFinalizadoEmMs(r){
  * Retorna [{ horario, pedidos, baseMs, avulsa, aberta, finalizadoMs }].
  * Cluster cronológico (antigo→novo); a ordenação de EXIBIÇÃO é feita em renderItensGridPorRotas.
  */
-function getRotasByEntregador(entregas){
+function getRotasByEntregador(entregas, opts){
   const lista = (entregas||[]).filter(Boolean).slice();
   if(!lista.length) return [];
   const comIdx = lista.map((p,i)=>({p,i,ms:getRotaBaseMs(p)}));
@@ -8809,6 +8811,23 @@ function getRotasByEntregador(entregas){
       atual.pedidos.push(it.p);
     }
   }
+  // Master · aba Pedidos: rotas UNIDAS manualmente (pedido -> uniaoId) viram uma só rota
+  if(opts && opts.uniao){
+    try{
+      const um = _rotaUniaoMap();
+      const porU = {}, novas = [];
+      rotas.forEach(r=>{
+        let uid = null;
+        for(const pp of r.pedidos){ if(um[String(pp.id)]){ uid = um[String(pp.id)]; break; } }
+        if(!uid){ novas.push(r); return; }
+        if(porU[uid]){
+          porU[uid].pedidos = porU[uid].pedidos.concat(r.pedidos);
+          porU[uid].baseMs = Math.min(porU[uid].baseMs||Infinity, r.baseMs||Infinity);
+        } else { r.uniao = uid; porU[uid] = r; novas.push(r); }
+      });
+      rotas.length = 0; novas.forEach(x=>rotas.push(x));
+    }catch(e){ console.warn('uniao rotas', e); }
+  }
   rotas.forEach(r=>{
     const soUm = r.pedidos.length === 1;
     const id0 = r.pedidos[0] && r.pedidos[0].id;
@@ -8825,6 +8844,80 @@ function getRotasByEntregador(entregas){
     r.finalizadoMs = _rotaFinalizadoEmMs(r);
   });
   return rotas;
+}
+// ===================== UNIR ROTAS (Master · aba Pedidos) =====================
+const ROTA_UNIAO_KEY = 'batataria_rota_uniao_v1';
+let _rotaSelSet = new Set();      // chaves das rotas marcadas
+let _rotaSelIds = {};             // chave -> ids dos pedidos da rota (preenchido a cada render)
+function _rotaUniaoMap(){
+  try{ return JSON.parse(localStorage.getItem(ROTA_UNIAO_KEY)||'{}')||{}; }catch(e){ return {}; }
+}
+function _rotaUniaoSalvar(m){ try{ localStorage.setItem(ROTA_UNIAO_KEY, JSON.stringify(m||{})); }catch(e){} }
+function _chaveRotaSel(r){ return String(r.pedidos[0].id).replace(/[^\w-]/g,''); }
+function toggleSelRota(key, on){
+  if(on) _rotaSelSet.add(key); else _rotaSelSet.delete(key);
+  _atualizarBarraUniao();
+}
+function cancelarSelRotas(){
+  _rotaSelSet.clear();
+  _atualizarBarraUniao();
+  try{ render(); }catch(e){}
+}
+function _atualizarBarraUniao(){
+  let el = document.getElementById('barraUniaoRotas');
+  const n = _rotaSelSet.size;
+  if(!n){ if(el) el.style.display='none'; return; }
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'barraUniaoRotas';
+    el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:9999;display:flex;gap:8px;align-items:center;background:#1a1e2a;border:1px solid #2a4a7a;border-radius:12px;padding:8px 12px;box-shadow:0 4px 18px rgba(0,0,0,.5);font-size:12px;font-weight:800;color:#e8ecf5';
+    document.body.appendChild(el);
+  }
+  el.style.display = 'flex';
+  el.innerHTML = '<span>' + n + ' rota(s) marcada(s)</span>'
+    + (n >= 2 ? '<button onclick="unirRotasSelecionadas()" style="background:#2563eb;color:#fff;border:0;border-radius:8px;padding:6px 10px;font-weight:800;cursor:pointer">🔗 Unir rotas</button>' : '<span style="color:#8b93a7;font-weight:600">marque ao menos 2</span>')
+    + '<button onclick="cancelarSelRotas()" style="background:#2a3040;color:#e8ecf5;border:0;border-radius:8px;padding:6px 10px;font-weight:800;cursor:pointer">Cancelar</button>';
+}
+function unirRotasSelecionadas(){
+  try{
+    if(!(usuarioLogado && usuarioLogado.isMaster)){ alert('Apenas Master'); return; }
+    const keys = Array.from(_rotaSelSet).filter(k=>_rotaSelIds[k]);
+    if(keys.length < 2){ alert('Marque ao menos 2 rotas para unir.'); return; }
+    const ids = [];
+    keys.forEach(k=> (_rotaSelIds[k]||[]).forEach(id=> ids.push(id)));
+    // só rotas do mesmo entregador
+    const nomes = new Set();
+    ids.forEach(id=>{
+      const ped = (todosPedidos||[]).find(x=>x && String(x.id)===String(id));
+      if(ped) nomes.add(String(getNomeReserva(ped)||'').trim().toLowerCase());
+    });
+    if(nomes.size > 1){ alert('Só é possível unir rotas do mesmo entregador.'); return; }
+    const m = _rotaUniaoMap();
+    let uid = null;
+    ids.forEach(id=>{ if(!uid && m[String(id)]) uid = m[String(id)]; });
+    if(!uid) uid = 'u' + Date.now();
+    // quem já estava numa união com os pedidos escolhidos entra junto
+    const antigos = new Set(ids.map(id=>m[String(id)]).filter(Boolean));
+    Object.keys(m).forEach(k=>{ if(antigos.has(m[k])) m[k] = uid; });
+    ids.forEach(id=>{ m[String(id)] = uid; });
+    _rotaUniaoSalvar(m);
+    _rotaSelSet.clear();
+    _atualizarBarraUniao();
+    render();
+  }catch(e){ console.warn('unirRotasSelecionadas', e); }
+}
+function separarRotaUnida(key){
+  try{
+    const ids = _rotaSelIds[key] || [];
+    if(!ids.length) return;
+    if(!confirm('Separar as rotas unidas?')) return;
+    const m = _rotaUniaoMap();
+    ids.forEach(id=>{ delete m[String(id)]; });
+    _rotaUniaoSalvar(m);
+    _rotaSelSet.delete(key);
+    _atualizarBarraUniao();
+    render();
+  }catch(e){ console.warn('separarRotaUnida', e); }
 }
 /** Ordenação de EXIBIÇÃO: abertas (mais recente→antiga), depois finalizadas (última finalizada primeiro). */
 function _ordenarRotasExibicao(rotas){
@@ -8898,6 +8991,31 @@ function _htmlTempoEntreCards(ant, it){
     return '<div class="rota-lado-entre" title="Tempo entre entregas: ' + _fmtHoraRota(ini) + ' → ' + _fmtHoraRota(fim) + '"><span class="rte-arrow" aria-hidden="true">→</span><span class="rte-tempo">⏱️ ' + _fmtIntervaloMin(fim-ini) + '</span></div>';
   }catch(e){ return ''; }
 }
+/** Horário de PARTIDA da rota = último pedido adicionado (entregador_added_at) até a 1ª finalização. */
+function _partidaRotaMs(pedidos, primeiraFinalMs){
+  let max = 0;
+  (pedidos||[]).forEach(p=>{
+    const b = getRotaBaseMs(p);
+    if(b > 0 && (!primeiraFinalMs || b <= primeiraFinalMs) && b > max) max = b;
+  });
+  return max;
+}
+/** Chip: tempo da partida (último pedido adicionado) até a 1ª entrega finalizada. Variante 'lado' = Master Em rota. */
+function _htmlTempoPartida(pedidos, it, variante){
+  try{
+    const tf = _tsFinalItem(it);
+    if(!tf) return '';
+    const ini = _partidaRotaMs(pedidos, tf);
+    if(!ini || tf < ini) return '';
+    const dur = _fmtIntervaloMin(tf-ini);
+    const tt = 'Partida (último pedido adicionado) ' + _fmtHoraRota(ini) + ' → 1ª entrega finalizada ' + _fmtHoraRota(tf);
+    if(variante === 'lado'){
+      return '<div class="rota-lado-entre" title="' + tt + '"><span class="rte-arrow" aria-hidden="true">🚀</span><span class="rte-tempo">⏱️ ' + dur + '</span></div>';
+    }
+    return '<div class="rota-intervalo" title="' + tt + '">🚀 Saída ' + _fmtHoraRota(ini) + ' → 1ª entrega: ' + dur
+      + ' <small>' + _fmtHoraRota(ini) + ' → ' + _fmtHoraRota(tf) + '</small></div>';
+  }catch(e){ return ''; }
+}
 /** Rota ainda aberta (aba Em rota): mostra a última entrega já finalizada da mesma rota e há quanto tempo. */
 function _htmlUltimaFinalRota(r){
   try{
@@ -8925,7 +9043,8 @@ function _htmlUltimaFinalRota(r){
 function renderItensGridPorRotas(listaPedidos, ordenarItensFn){
   const lista = listaPedidos || [];
   if(!lista.length) return '';
-  const rotas = _ordenarRotasExibicao(getRotasByEntregador(lista));
+  const _modoMasterUniao = !!(usuarioLogado && usuarioLogado.isMaster);
+  const rotas = _ordenarRotasExibicao(getRotasByEntregador(lista, { uniao: _modoMasterUniao }));
   if(!rotas.length) return renderItensGrid(lista);
   // Só entregador na aba "Pedidos": rotas colapsáveis (pedidos ocultos por padrão)
   const colapsavel = !!(usuarioLogado && !usuarioLogado.isMaster && typeof abaEntregadorAtual !== 'undefined' && abaEntregadorAtual === 'pedidos');
@@ -8937,6 +9056,8 @@ function renderItensGridPorRotas(listaPedidos, ordenarItensFn){
     // Entre dois cards finalizados: tempo entre as entregas (pela hora de finalização)
     let htmlCards = '';
     cardsArr.forEach((h,i)=>{
+      // 1ª entrega finalizada da rota: tempo desde a partida (último pedido adicionado)
+      if(i === 0 && h && _itemFinalizadoRota(itens[0])) htmlCards += _htmlTempoPartida(r.pedidos, itens[0], 'faixa');
       htmlCards += h;
       if(i < cardsArr.length-1 && h && cardsArr[i+1]) htmlCards += _htmlIntervaloEntre(itens[i], itens[i+1]);
     });
@@ -8946,7 +9067,8 @@ function renderItensGridPorRotas(listaPedidos, ordenarItensFn){
     if(r.avulsa) cls += ' rota-avulsa';
     if(!r.aberta) cls += ' rota-fechada';
     if(colapsavel) cls += ' rota-colapsavel rota-colapsada';
-    const titulo = r.avulsa ? ('ROTA AVULSA - ' + r.horario) : ('ROTA - ' + r.horario);
+    const titulo = r.uniao ? ('🔗 ROTA UNIDA - ' + r.horario) : (r.avulsa ? ('ROTA AVULSA - ' + r.horario) : ('ROTA - ' + r.horario));
+    if(r.uniao) cls += ' rota-unida';
     const meta = (r.aberta ? 'aberta' : 'finalizada') + ' · ' + qtd + ' entrega(s)';
     let btnRefriRota = '';
     try{
@@ -8957,12 +9079,21 @@ function renderItensGridPorRotas(listaPedidos, ordenarItensFn){
         if(rr.total) btnRefriRota = _htmlBotaoRefri(rr.total, "abrirModalRefriRota('" + kRota + "')", 'Refrigerantes dos pedidos desta rota');
       }
     }catch(e){}
+    // Master: marcar rota para unir / separar rota unida
+    let ctrlUniao = '';
+    if(_modoMasterUniao && r.pedidos && r.pedidos.length){
+      const kSel = _chaveRotaSel(r);
+      _rotaSelIds[kSel] = r.pedidos.map(p=>p.id);
+      ctrlUniao = '<label onclick="event.stopPropagation()" title="Marcar para unir rotas" style="display:flex;align-items:center;cursor:pointer"><input type="checkbox" '
+        + (_rotaSelSet.has(kSel) ? 'checked ' : '') + 'onchange="toggleSelRota(\'' + kSel + '\',this.checked)" style="width:16px;height:16px;margin:0 4px 0 0;cursor:pointer"></label>';
+      if(r.uniao) ctrlUniao += '<button onclick="event.stopPropagation();separarRotaUnida(\'' + kSel + '\')" title="Separar rotas unidas" style="background:#2a3040;color:#e8ecf5;border:0;border-radius:6px;padding:2px 6px;font-size:10px;font-weight:800;cursor:pointer;margin-right:4px">✂️ Separar</button>';
+    }
     const toggleIcon = colapsavel ? '<span class="rota-toggle-icon" aria-hidden="true">🙈</span>' : '';
     const headerAttrs = colapsavel
       ? ' class="rota-header" role="button" tabindex="0" onclick="toggleRotaPedidos(this)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleRotaPedidos(this);}"'
       : ' class="rota-header"';
     return `<div class="${cls}">
-      <div${headerAttrs}><span>${titulo}</span><span style="display:flex;align-items:center;gap:4px">${btnRefriRota}<span class="rota-meta">${meta}</span>${toggleIcon}</span></div>
+      <div${headerAttrs}><span>${titulo}</span><span style="display:flex;align-items:center;gap:4px">${ctrlUniao}${btnRefriRota}<span class="rota-meta">${meta}</span>${toggleIcon}</span></div>
       <div class="pedidos-grid"${colapsavel ? ' style="display:none"' : ''}>${r.aberta ? _htmlUltimaFinalRota(r) : ''}${htmlCards}</div>
     </div>`;
   }).filter(Boolean).join('');
@@ -9323,7 +9454,7 @@ function _htmlMasterEntColuna(nome, lista){
       fin.sort((a,b)=> _finalizadoItemEntrega(a) - _finalizadoItemEntrega(b));
       resto.forEach(it => itensPend.push(it));
       let ant = null;
-      fin.forEach(it => { itensFin.push({ it, ant }); ant = it; });
+      fin.forEach(it => { itensFin.push({ it, ant, rotaPeds: r.pedidos || [] }); ant = it; });
     });
     const its = itensPend.concat(itensFin.map(x=>x.it));
     let htmlCards = '';
@@ -9337,8 +9468,11 @@ function _htmlMasterEntColuna(nome, lista){
       itensFin.forEach((x,j)=>{
         // Unidade = [tempo + seta →] + card. Se a linha quebrar, o tempo/seta vai junto do card seguinte.
         let chip = '';
-        if(j > 0 && x.ant){
+        if(x.ant){
           chip = (typeof _htmlTempoEntreCards === 'function' ? _htmlTempoEntreCards(x.ant, x.it) : '') || '';
+        } else {
+          // 1ª finalizada da rota: tempo desde a partida (último pedido adicionado)
+          chip = _htmlTempoPartida(x.rotaPeds, x.it, 'lado') || '';
         }
         if(!chip) chip = '<div class="rota-lado-vazio" aria-hidden="true"></div>';
         finRow += '<div class="master-rota-fin-unit">' + chip + cardHtml(x.it, itensPend.length + j, listaSegura) + '</div>';
