@@ -272,6 +272,83 @@ body.ifood-modal-open{
 .rota-grupo.rota-colapsavel .rota-toggle-icon{font-size:12px;font-weight:800;color:#8b93a7;margin-left:6px;flex-shrink:0}
 .rota-grupo.rota-colapsavel.rota-colapsada .pedidos-grid{display:none !important}
 .rota-grupo.rota-colapsavel:not(.rota-colapsada) .pedidos-grid{display:grid}
+.rota-intervalo{grid-column:1/-1;display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;color:#6ab7ff;padding:0 4px;line-height:1.2;text-align:center}
+.rota-intervalo::before,.rota-intervalo::after{content:"";flex:1;border-top:1px dashed #2a4a7a}
+.rota-par{display:flex;gap:4px;min-width:0;align-items:stretch}
+.rota-par .rota-lado{flex:0 0 22px;display:flex;align-items:center;justify-content:center;background:#0e1118;border:1px dashed #2a4a7a;border-radius:8px;color:#6ab7ff;font-size:9px;font-weight:800;line-height:1}
+.rota-par .rota-lado span{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap}
+.master-rota-grid3 .rota-par .pedido-mini{width:auto !important;flex:1 1 0;min-width:0 !important}
+/* Master Em rota: cards lado a lado; tempo ENTRE cards finalizados */
+.master-rota-fin-row{
+  display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;
+  grid-column:1 / -1;
+  width:100%;
+  box-sizing:border-box;
+  padding:2px 0 0;
+  border-top:1px dashed #2a3a5a;
+  margin-top:4px;
+  justify-content:flex-start;
+}
+/* Largura travada (~1/3): não estica quando fica sozinho na linha */
+.master-rota-fin-row > .pedido-mini{
+  flex:0 0 calc((100% - 64px) / 3);
+  width:calc((100% - 64px) / 3);
+  max-width:calc((100% - 64px) / 3);
+  min-width:0;
+  box-sizing:border-box;
+  margin:0 !important;
+}
+.master-rota-fin-row > .rota-lado-entre{
+  flex:0 0 26px;
+  width:26px;
+  align-self:stretch;
+  display:flex;align-items:center;justify-content:center;
+  background:#0e1118;border:1px dashed #2a4a7a;border-radius:8px;
+  color:#6ab7ff;font-size:9px;font-weight:800;line-height:1.1;
+  padding:4px 2px;box-sizing:border-box;min-height:48px;
+}
+.master-rota-fin-row > .rota-lado-entre span{
+  writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;
+  letter-spacing:0.02em;
+}
+.master-rota-fin-row > .rota-lado-entre .rte-arrow{
+  display:block;font-size:11px;line-height:1;margin-top:3px;color:#6ab7ff;opacity:.95;
+}
+.master-rota-pend-label,
+.master-rota-fin-label{
+  grid-column:1 / -1;
+  font-size:10px;font-weight:800;letter-spacing:0.04em;
+  padding:4px 2px 2px;color:#8b93a7;
+}
+.master-rota-pend-label{color:#f0c14a}
+.master-rota-fin-label{color:#3dcc8a;margin-top:2px}
+@media (max-width:640px){
+  .master-rota-fin-row > .pedido-mini{
+    flex:0 0 calc((100% - 38px) / 2);
+    width:calc((100% - 38px) / 2);
+    max-width:calc((100% - 38px) / 2);
+  }
+}
+@media (max-width:400px){
+  .master-rota-fin-row > .pedido-mini{
+    flex:0 0 100%;
+    width:100%;
+    max-width:100%;
+  }
+  .master-rota-fin-row > .rota-lado-entre{
+    flex:0 0 100%;width:100%;min-height:28px;
+  }
+  .master-rota-fin-row > .rota-lado-entre span{
+    writing-mode:horizontal-tb;transform:none;
+    display:inline-flex;align-items:center;gap:4px;
+  }
+  .master-rota-fin-row > .rota-lado-entre .rte-arrow{
+    display:inline;margin-top:0;transform:none;
+  }
+}
+.rota-intervalo.ultima{color:#3dcc8a}
+.rota-intervalo.ultima::before,.rota-intervalo.ultima::after{border-top-color:#2a5a3a}
+.rota-intervalo small{font-weight:600;color:#8b93a7;font-size:10px}
 /* Entregador: cards maiores (280–350px) nas abas Em rota e Pedidos */
 body.modo-entregador .pedidos-grid{
   grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
@@ -713,7 +790,7 @@ body.modo-entregador .btn-entregador-localizador{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 151026.212353</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 151026.225100</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
 </div>
@@ -8718,6 +8795,93 @@ function _ordenarRotasExibicao(rotas){
   return abertas.concat(fechadas);
 }
 /** HTML: wrappers de rota lado a lado (cards idênticos). */
+/** Item (pedido ou grupo) totalmente finalizado? */
+function _itemFinalizadoRota(it){
+  if(!it) return false;
+  const ps = it.tipo==='grupo' ? (it.pedidos||[]) : [it.pedido];
+  return ps.length > 0 && ps.every(p => p && isPedidoFinalizado(p));
+}
+/** Dentro de uma rota: finalizadas primeiro, na ordem em que foram finalizadas (mais antiga → mais recente); depois as a entregar (ordem original). */
+function _ordenarItensRota(itens){
+  const fin = [], resto = [];
+  (itens||[]).forEach(it => (_itemFinalizadoRota(it) ? fin : resto).push(it));
+  fin.sort((a,b)=> _finalizadoItemEntrega(a) - _finalizadoItemEntrega(b));
+  return fin.concat(resto);
+}
+/** Momento (ms) em que o item (pedido ou grupo) foi finalizado; 0 se ainda não finalizado. */
+function _tsFinalItem(it){
+  if(!it) return 0;
+  const ps = it.tipo==='grupo' ? (it.pedidos||[]) : [it.pedido];
+  if(!ps.length) return 0;
+  let max = 0;
+  for(const p of ps){
+    if(!p || !isPedidoFinalizado(p)) return 0;
+    const t = p.codigo_informado_em ? new Date(p.codigo_informado_em).getTime() : NaN;
+    if(!isFinite(t)) return 0;
+    if(t > max) max = t;
+  }
+  return max;
+}
+function _fmtIntervaloMin(ms){
+  const m = Math.round(ms/60000);
+  if(m < 1) return 'menos de 1 min';
+  if(m < 60) return m + ' min';
+  const h = Math.floor(m/60), r = m % 60;
+  return h + 'h' + (r ? String(r).padStart(2,'0') + 'min' : '');
+}
+/** Faixa entre dois cards finalizados: horário de cada um (em ordem cronológica) e o tempo entre eles. */
+function _htmlIntervaloEntre(a, b){
+  try{
+    const ta = _tsFinalItem(a), tb = _tsFinalItem(b);
+    if(!ta || !tb) return '';
+    const ini = Math.min(ta,tb), fim = Math.max(ta,tb);
+    return '<div class="rota-intervalo" title="Tempo entre as duas finalizações">⏱️ ' + _fmtIntervaloMin(fim-ini)
+      + ' <small>' + _fmtHoraRota(ini) + ' → ' + _fmtHoraRota(fim) + '</small></div>';
+  }catch(e){ return ''; }
+}
+/** Selo vertical ao lado do card: tempo desde a entrega finalizada anterior da mesma rota. */
+function _htmlTempoLado(ant, it){
+  try{
+    const ta = _tsFinalItem(ant), tb = _tsFinalItem(it);
+    if(!ta || !tb) return '';
+    const ini = Math.min(ta,tb), fim = Math.max(ta,tb);
+    return '<div class="rota-lado" title="Tempo desde a entrega anterior: ' + _fmtHoraRota(ini) + ' → ' + _fmtHoraRota(fim) + '"><span>⏱️ ' + _fmtIntervaloMin(fim-ini) + '</span></div>';
+  }catch(e){ return ''; }
+}
+/** Chip de tempo ENTRE dois cards finalizados (Master Em rota — lado a lado). */
+function _htmlTempoEntreCards(ant, it){
+  try{
+    const ta = _tsFinalItem(ant), tb = _tsFinalItem(it);
+    if(!ta || !tb) return '';
+    const ini = Math.min(ta,tb), fim = Math.max(ta,tb);
+    // Seta indica o fluxo da rota (entrega anterior → próxima)
+    return '<div class="rota-lado-entre" title="Tempo entre entregas: ' + _fmtHoraRota(ini) + ' → ' + _fmtHoraRota(fim) + '"><span>⏱️ ' + _fmtIntervaloMin(fim-ini) + '<span class="rte-arrow" aria-hidden="true">↓</span></span></div>';
+  }catch(e){ return ''; }
+}
+/** Rota ainda aberta (aba Em rota): mostra a última entrega já finalizada da mesma rota e há quanto tempo. */
+function _htmlUltimaFinalRota(r){
+  try{
+    if(!r || !r.aberta || !r.pedidos || !r.pedidos.length || typeof todosPedidos === 'undefined') return '';
+    const nomeDe = p => String((typeof getNomeReserva === 'function' ? getNomeReserva(p) : p.entregador_nome) || '').trim().toLowerCase();
+    const nome = nomeDe(r.pedidos[0]);
+    if(!nome) return '';
+    const ids = new Set(r.pedidos.map(p=>p.id));
+    const bases = r.pedidos.map(getRotaBaseMs).filter(x=>x>0);
+    if(!bases.length) return '';
+    const lo = Math.min.apply(null, bases) - ROTA_JANELA_MS, hi = Math.max.apply(null, bases) + ROTA_JANELA_MS;
+    let max = 0;
+    (todosPedidos||[]).forEach(p=>{
+      if(!p || ids.has(p.id) || !isPedidoFinalizado(p) || nomeDe(p) !== nome) return;
+      const b = getRotaBaseMs(p);
+      if(!(b >= lo && b <= hi)) return;
+      const t = p.codigo_informado_em ? new Date(p.codigo_informado_em).getTime() : NaN;
+      if(isFinite(t) && t > max) max = t;
+    });
+    if(!max) return '';
+    return '<div class="rota-intervalo ultima">✅ Última entrega às ' + _fmtHoraRota(max)
+      + ' <small>há ' + _fmtIntervaloMin(Math.max(0, Date.now()-max)) + '</small></div>';
+  }catch(e){ return ''; }
+}
 function renderItensGridPorRotas(listaPedidos, ordenarItensFn){
   const lista = listaPedidos || [];
   if(!lista.length) return '';
@@ -8728,7 +8892,14 @@ function renderItensGridPorRotas(listaPedidos, ordenarItensFn){
   const blocos = rotas.map(r=>{
     let itens = montarItensAgrupados(r.pedidos);
     if(typeof ordenarItensFn === 'function') itens = ordenarItensFn(itens);
-    const htmlCards = itens.map((it,i)=> it.tipo==='grupo' ? cardGrupoPedidos(it) : cardPedido(it.pedido,i,r.pedidos)).join('');
+    itens = _ordenarItensRota(itens);
+    const cardsArr = itens.map((it,i)=> it.tipo==='grupo' ? cardGrupoPedidos(it) : cardPedido(it.pedido,i,r.pedidos));
+    // Entre dois cards finalizados: tempo entre as entregas (pela hora de finalização)
+    let htmlCards = '';
+    cardsArr.forEach((h,i)=>{
+      htmlCards += h;
+      if(i < cardsArr.length-1 && h && cardsArr[i+1]) htmlCards += _htmlIntervaloEntre(itens[i], itens[i+1]);
+    });
     if(!htmlCards || htmlCards.indexOf('pedido-mini')===-1) return '';
     const qtd = itens.length;
     let cls = 'rota-grupo';
@@ -8743,7 +8914,7 @@ function renderItensGridPorRotas(listaPedidos, ordenarItensFn){
       : ' class="rota-header"';
     return `<div class="${cls}">
       <div${headerAttrs}><span>${titulo}</span><span style="display:flex;align-items:center;gap:4px"><span class="rota-meta">${meta}</span>${toggleIcon}</span></div>
-      <div class="pedidos-grid"${colapsavel ? ' style="display:none"' : ''}>${htmlCards}</div>
+      <div class="pedidos-grid"${colapsavel ? ' style="display:none"' : ''}>${r.aberta ? _htmlUltimaFinalRota(r) : ''}${htmlCards}</div>
     </div>`;
   }).filter(Boolean).join('');
   return `<div class="rotas-wrap">${blocos}</div>`;
@@ -9013,8 +9184,8 @@ function htmlMasterEmRotaColunas(pedidosDoTurno){
     // se por algum motivo a rota "aberta" não tiver itens, usa só os abertos
     const soAbertos = flat.filter(p => typeof _pedidoRotaAberto === 'function' ? _pedidoRotaAberto(p) : true);
     if(!soAbertos.length && !flat.length) return;
-    // Mantém só pedidos ainda a entregar na coluna (rota concluída some por completo)
-    porEnt[nome] = soAbertos.length ? soAbertos : flat.filter(p => typeof _pedidoRotaAberto === 'function' ? _pedidoRotaAberto(p) : true);
+    // A rota só some quando TODAS as entregas dela forem finalizadas: enquanto aberta, mostra finalizadas + a entregar
+    porEnt[nome] = soAbertos.length ? flat : [];
     if(!porEnt[nome].length) delete porEnt[nome];
   });
 
@@ -9085,22 +9256,40 @@ function _htmlMasterEntColuna(nome, lista){
   if(!listaSegura.length){
     gridBody = `<div style="text-align:center;color:#555;font-size:11px;padding:10px">Nenhum</div>`;
   } else {
-    // Ordena: a entregar primeiro, depois por horário de rota/criação
-    const its = [...itens].sort((a,b)=>{
-      const ac = itemEhConfirmado(a)?1:0;
-      const bc = itemEhConfirmado(b)?1:0;
-      if(ac!==bc) return ac-bc;
-      try{
-        const da = a.tipo==='grupo' ? getRotaBaseMs(a.pedidos[0]) : getRotaBaseMs(a.pedido);
-        const db = b.tipo==='grupo' ? getRotaBaseMs(b.pedidos[0]) : getRotaBaseMs(b.pedido);
-        return (da||0)-(db||0);
-      }catch(e){
-        const da = a.tipo==='grupo' ? a.pedidos[0].created_at : a.pedido.created_at;
-        const db = b.tipo==='grupo' ? b.pedidos[0].created_at : b.pedido.created_at;
-        return new Date(da)-new Date(db);
-      }
+    // MASTER Em rota: 1º EM ROTA (a entregar) lado a lado; por último FINALIZADAS lado a lado
+    // com o TEMPO entre as entregas (chip vertical entre os cards).
+    let rotasCol = [];
+    try{ rotasCol = getRotasByEntregador(listaSegura).sort((a,b)=>(a.baseMs||0)-(b.baseMs||0)); }catch(e){ rotasCol = []; }
+    if(!rotasCol.length) rotasCol = [{ pedidos: listaSegura }];
+    const itensPend = [], itensFin = [];
+    rotasCol.forEach(r=>{
+      const itR = montarItensAgrupados(r.pedidos || []);
+      // dentro da rota: pendentes na ordem da rota; finalizados em ordem cronológica de finalização
+      const fin = [], resto = [];
+      itR.forEach(it => (_itemFinalizadoRota(it) ? fin : resto).push(it));
+      fin.sort((a,b)=> _finalizadoItemEntrega(a) - _finalizadoItemEntrega(b));
+      resto.forEach(it => itensPend.push(it));
+      let ant = null;
+      fin.forEach(it => { itensFin.push({ it, ant }); ant = it; });
     });
-    const htmlCards = its.map((it,i)=> cardHtml(it,i,listaSegura)).join('');
+    const its = itensPend.concat(itensFin.map(x=>x.it));
+    let htmlCards = '';
+    if(itensPend.length){
+      if(itensFin.length) htmlCards += '<div class="master-rota-pend-label">🛵 EM ROTA</div>';
+      htmlCards += itensPend.map((it,i)=> cardHtml(it, i, listaSegura)).join('');
+    }
+    if(itensFin.length){
+      if(itensPend.length) htmlCards += '<div class="master-rota-fin-label">✅ FINALIZADAS</div>';
+      let finRow = '<div class="master-rota-fin-row">';
+      itensFin.forEach((x,j)=>{
+        if(j > 0 && x.ant){
+          finRow += (typeof _htmlTempoEntreCards === 'function' ? _htmlTempoEntreCards(x.ant, x.it) : _htmlTempoLado(x.ant, x.it)) || '';
+        }
+        finRow += cardHtml(x.it, itensPend.length + j, listaSegura);
+      });
+      finRow += '</div>';
+      htmlCards += finRow;
+    }
     const meta = (pend ? pend + ' a entregar' : 'ok') + ' · ' + its.length + ' entrega(s)';
     // Título do quadro = NOME DO ENTREGADOR (substitui "ROTA - horário")
     gridBody = `<div class="rota-grupo master-ent-rota">
