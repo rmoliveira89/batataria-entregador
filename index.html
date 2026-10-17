@@ -609,11 +609,6 @@ body.modo-entregador .btn-entregador-localizador{
 .nome-bebida-wrap{display:flex;align-items:flex-start;gap:5px;min-width:0}
 @keyframes dinPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,107,107,.55)}50%{box-shadow:0 0 0 7px rgba(255,107,107,0)}}
 #btnDinheiro.din-alerta{animation:dinPulse 1.6s infinite;background:#2a1414 !important}
-@keyframes chamaPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(239,68,68,.7)}50%{transform:scale(1.05);box-shadow:0 0 0 10px rgba(239,68,68,0)}}
-#btnChamar.chamando,#btnChamarMaster.chamando{animation:chamaPulse 1s infinite;background:#7f1d1d !important;color:#fff !important;border-color:#ef4444 !important}
-#modalChamadaRecebida .card{border:2px solid #ef4444;animation:chamaPulse 1.2s infinite}
-#modalChamadaRecebida .ch-nome{font-size:22px;font-weight:900;color:#f0c14a;text-align:center;margin:8px 0}
-#modalChamadaRecebida .ch-sub{font-size:13px;color:#8b93a7;text-align:center;margin-bottom:14px}
 
 /* Modal alerta UI (substitui window.alert) */
 #modalAlertaUI .card{width:100%;max-width:400px;margin:0;padding:18px 16px 14px;border-radius:16px;border:1px solid #2c3340;background:#161a22;box-shadow:0 12px 40px rgba(0,0,0,.55)}
@@ -626,6 +621,29 @@ body.modo-entregador .btn-entregador-localizador{
 #modalAlertaUI .ma-msg{font-size:13px;color:#e6e8ef;line-height:1.45;text-align:center;white-space:pre-wrap;word-break:break-word;max-height:50vh;overflow:auto;margin:0 0 16px;padding:0 4px}
 #modalAlertaUI .ma-acoes{display:flex;gap:8px}
 #modalAlertaUI .ma-acoes .btn{flex:1;padding:14px;font-weight:900;font-size:14px}
+
+/* Alertas Master ↔ Entregadores */
+@keyframes alPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.65)}50%{box-shadow:0 0 0 10px rgba(239,68,68,0)}}
+#modalAlertaRecebido .al-rec{width:100%;max-width:400px;margin:0;padding:20px 16px 16px;text-align:center;border:2px solid #ef4444;animation:alPulse 1.4s infinite}
+.al-rec-de{font-size:20px;font-weight:900;color:#f0c14a;margin:8px 0 12px;word-break:break-word}
+.al-rec-ped{margin:0 0 12px;padding:12px;background:#1a1212;border:1px solid #5a2a2a;border-radius:12px;text-align:left}
+.al-rec-msg{margin:0 0 12px;padding:14px;background:#1a1a0e;border:2px solid #f0c14a;border-radius:12px;font-size:16px;font-weight:800;color:#f0c14a;line-height:1.35;word-break:break-word;white-space:pre-wrap}
+.al-rapida{width:100%;text-align:left;padding:12px 14px;font-weight:800;font-size:13px;background:#1c1c12;border-color:#5a4a2a;color:#f0c14a}
+.al-vazio{font-size:12px;color:#5a657a;padding:10px;text-align:center}
+.al-ped{padding:10px 12px;border:1px solid #2c3340;border-radius:10px;background:#0e1118;cursor:pointer}
+.al-ped.sel{border-color:#f0c14a;background:#1a1a0e}
+.al-ped.fim{opacity:.75}
+.al-ped-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.al-ped-num{font-size:13px;font-weight:900;color:#e6e8ef;min-width:0;word-break:break-word}
+.al-ped-end{font-size:11px;color:#8b93a7;margin-top:3px;line-height:1.3}
+.al-ped-ent{font-size:12px;font-weight:800;color:#6ab7ff;margin-top:4px}
+.al-ped-mark{font-size:10px;color:#5a657a;margin-top:4px;font-weight:700}
+.al-ped.sel .al-ped-mark{color:#f0c14a}
+.al-chip{flex:none;font-size:10px;font-weight:900;padding:3px 7px;border-radius:999px;white-space:nowrap}
+.al-chip.late{background:#7f1d1d;color:#fff}
+.al-chip.warn{background:#4a3a0e;color:#f0c14a}
+.al-chip.ok{background:#1c2230;color:#8b93a7}
+.al-chip.done{background:#12261c;color:#3dcc8a}
 
 </style>
 </head>
@@ -643,7 +661,6 @@ body.modo-entregador .btn-entregador-localizador{
   </div>
 </div>
 </div>
-
 
 
 <!-- MODAL LIGAR CLIENTE -->
@@ -753,59 +770,61 @@ body.modo-entregador .btn-entregador-localizador{
 </div>
 </div>
 
-<!-- MODAL CHAMADA RECEBIDA -->
-<div id="modalChamadaRecebida" class="overlay" style="display:none;z-index:9995" role="dialog" aria-modal="true">
-<div class="card" style="width:100%;max-width:400px;margin:0;padding:20px 16px 16px;text-align:center">
+<!-- MODAL ALERTA RECEBIDO (fica na tela até o OK) -->
+<div id="modalAlertaRecebido" class="overlay" style="display:none;z-index:9995" role="dialog" aria-modal="true">
+<div class="card al-rec">
   <div style="font-size:36px;line-height:1;margin-bottom:6px">🔔</div>
-  <h3 style="margin:0 0 4px;color:#ff6b6b;font-size:16px;font-weight:900">Atenção</h3>
-  <div class="ch-nome" id="chRecebidaNome">—</div>
-  <div class="ch-sub" id="chRecebidaSub">está pedindo atenção</div>
-  <div id="chRecebidaPedido" style="display:none;margin:12px 0;padding:12px;background:#1a1212;border:1px solid #5a2a2a;border-radius:12px;text-align:left">
-    <div style="font-size:12px;font-weight:900;color:#ff6b6b;margin-bottom:6px" id="chRecebidaPedidoTitulo">⚠️ Atenção com pedido</div>
-    <div style="font-size:15px;font-weight:900;color:#f0c14a" id="chRecebidaPedidoNum"></div>
-    <div style="font-size:13px;color:#e6e8ef;margin-top:4px" id="chRecebidaPedidoCliente"></div>
-    <div style="font-size:11px;color:#8b93a7;margin-top:4px;line-height:1.35" id="chRecebidaPedidoEnd"></div>
+  <h3 style="margin:0 0 4px;color:#ff6b6b;font-size:16px;font-weight:900">Alerta</h3>
+  <div class="al-rec-de" id="alRecDe">—</div>
+  <div id="alRecPedido" class="al-rec-ped" style="display:none">
+    <div id="alRecPedNum" style="font-size:15px;font-weight:900;color:#f0c14a"></div>
+    <div id="alRecPedCli" style="font-size:13px;color:#e6e8ef;margin-top:4px"></div>
+    <div id="alRecPedEnd" style="font-size:11px;color:#8b93a7;margin-top:4px;line-height:1.35"></div>
   </div>
-  <div id="chRecebidaMsg" style="display:none;margin:0 0 12px;padding:14px 14px;background:#1a1a0e;border:2px solid #f0c14a;border-radius:12px;font-size:16px;font-weight:800;color:#f0c14a;line-height:1.45;text-align:center;white-space:pre-wrap"></div>
-  <button class="btn red" id="btnPararChamada" style="width:100%;padding:16px;font-size:16px;font-weight:900" onclick="atenderChamadaRecebida()">✓ OK, vi</button>
+  <div id="alRecMsg" class="al-rec-msg" style="display:none"></div>
+  <div id="alRecMais" style="font-size:11px;color:#8b93a7;margin-bottom:10px;min-height:14px"></div>
+  <button class="btn red" style="width:100%;padding:16px;font-size:16px;font-weight:900" onclick="confirmarAlertaRecebido()">✓ OK, vi</button>
 </div>
 </div>
 
-<!-- MODAL MASTER ESCOLHER ENTREGADOR PARA CHAMAR -->
-<div id="modalMasterChamar" class="overlay" style="display:none;z-index:250">
-<div class="card" style="width:100%;max-width:480px;margin:0;max-height:92vh;overflow:auto">
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-<h3 style="margin:0;color:#6ab7ff">🔔 Chamar atenção</h3>
-<button class="btn" onclick="fecharModalMasterChamar()">✕</button>
-</div>
-<label style="font-size:11px;color:#8b93a7;font-weight:700">Mensagem (opcional)</label>
-<textarea id="masterChamarMsg" rows="2" maxlength="200" placeholder="Texto breve para o entregador…" style="width:100%;margin:6px 0 10px;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;background:#0e1118;color:#fff;font-family:inherit;font-size:13px;resize:vertical"></textarea>
-<div id="masterChamarStatus" style="font-size:11px;color:#8b93a7;margin-bottom:8px;text-align:center"></div>
-<div id="masterChamarLista" style="display:flex;flex-direction:column;gap:10px;max-height:55vh;overflow:auto"></div>
+<!-- MODAL NOTIFICAÇÕES (3 últimos alertas recebidos) -->
+<div id="modalNotif" class="overlay" style="display:none;z-index:240" onclick="if(event.target===this) fecharModalNotif()">
+<div class="card" style="width:100%;max-width:440px;margin:0;max-height:92vh;overflow:auto">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <h3 style="margin:0;color:#6ab7ff;font-size:16px">🔔 Notificações</h3>
+    <button class="btn" onclick="fecharModalNotif()">✕</button>
+  </div>
+  <div id="ntLista" style="display:flex;flex-direction:column;gap:8px"></div>
+  <div style="font-size:10px;color:#5a657a;text-align:center;margin-top:10px">Últimos 3 alertas recebidos</div>
 </div>
 </div>
 
-<!-- MODAL ENTREGADOR CHAMAR MASTER -->
-<div id="modalEntChamar" class="overlay" style="display:none;z-index:250">
+<!-- MODAL ENVIAR ALERTA -->
+<div id="modalAlertaEnviar" class="overlay" style="display:none;z-index:250">
 <div class="card" style="width:100%;max-width:480px;margin:0;max-height:92vh;overflow:auto">
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-<h3 style="margin:0;color:#f0c14a">🔔 Chamar a loja</h3>
-<button class="btn" onclick="fecharModalEntChamar()">✕</button>
-</div>
-<label style="font-size:11px;color:#8b93a7;font-weight:700">Mensagem rápida</label>
-<div style="display:flex;flex-direction:column;gap:6px;margin:6px 0 10px">
-  <button type="button" class="btn" style="width:100%;text-align:left;padding:12px 14px;font-weight:800;font-size:13px;background:#1c1c12;border-color:#5a4a2a;color:#f0c14a" onclick="entChamarMsgRapida('Cliente não atende')">📞 Cliente não atende</button>
-  <button type="button" class="btn" style="width:100%;text-align:left;padding:12px 14px;font-weight:800;font-size:13px;background:#1a1e2a;border-color:#2a3a5a;color:#6ab7ff" onclick="entChamarMsgRapida('Preciso de ajuda com pedido')">🆘 Preciso de ajuda com pedido</button>
-</div>
-<label style="font-size:11px;color:#8b93a7;font-weight:700">Ou escreva uma mensagem</label>
-<textarea id="entChamarMsg" rows="2" maxlength="200" placeholder="Texto breve para a loja…" style="width:100%;margin:6px 0 10px;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;background:#0e1118;color:#fff;font-family:inherit;font-size:13px;resize:vertical"></textarea>
-<div style="font-size:11px;color:#8b93a7;margin-bottom:8px">Marque o pedido com problema (ativos + finalizados até 40 min):</div>
-<div id="entChamarLista" style="display:flex;flex-direction:column;gap:6px;max-height:45vh;overflow:auto;margin-bottom:12px"></div>
-<div id="entChamarStatus" style="font-size:11px;color:#8b93a7;text-align:center;margin-bottom:8px;min-height:14px"></div>
-<div style="display:flex;gap:8px">
-<button class="btn" style="flex:1;padding:14px" onclick="fecharModalEntChamar()">Cancelar</button>
-<button class="btn primary" style="flex:1;padding:14px;font-weight:900" onclick="enviarChamadaEntregador()">🔔 Chamar</button>
-</div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <h3 id="alTitulo" style="margin:0;color:#f0c14a;font-size:16px">📢 Enviar alerta</h3>
+    <button class="btn" onclick="fecharModalAlertaEnviar()">✕</button>
+  </div>
+  <div id="alDestWrap" style="display:none;margin-bottom:10px">
+    <label style="font-size:11px;color:#8b93a7;font-weight:700">Enviar para</label>
+    <select id="alDestino" style="width:100%;margin-top:6px;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;background:#0e1118;color:#fff;font-size:13px;font-weight:700"></select>
+  </div>
+  <label id="alRapidasLbl" style="font-size:11px;color:#8b93a7;font-weight:700">Mensagem rápida</label>
+  <div id="alRapidas" style="display:flex;flex-direction:column;gap:6px;margin:6px 0 10px"></div>
+  <label style="font-size:11px;color:#8b93a7;font-weight:700">Ou escreva uma mensagem</label>
+  <textarea id="alMsg" rows="2" maxlength="200" placeholder="Texto breve…" style="width:100%;margin:6px 0 10px;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;background:#0e1118;color:#fff;font-family:inherit;font-size:13px;resize:vertical"></textarea>
+  <div style="display:flex;gap:16px;margin-bottom:12px;font-size:13px;font-weight:700;color:#e6e8ef">
+    <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="alSom" checked style="width:auto"/> 🔊 Alerta sonoro</label>
+    <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="alVib" checked style="width:auto"/> 📳 Vibração</label>
+  </div>
+  <div id="alPedTitulo" style="font-size:11px;color:#8b93a7;margin-bottom:8px">Pedidos:</div>
+  <div id="alPedLista" style="display:flex;flex-direction:column;gap:6px;max-height:40vh;overflow:auto;margin-bottom:12px"></div>
+  <div id="alStatus" style="font-size:12px;color:#ff6b6b;text-align:center;margin-bottom:8px;min-height:14px"></div>
+  <div style="display:flex;gap:8px">
+    <button class="btn" style="flex:1;padding:14px" onclick="fecharModalAlertaEnviar()">Cancelar</button>
+    <button class="btn primary" id="alBtnEnviar" style="flex:1;padding:14px;font-weight:900" onclick="enviarAlerta()">📢 Enviar</button>
+  </div>
 </div>
 </div>
 
@@ -824,7 +843,7 @@ body.modo-entregador .btn-entregador-localizador{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 161026.222500</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 171026.113508</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -836,8 +855,8 @@ body.modo-entregador .btn-entregador-localizador{
     <span id="swChuvaKnob" style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s"></span>
   </span>
 </button>
-<button class="btn" id="btnChamar" onclick="toggleChamadaEntregador()" style="display:none;font-size:11px;padding:8px 10px;background:#3a1a1a;border-color:#5a2a2a;color:#ff6b6b" title="Chamar atenção do Administrador">🔔 <span class="hlbl" id="lblBtnChamar">Chamar</span></button>
-<button class="btn" id="btnChamarMaster" onclick="abrirModalMasterChamar()" style="display:none;font-size:11px;padding:8px 10px;background:#1a2a3a;border-color:#2a4a5a;color:#6ab7ff" title="Chamar atenção do entregador">🔔 <span class="hlbl">Chamar</span></button>
+<button class="btn" id="btnAlertas" onclick="abrirModalAlerta()" style="display:none;font-size:11px;padding:8px 10px;background:#3a1a1a;border-color:#5a2a2a;color:#ff6b6b" title="Enviar alerta (Administrador ↔ Entregadores)">📢 <span class="hlbl">Alerta</span></button>
+<button class="btn" id="btnNotif" onclick="abrirModalNotif()" style="display:none;font-size:11px;padding:8px 10px;position:relative;background:#1a2a3a;border-color:#2a4a5a;color:#6ab7ff" title="Notificações (últimos alertas recebidos)">🔔 <span id="badgeNotif" style="display:none;position:absolute;top:-6px;right:-6px;background:#ff6b6b;color:#fff;font-size:10px;font-weight:900;min-width:18px;height:18px;border-radius:999px;align-items:center;justify-content:center;padding:0 4px">0</span></button>
 <button class="btn" id="btnDinheiro" onclick="abrirModalDinheiro()" style="display:none;font-size:11px;padding:8px 10px;position:relative;background:#1a2a1a;border-color:#2a5a3a;color:#3dcc8a" title="Controle de dinheiro (somente leitura)">
   💵 <span id="badgeDinheiro" style="display:none;position:absolute;top:-6px;right:-6px;background:#ff6b6b;color:#fff;font-size:10px;font-weight:900;min-width:18px;height:18px;border-radius:999px;align-items:center;justify-content:center;padding:0 4px">0</span>
 </button>
@@ -968,6 +987,7 @@ Pedidos <b>finalizados</b> em <b style="color:#ff6b6b">DINHEIRO</b> que ainda n�
 <button class="tab" id="tabBtnFuncoes" onclick="trocarAba('funcoes')">👁️ Mostrar funções</button>
 <button class="tab" id="tabBtnClientes" onclick="trocarAba('clientes')">👤 Clientes</button>
 <button class="tab" id="tabBtnEnderecos" onclick="trocarAba('enderecos')">📍 Endereços</button>
+<button class="tab" id="tabBtnAlertas" onclick="trocarAba('alertas')">📢 Alertas</button>
 </div>
 <div id="abaSupabase">
 <label>Supabase URL</label><input id="cfgUrl" style="margin:6px 0 10px"/>
@@ -1133,7 +1153,7 @@ alter table calc_entregas enable row level security;
 create policy "libera tudo anon calc entregas" on calc_entregas for all using (true) with check (true);
 
 
--- Tabela de chamadas (entregador ↔ Master)
+-- Tabela de alertas (Master ↔ entregadores) — mesma tabela usada pelo botão 🔔 Alerta
 create table if not exists chamadas_app (
   id uuid primary key default gen_random_uuid(),
   de_nome text not null,
@@ -1143,21 +1163,36 @@ create table if not exists chamadas_app (
   pedido_numero text,
   pedido_cliente text,
   pedido_endereco text,
+  atendido_por text,
+  opcoes text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
 create index if not exists idx_chamadas_app_status on chamadas_app (status);
 create index if not exists idx_chamadas_app_para on chamadas_app (para_nome, status);
 alter table chamadas_app enable row level security;
+-- (se a tabela já existe, rode só as linhas abaixo; ignore erro de policy/publication já existentes)
 create policy "libera tudo anon chamadas" on chamadas_app for all using (true) with check (true);
--- Colunas extras (se a tabela já existir)
 alter table chamadas_app add column if not exists mensagem text;
 alter table chamadas_app add column if not exists pedido_numero text;
 alter table chamadas_app add column if not exists pedido_cliente text;
 alter table chamadas_app add column if not exists pedido_endereco text;
 alter table chamadas_app add column if not exists atendido_por text;
--- Habilitar realtime (rode 1x; ignore erro se já estiver na publication)
+alter table chamadas_app add column if not exists opcoes text;
 alter publication supabase_realtime add table chamadas_app;
+
+-- Mensagens prontas dos alertas (Configurações › Alertas)
+create table if not exists alertas_modelos (
+  id uuid primary key default gen_random_uuid(),
+  texto text not null,
+  publico text not null default 'entregadores', -- entregadores | admin | ambos
+  som boolean not null default true,
+  vibracao boolean not null default true,
+  ativo boolean not null default true,
+  created_at timestamptz default now()
+);
+alter table alertas_modelos enable row level security;
+create policy "libera tudo anon alertas_modelos" on alertas_modelos for all using (true) with check (true);
 
 -- Repasse semanal (gravado por outro sistema; o site só lê e exibe)
 create table if not exists repasse_entregador (
@@ -1312,6 +1347,45 @@ where numero_alto is not null and valor_alto is not null
 <button class="btn" id="endNext" onclick="enderecosPagina(1)">Próxima ›</button>
 </div>
 </div>
+<div id="abaAlertas" style="display:none">
+<div style="font-size:11px;color:#8b93a7;margin-bottom:12px;line-height:1.4">
+Cadastre <b style="color:#f0c14a">mensagens prontas</b> para o botão <b style="color:#f0c14a">📢 Alerta</b>. Em <b style="color:#f0c14a">Aparece para</b> escolha quem vai receber o alerta: <b>Entregadores</b> (aparece como atalho na tela do Admin), <b>Admin</b> (aparece como atalho na tela dos entregadores) ou <b>Ambos</b>. Salvo na tabela <b style="color:#f0c14a">alertas_modelos</b>.
+</div>
+<div style="padding:10px;background:#0e1118;border:1px solid #2c3340;border-radius:10px;margin-bottom:12px">
+  <label style="font-size:11px;color:#f0c14a;font-weight:700">Mensagem pronta</label>
+  <input id="alCfgTexto" maxlength="200" placeholder="Ex.: Volte para a loja" style="margin:6px 0 10px" onkeydown="if(event.key==='Enter') alCfgSalvar()"/>
+  <label style="font-size:11px;color:#f0c14a;font-weight:700">Aparece para</label>
+  <select id="alCfgPublico" style="width:100%;margin:6px 0 10px;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;background:#161a22;color:#fff;font-size:13px;font-weight:700">
+    <option value="entregadores">🛵 Entregadores</option>
+    <option value="admin">👑 Admin</option>
+    <option value="ambos">👥 Ambos</option>
+  </select>
+  <div style="display:flex;gap:16px;margin-bottom:10px;font-size:13px;font-weight:700;color:#e6e8ef">
+    <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="alCfgSom" checked style="width:auto"/> 🔊 Som</label>
+    <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="alCfgVib" checked style="width:auto"/> 📳 Vibração</label>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button class="btn" id="alCfgBtnCancelar" style="display:none;flex:1;padding:12px" onclick="alCfgCancelarEdicao()">Cancelar</button>
+    <button class="btn primary" id="alCfgBtnSalvar" style="flex:1;padding:12px;font-weight:900" onclick="alCfgSalvar()">➕ Adicionar</button>
+  </div>
+  <div id="alCfgStatus" style="font-size:11px;color:#8b93a7;text-align:center;margin-top:8px;min-height:14px"></div>
+</div>
+<div id="alCfgLista" style="display:flex;flex-direction:column;gap:8px;max-height:45vh;overflow:auto"></div>
+<div style="margin-top:12px;padding:10px;background:#0e1118;border:1px solid #2c3340;border-radius:8px;font-size:10px;color:#8b93a7">
+<b style="color:#f0c14a">SQL - rode uma vez no Supabase:</b><br/>
+<code style="color:#fff;display:block;margin-top:6px;white-space:pre-wrap">create table if not exists alertas_modelos (
+  id uuid primary key default gen_random_uuid(),
+  texto text not null,
+  publico text not null default 'entregadores',
+  som boolean not null default true,
+  vibracao boolean not null default true,
+  ativo boolean not null default true,
+  created_at timestamptz default now()
+);
+alter table alertas_modelos enable row level security;
+create policy "libera tudo anon alertas_modelos" on alertas_modelos for all using (true) with check (true);</code>
+</div>
+</div>
 <div id="abaFuncoes" style="display:none">
 <div style="font-size:11px;color:#8b93a7;margin-bottom:12px;line-height:1.4">
 Controle quais <b style="color:#f0c14a">abas</b> e o botão <b style="color:#f0c14a">📈 Relatórios</b> (cabeçalho) cada entregador vê no app. Marque para exibir e desmarque para ocultar. Salvo na tabela <b style="color:#f0c14a">entregadores</b> (coluna <code style="color:#f0c14a">abas_visiveis</code>).
@@ -1453,7 +1527,6 @@ select '06:00','15:59','16:00','05:59','07:00','23:30',5,false where not exists 
 </div>
 </div>
 </div>
-
 
 
 <!-- MODAL CONFIRMAÇÃO MODO AUTOMÁTICO - CÓDIGO 4 DÍGITOS -->
@@ -1742,7 +1815,6 @@ Isso apaga o registro no Supabase (<b style="color:#f0c14a">pedidos_entrega_dia<
 </div>
 </div>
 </div>
-
 
 
 <!-- MODAL EDITAR ENTREGADOR (Master) -->
@@ -2771,7 +2843,6 @@ function salvarCfgSupabase(){
 }
 
 
-
 function getSb(){ if(sb) return sb; const url=localStorage.getItem('supabase_url')||DEFAULT_URL; const key=localStorage.getItem('supabase_key')||DEFAULT_KEY; if(!url||!key){ console.warn('Supabase não configurado'); return null; } try{ sb=supabase.createClient(url,key); return sb; }catch(e){ console.error('Erro supabase', e); return null; } }
 
 /** Lista entregadores ativos do Supabase */
@@ -3030,7 +3101,7 @@ function abrirCfg(){
 function abrirCfgProtegida(){ abrirCfg(); }
 function verificarSenhaCfg(){ /* senha removida - acesso direto para master */ abrirCfg(); }
 function trocarAba(aba){
-  const abas=['supabase','entregadores','modo','custo','horarios','funcoes','clientes','enderecos'];
+  const abas=['supabase','entregadores','modo','custo','horarios','funcoes','clientes','enderecos','alertas'];
   abas.forEach(a=>{
     const cap = a.charAt(0).toUpperCase()+a.slice(1);
     const el=document.getElementById('aba'+cap);
@@ -3044,6 +3115,7 @@ function trocarAba(aba){
   if(aba==='funcoes'){ carregarListaFuncoesAbas(); }
   if(aba==='clientes'){ carregarClientesCodigos(false); }
   if(aba==='enderecos'){ carregarEnderecosConfig(false); }
+  if(aba==='alertas'){ carregarAlertasConfig(); }
 }
 
 // ===================== CLIENTES E CÓDIGOS (Master) =====================
@@ -6620,7 +6692,6 @@ async function baixarPdfRelatorioCusto(modo){
 // =================== FIM ABAS ENTREGADOR ===================
 
 
-
 let modoCacheGlobal = localStorage.getItem('modo_confirmacao') || 'automatico';
 function getModoConfirmacao(){ return modoCacheGlobal || localStorage.getItem('modo_confirmacao') || 'automatico'; }
 
@@ -6688,7 +6759,6 @@ async function salvarModo(modo){
   }catch(e){ console.warn('salvarModo exceção', e); }
 }
 function carregarModo(){ carregarModoGlobal(); }
-
 
 
 async function registrarConfirmacaoSupabase({numero_pedido, codigo_cliente, localizador, nome_entregador, modo, cliente_nome, cliente_endereco, loja}){
@@ -6809,8 +6879,8 @@ async function fazerLogin(){
     const btnLimpeza = document.getElementById('btnLimpeza30'); if(btnLimpeza) btnLimpeza.style.display = isMaster ? 'inline-block' : 'none';
     const btnAgrupar = document.getElementById('btnModoAgrupar'); if(btnAgrupar) btnAgrupar.style.display = isMaster ? 'inline-block' : 'none';
     const btnDin = document.getElementById('btnDinheiro'); if(btnDin) btnDin.style.display = 'inline-block';
-    try{ atualizarBotoesChamada(); }catch(e){}
-    try{ iniciarMonitorChamadas(); }catch(e){}
+    try{ atualizarToggleChuvaUI(); }catch(e){}
+    try{ iniciarAlertas(); }catch(e){}
     try{ atualizarBotaoTrocarConta(); }catch(e){}
     erroEl.textContent = '';
     await carregarPedidosVisiveis();
@@ -6918,9 +6988,7 @@ function _executarLogout(){
   const btnAgrupar = document.getElementById('btnModoAgrupar'); if(btnAgrupar) btnAgrupar.style.display='none';
   const btnDin = document.getElementById('btnDinheiro'); if(btnDin) btnDin.style.display='none';
   try{ atualizarBotaoRelatorio(); }catch(e){}
-  const btnCh = document.getElementById('btnChamar'); if(btnCh){ btnCh.style.display='none'; btnCh.classList.remove('chamando'); }
-  const btnChM = document.getElementById('btnChamarMaster'); if(btnChM){ btnChM.style.display='none'; btnChM.classList.remove('chamando'); }
-  try{ pararTudoChamadaLocal(); }catch(e){}
+  try{ pararAlertasLocal(); }catch(e){}
 
   try{ mostrarAlertaLimpezaUI(false); }catch(e){}
   try{ pararMonitorDinheiro(); }catch(e){}
@@ -6966,8 +7034,8 @@ function checkLoginPersistido(){
       const btnLimpeza2 = document.getElementById('btnLimpeza30'); if(btnLimpeza2) btnLimpeza2.style.display = usuarioLogado.isMaster ? 'inline-block' : 'none';
       const btnAgrupar2 = document.getElementById('btnModoAgrupar'); if(btnAgrupar2) btnAgrupar2.style.display = usuarioLogado.isMaster ? 'inline-block' : 'none';
       const btnDin2 = document.getElementById('btnDinheiro'); if(btnDin2) btnDin2.style.display = 'inline-block';
-      try{ atualizarBotoesChamada(); }catch(e){}
-      try{ iniciarMonitorChamadas(); }catch(e){}
+      try{ atualizarToggleChuvaUI(); }catch(e){}
+      try{ iniciarAlertas(); }catch(e){}
       try{ atualizarBotaoTrocarConta(); }catch(e){}
       atualizarBadgeModo();
       try{ carregarPedidosVisiveis(); }catch(e){}
@@ -11079,7 +11147,6 @@ function moverGrupoBaixo(gid){ moverBlocoGrupo(gid,'baixo'); }
 // ===================== END MASTER FUNCTIONS =====================
 
 
-
 // ===================== MOSTRAR / OCULTAR BARRAS (Adicionar + Pesquisa) =====================
 // Master: ambas ocultas por padrão
 // Entregador: Adicionar visível, Pesquisa oculta por padrão
@@ -11703,7 +11770,6 @@ function cardPedido(p, idx, lista){
     ${htmlAcoes}
   </div>`;
 }
-
 
 
 /** Renderiza um grupo de pedidos (mesmo endereço) como 1 card de entrega, com ação independente por pedido. */
@@ -12750,7 +12816,6 @@ function sincronizarFlagsConfirmacaoLocal(lista){
 }
 
 
-
 /** Enfileira confirmação offline (dedup por pedido_id). */
 function enfileirarConfirmacaoOffline(item){
   if(!item || !item.pedido_id) return;
@@ -12858,7 +12923,6 @@ async function processarFilaConfirmacoesOffline(){
     try{ render(); carregar(); }catch(e){}
   }
 }
-
 
 
 // ===================== TROCAR CONTA (Administrador ↔ entregadores) =====================
@@ -14735,9 +14799,6 @@ function ouvir(){
     .on('postgres_changes',{event:'*',schema:'public',table:'config_horarios'}, ()=>{
       try{ carregarHorarios(); }catch(e){}
     })
-    .on('postgres_changes',{event:'*',schema:'public',table:'chamadas_app'}, (payload)=>{
-      try{ onChamadaRealtime(payload); }catch(e){ console.warn('chamada realtime', e); }
-    })
     .subscribe();
   carregarModoGlobal();
 }
@@ -14806,791 +14867,502 @@ if(window.ResizeObserver){ try{ new ResizeObserver(ajustarAlturaHeader).observe(
 ajustarAlturaHeader();
 
 
-// ===================== CHAMADAS (entregador ↔ Master) =====================
-let _chamadaAtivaId = null;
-let _chamadaRecebidaId = null;
-let _chamadaSomTimer = null;
-let _chamadaSomInterval = null;
-let _chamadaAudioCtx = null;
-let _chamadaVibTimer = null;
-let _chamadaExpireTimer = null;
-let _chamadaPollTimer = null;
-let _chamadaAudioUnlocked = false;
-let _chamadaSeenIds = {};
-const CHAMADA_DURACAO_MS = 30000;
-
-function atualizarBotoesChamada(){
-  const btnE = document.getElementById('btnChamar');
-  const btnM = document.getElementById('btnChamarMaster');
-  if(!usuarioLogado){
-    if(btnE) btnE.style.display = 'none';
-    if(btnM) btnM.style.display = 'none';
-    try{ const t=document.getElementById('btnToggleChuva'); if(t) t.style.display='none'; }catch(e){}
-    return;
-  }
-  const isMaster = !!usuarioLogado.isMaster;
-  if(btnE) btnE.style.display = isMaster ? 'none' : 'inline-block';
-  if(btnM) btnM.style.display = isMaster ? 'inline-block' : 'none';
-  try{ atualizarToggleChuvaUI(); }catch(e){}
-}
-
-function _nomeChamadaLocal(){
-  return (usuarioLogado && usuarioLogado.nome) ? String(usuarioLogado.nome).trim() : '';
-}
-function _ehDestinatarioChamada(paraNome){
-  if(!usuarioLogado || !paraNome) return false;
-  const p = String(paraNome).trim().toLowerCase();
-  if(usuarioLogado.isMaster){
-    return p === 'master' || p === String(usuarioLogado.nome||'').toLowerCase();
-  }
+// ===================== ALERTAS (Master ↔ Entregadores) · tabela chamadas_app =====================
+const ALERTA_MAX_IDADE_MS = 12*3600*1000; // alerta não confirmado há mais de 12h é ignorado
+let _alPollTimer=null, _alCanal=null, _alFila=[], _alAtual=null, _alVistos={}, _alAvisados={};
+let _alPedidos=[], _alPedSel=null, _alEnviando=false, _alAbrindo=false;
+let _alAudioCtx=null, _alWavUri=null;
+const _alEsc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function _alMeuNome(){ return (usuarioLogado && usuarioLogado.nome) ? String(usuarioLogado.nome).trim() : ''; }
+function _alEhParaMim(para){
+  if(!usuarioLogado || !para) return false;
+  const p = String(para).trim().toLowerCase();
+  if(usuarioLogado.isMaster) return p === 'master' || p === String(usuarioLogado.nome||'').toLowerCase();
   return p === String(usuarioLogado.lower || usuarioLogado.nome || '').toLowerCase();
 }
 
-/** Desbloqueia áudio no 1º toque (obrigatório no Chrome/Android/iOS). */
-let _chamadaHtmlAudio = null;
-let _chamadaWavUri = null;
-
-/** Gera WAV curto (bip) em data-URI — fallback quando WebAudio falha. */
-function _getChamadaWavUri(){
-  if(_chamadaWavUri) return _chamadaWavUri;
+/* ---------- som e vibração ---------- */
+function _alWav(){
+  if(_alWavUri) return _alWavUri;
   try{
-    const sr = 16000, dur = 0.18, n = Math.floor(sr * dur);
-    const data = new Int16Array(n);
-    for(let i=0;i<n;i++){
-      const t = i / sr;
-      const env = Math.min(1, i/200) * Math.min(1, (n-i)/400);
-      const s = Math.sin(2*Math.PI*880*t) * 0.55 * env;
-      data[i] = Math.max(-32767, Math.min(32767, s * 32767));
-    }
-    const buf = new ArrayBuffer(44 + data.length * 2);
-    const v = new DataView(buf);
-    const w = (o, s)=>{ for(let i=0;i<s.length;i++) v.setUint8(o+i, s.charCodeAt(i)); };
-    w(0,'RIFF'); v.setUint32(4, 36 + data.length*2, true); w(8,'WAVE'); w(12,'fmt ');
-    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
-    v.setUint32(24, sr, true); v.setUint32(28, sr*2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
-    w(36,'data'); v.setUint32(40, data.length*2, true);
-    for(let i=0;i<data.length;i++) v.setInt16(44+i*2, data[i], true);
-    const bytes = new Uint8Array(buf);
-    let bin = '';
-    for(let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
-    _chamadaWavUri = 'data:audio/wav;base64,' + btoa(bin);
-  }catch(e){ _chamadaWavUri = null; }
-  return _chamadaWavUri;
+    const sr=16000, n=Math.floor(sr*0.14), d=new Int16Array(n);
+    for(let i=0;i<n;i++){ const env=Math.min(1,i/150)*Math.min(1,(n-i)/300); d[i]=Math.sin(2*Math.PI*988*i/sr)*0.55*env*32767; }
+    const buf=new ArrayBuffer(44+n*2), v=new DataView(buf);
+    const w=(o,s)=>{ for(let i=0;i<s.length;i++) v.setUint8(o+i,s.charCodeAt(i)); };
+    w(0,'RIFF'); v.setUint32(4,36+n*2,true); w(8,'WAVE'); w(12,'fmt '); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+    v.setUint32(24,sr,true); v.setUint32(28,sr*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true); w(36,'data'); v.setUint32(40,n*2,true);
+    for(let i=0;i<n;i++) v.setInt16(44+i*2,d[i],true);
+    const b=new Uint8Array(buf); let s=''; for(let i=0;i<b.length;i++) s+=String.fromCharCode(b[i]);
+    _alWavUri='data:audio/wav;base64,'+btoa(s);
+  }catch(e){ _alWavUri=null; }
+  return _alWavUri;
 }
-
-function desbloquearAudioChamada(){
+function _alDesbloquear(){
   try{
-    const AC = window.AudioContext || window.webkitAudioContext;
+    const AC=window.AudioContext||window.webkitAudioContext;
     if(AC){
-      if(!_chamadaAudioCtx || _chamadaAudioCtx.state === 'closed'){
-        _chamadaAudioCtx = new AC();
-      }
-      if(_chamadaAudioCtx.state === 'suspended'){
-        _chamadaAudioCtx.resume().then(()=>{ _chamadaAudioUnlocked = true; }).catch(()=>{});
-      } else {
-        _chamadaAudioUnlocked = true;
-      }
-      try{
-        const o = _chamadaAudioCtx.createOscillator();
-        const g = _chamadaAudioCtx.createGain();
-        g.gain.value = 0.0001;
-        o.connect(g); g.connect(_chamadaAudioCtx.destination);
-        o.start();
-        o.stop(_chamadaAudioCtx.currentTime + 0.02);
-      }catch(e){}
-    }
-    // pré-carrega HTMLAudio em silêncio (sem bip)
-    const uri = _getChamadaWavUri();
-    if(uri){
-      if(!_chamadaHtmlAudio){
-        _chamadaHtmlAudio = new Audio(uri);
-        _chamadaHtmlAudio.preload = 'auto';
-        _chamadaHtmlAudio.volume = 0;
-      }
-      try{
-        _chamadaHtmlAudio.volume = 0;
-        _chamadaHtmlAudio.currentTime = 0;
-        const p = _chamadaHtmlAudio.play();
-        if(p && p.then) p.then(()=>{
-          try{ _chamadaHtmlAudio.pause(); _chamadaHtmlAudio.currentTime = 0; _chamadaHtmlAudio.volume = 1; }catch(e){}
-          _chamadaAudioUnlocked = true;
-        }).catch(()=>{ try{ _chamadaHtmlAudio.volume = 1; }catch(e){} });
-      }catch(e){}
+      if(!_alAudioCtx || _alAudioCtx.state==='closed') _alAudioCtx=new AC();
+      if(_alAudioCtx.state==='suspended') _alAudioCtx.resume().catch(()=>{});
     }
   }catch(e){}
 }
-(function _armAudioUnlock(){
-  const arm = ()=>{ desbloquearAudioChamada(); };
-  ['pointerdown','touchstart','click','keydown','touchend'].forEach(ev=>{
-    document.addEventListener(ev, arm, {capture:true, passive:true});
-  });
-  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) desbloquearAudioChamada(); });
+(function _alArmarAudio(){
+  ['pointerdown','touchstart','click','keydown'].forEach(ev=>document.addEventListener(ev,_alDesbloquear,{capture:true,passive:true}));
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ _alDesbloquear(); try{ _alPollar(); }catch(e){} } });
 })();
-
-function _tocarBipUnico(freq, dur){
-  let ok = false;
+function _alBip(freq,dur){
+  let ok=false;
   try{
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if(AC){
-      if(!_chamadaAudioCtx || _chamadaAudioCtx.state === 'closed'){
-        _chamadaAudioCtx = new AC();
-      }
-      const ctx = _chamadaAudioCtx;
-      if(ctx.state === 'suspended') ctx.resume();
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.type = 'square';
-      o.frequency.value = freq || 880;
-      const t0 = ctx.currentTime;
-      const d = dur || 0.2;
-      g.gain.setValueAtTime(0.001, t0);
-      g.gain.exponentialRampToValueAtTime(0.35, t0 + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.001, t0 + d);
-      o.connect(g); g.connect(ctx.destination);
-      o.start(t0);
-      o.stop(t0 + d + 0.02);
-      ok = true;
-    }
-  }catch(e){ console.warn('bip webaudio', e); }
-  // fallback HTMLAudio (mais confiável em alguns Android)
-  try{
-    const uri = _getChamadaWavUri();
-    if(uri){
-      const a = new Audio(uri);
-      a.volume = 1;
-      const p = a.play();
-      if(p && p.catch) p.catch(()=>{});
-      ok = true;
+    const ctx=_alAudioCtx;
+    if(ctx && ctx.state==='running'){
+      const o=ctx.createOscillator(), g=ctx.createGain(), t0=ctx.currentTime;
+      o.type='square'; o.frequency.value=freq;
+      g.gain.setValueAtTime(0.001,t0); g.gain.exponentialRampToValueAtTime(0.35,t0+0.02); g.gain.exponentialRampToValueAtTime(0.001,t0+dur);
+      o.connect(g); g.connect(ctx.destination); o.start(t0); o.stop(t0+dur+0.02); ok=true;
     }
   }catch(e){}
-  return ok;
-}
-
-function iniciarSomChamada(){
-  pararSomChamada(false);
-  desbloquearAudioChamada();
-  const fim = Date.now() + CHAMADA_DURACAO_MS;
-  function ciclo(){
-    if(Date.now() >= fim){ pararSomChamada(false); return; }
-    try{ if(_chamadaAudioCtx && _chamadaAudioCtx.state === 'suspended') _chamadaAudioCtx.resume(); }catch(e){}
-    _tocarBipUnico(880, 0.18);
-    setTimeout(()=>{ if(Date.now() < fim) _tocarBipUnico(1175, 0.18); }, 220);
-  }
-  ciclo();
-  _chamadaSomInterval = setInterval(ciclo, 800);
-  _chamadaSomTimer = setTimeout(()=>{ pararSomChamada(false); }, CHAMADA_DURACAO_MS + 150);
-}
-function pararSomChamada(fecharCtx){
-  if(_chamadaSomInterval){ clearInterval(_chamadaSomInterval); _chamadaSomInterval = null; }
-  if(_chamadaSomTimer){ clearTimeout(_chamadaSomTimer); _chamadaSomTimer = null; }
-  try{ if(_chamadaHtmlAudio){ _chamadaHtmlAudio.pause(); _chamadaHtmlAudio.currentTime = 0; } }catch(e){}
-  if(fecharCtx && _chamadaAudioCtx){
-    try{ _chamadaAudioCtx.close(); }catch(e){}
-    _chamadaAudioCtx = null;
+  if(!ok){
+    try{ const u=_alWav(); if(u){ const a=new Audio(u); a.volume=1; const p=a.play(); if(p&&p.catch) p.catch(()=>{}); } }catch(e){}
   }
 }
-
-/** Feedback para quem enviou: entregador/loja VIU o alerta. */
-function notificarAlertaVisto(nomeQuemViu){
-  try{
-    // som curto de confirmação (3 bips)
-    desbloquearAudioChamada();
-    _tocarBipUnico(988, 0.12);
-    setTimeout(()=>_tocarBipUnico(1319, 0.12), 150);
-    setTimeout(()=>_tocarBipUnico(1568, 0.18), 300);
-    try{ if(navigator.vibrate) navigator.vibrate([80, 50, 80, 50, 120]); }catch(e){}
-    // modal rápido
-    let box = document.getElementById('modalAlertaVisto');
-    if(!box){
-      box = document.createElement('div');
-      box.id = 'modalAlertaVisto';
-      box.className = 'overlay';
-      box.style.cssText = 'display:none;z-index:9996';
-      box.innerHTML = `<div class="card" style="width:100%;max-width:360px;margin:0;padding:18px 16px;text-align:center;border:2px solid #3dcc8a">
-        <div style="font-size:32px;margin-bottom:6px">✓</div>
-        <h3 style="margin:0 0 6px;color:#3dcc8a;font-size:16px;font-weight:900">Alerta visto</h3>
-        <div id="alertaVistoNome" style="font-size:15px;font-weight:800;color:#f0c14a;margin-bottom:12px"></div>
-        <button class="btn primary" style="width:100%;padding:12px;font-weight:900" onclick="var el=document.getElementById(&quot;modalAlertaVisto&quot;);if(el)el.style.display=&quot;none&quot;">OK</button>
-      </div>`;
-      document.body.appendChild(box);
-    }
-    const n = document.getElementById('alertaVistoNome');
-    if(n) n.textContent = (nomeQuemViu || 'Entregador') + ' viu o alerta';
-    box.style.display = 'flex';
-    setTimeout(()=>{ try{ if(box.style.display==='flex') box.style.display='none'; }catch(e){} }, 5000);
-  }catch(e){ console.warn('notificarAlertaVisto', e); }
+/** Alerta sonoro curto (3 bips, ~0,6 s). */
+function tocarSomAlerta(){
+  _alDesbloquear();
+  _alBip(880,0.14); setTimeout(()=>_alBip(1175,0.14),190); setTimeout(()=>_alBip(880,0.14),380);
 }
-function iniciarVibracaoChamada(){
-  pararVibracaoChamada();
+function vibrarAlerta(){ try{ if(navigator.vibrate) navigator.vibrate([250,100,250,100,400]); }catch(e){} }
+function _alToast(txt){
   try{
-    if(navigator.vibrate){
-      navigator.vibrate([300, 100, 300]);
-      _chamadaVibTimer = setInterval(()=>{
-        try{ navigator.vibrate([300, 100, 300]); }catch(e){}
-      }, 900);
-    }
+    const d=document.createElement('div');
+    d.style.cssText='position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9996;background:#12261c;border:1px solid #3dcc8a;color:#3dcc8a;font-weight:800;font-size:13px;padding:10px 16px;border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.5);max-width:92vw;text-align:center';
+    d.textContent=txt; document.body.appendChild(d);
+    setTimeout(()=>{ try{ d.remove(); }catch(e){} },3800);
   }catch(e){}
 }
-function pararVibracaoChamada(){
-  if(_chamadaVibTimer){ clearInterval(_chamadaVibTimer); _chamadaVibTimer = null; }
-  try{ if(navigator.vibrate) navigator.vibrate(0); }catch(e){}
+
+/* ---------- pedidos: atraso / listagem ---------- */
+function _alFinalizado(p){
+  const s=String((p&&p.status)||'').trim().toLowerCase();
+  return s==='codigo_informado' || s==='finalizado' || s==='entregue';
 }
-function setBtnChamarUI(chamando){
-  const btn = document.getElementById('btnChamar');
-  const lbl = document.getElementById('lblBtnChamar');
-  if(!btn) return;
-  if(chamando){
-    btn.classList.add('chamando');
-    if(lbl) lbl.textContent = 'Aguardando…';
-    else btn.innerHTML = '🔔 <span class="hlbl" id="lblBtnChamar">Aguardando…</span>';
+function _alPrazoMs(p){ const d=parsePrevEntrega(p); return d ? d.getTime() : Infinity; }
+function _alFmtMin(min){ const h=Math.floor(min/60), m=min%60; return h>0 ? (h+'h '+String(m).padStart(2,'0')+'min') : (m+' min'); }
+function _alTempo(p){
+  if(_alFinalizado(p)){
+    let h=''; try{ const x=getHoraMinSP(p.codigo_informado_em).str; if(x && x!=='--:--') h=x; }catch(e){}
+    return {cls:'done', txt:'✅ Finalizado'+(h?' às '+h:'')};
+  }
+  const dl=parsePrevEntrega(p);
+  if(!dl) return {cls:'ok', txt:'⏱ sem previsão'};
+  const diff=dl.getTime()-Date.now();
+  if(diff<=0) return {cls:'late', txt:'🔴 Atrasado '+_alFmtMin(Math.max(1,Math.floor(-diff/60000)))};
+  const min=Math.floor(diff/60000);
+  return {cls: min<=15?'warn':'ok', txt:(min<=15?'⚠️ ':'⏱ ')+_alFmtMin(min)};
+}
+async function _alCarregarPedidosLista(){
+  _alPedidos=[];
+  const client=getSb(); if(!client) return;
+  const hoje=getHojeSP(), datas=[getOntemSP(), hoje, getAmanhaSP()];
+  const [rp, rr] = await Promise.all([
+    client.from('pedidos_entrega_dia').select('*').in('data',datas),
+    client.from('reservas_entregadores').select('pedido_id,entregador_nome,data').in('data',datas)
+  ]);
+  if(rp.error) throw rp.error;
+  const reserva={}; (rr.data||[]).forEach(r=>{ if(r.pedido_id) reserva[r.pedido_id]=r.entregador_nome||''; });
+  const todos=(rp.data||[]).map(p=>Object.assign({}, p, {_ent: String(reserva[p.id]||p.entregador_nome||'').trim()})).filter(p=>p._ent);
+  const isM=!!(usuarioLogado && usuarioLogado.isMaster);
+  if(isM){
+    // Admin: só não finalizados, do mais atrasado para o menos atrasado; ignora os dele próprio
+    _alPedidos=todos.filter(p=>!_alFinalizado(p) && !ehMesmoEntregador(p._ent)).sort((a,b)=>_alPrazoMs(a)-_alPrazoMs(b));
   } else {
-    btn.classList.remove('chamando');
-    if(lbl) lbl.textContent = 'Chamar';
-    else btn.innerHTML = '🔔 <span class="hlbl" id="lblBtnChamar">Chamar</span>';
+    // Entregador: rota atual (hoje + turno atual) mesmo finalizados, mais os ainda não finalizados
+    let turno=''; try{ turno=getTurnoAtual(); }catch(e){}
+    const meus=todos.filter(p=>ehMesmoEntregador(p._ent) && (!_alFinalizado(p) || (p.data===hoje && (!turno || getTurno(p)===turno))));
+    const pend=meus.filter(p=>!_alFinalizado(p)).sort((a,b)=>_alPrazoMs(a)-_alPrazoMs(b));
+    const fim=meus.filter(p=>_alFinalizado(p)).sort((a,b)=>(Date.parse(b.codigo_informado_em||'')||0)-(Date.parse(a.codigo_informado_em||'')||0));
+    _alPedidos=pend.concat(fim);
   }
 }
-function setBtnMasterChamarUI(chamando){
-  const btn = document.getElementById('btnChamarMaster');
-  if(!btn) return;
-  if(chamando) btn.classList.add('chamando');
-  else btn.classList.remove('chamando');
+async function _alCarregarEntregadores(){
+  const client=getSb(); if(!client) return [];
+  const me=_alMeuNome().toLowerCase();
+  try{
+    let {data,error}=await client.from('entregadores').select('nome,ativo').eq('ativo',true).order('nome');
+    if(error){ const r=await client.from('entregadores').select('nome').order('nome'); data=r.data; }
+    return (data||[]).map(x=>String(x.nome||'').trim()).filter(n=>n && n.toLowerCase()!==me);
+  }catch(e){ return []; }
 }
 
-function pararTudoChamadaLocal(){
-  pararSomChamada(false);
-  pararVibracaoChamada();
-  if(_chamadaExpireTimer){ clearTimeout(_chamadaExpireTimer); _chamadaExpireTimer = null; }
-  setBtnChamarUI(false);
-  setBtnMasterChamarUI(false);
-  const m = document.getElementById('modalChamadaRecebida');
-  if(m) m.style.display = 'none';
-  _chamadaRecebidaId = null;
-  _chamadaAtivaId = null;
-}
-
-async function toggleChamadaEntregador(){
-  desbloquearAudioChamada();
-  if(!usuarioLogado || usuarioLogado.isMaster) return;
-  if(_chamadaAtivaId){
-    await cancelarMinhaChamada();
+/* ---------- janela de envio ---------- */
+function _alRenderPedidos(){
+  const box=document.getElementById('alPedLista'); if(!box) return;
+  const isM=!!(usuarioLogado && usuarioLogado.isMaster);
+  if(!_alPedidos.length){
+    box.innerHTML='<div class="al-vazio">'+(isM?'Nenhum pedido em andamento com entregador.':'Nenhum pedido na rota atual.')+'<br><span style="font-size:11px">Você ainda pode enviar só a mensagem.</span></div>';
     return;
   }
-  abrirModalEntChamar();
-}
-
-function fecharModalEntChamar(){
-  const m = document.getElementById('modalEntChamar');
-  if(m) m.style.display = 'none';
-}
-
-function abrirModalEntChamar(){
-  if(!usuarioLogado || usuarioLogado.isMaster) return;
-  const m = document.getElementById('modalEntChamar');
-  const lista = document.getElementById('entChamarLista');
-  const st = document.getElementById('entChamarStatus');
-  const msgIn = document.getElementById('entChamarMsg');
-  if(msgIn) msgIn.value = '';
-  if(st) st.textContent = '';
-  if(m) m.style.display = 'flex';
-  const nome = _nomeChamadaLocal();
-  const peds = _pedidosAbertosDoEntregador(nome);
-  if(!lista) return;
-  if(!peds.length){
-    lista.innerHTML = '<div style="font-size:12px;color:#5a657a;padding:10px;text-align:center">Nenhum pedido em rota nem finalizado nos últimos 40 min.<br><span style="font-size:11px">Você ainda pode chamar a loja só com a mensagem.</span></div>';
-    return;
-  }
-  lista.innerHTML = peds.map((p, pi) => {
-    const num = String(p.numero_pedido||'—');
-    const cli = String(p.cliente_nome||'—');
-    const end = String(p.cliente_endereco||'—');
-    const id = String(p.id||'');
-    const stP = String(p.status||'');
-    const finalizado = (stP==='codigo_informado' || stP==='finalizado' || stP==='entregue');
-    const badge = finalizado ? '<span style="font-size:9px;font-weight:800;color:#3dcc8a;margin-left:6px">✓ finalizado</span>' : '<span style="font-size:9px;font-weight:800;color:#f0c14a;margin-left:6px">em rota</span>';
-    return `<label style="display:flex;gap:8px;align-items:flex-start;padding:8px;background:#0e1118;border:1px solid ${finalizado?'#2a5a3a':'#2c3340'};border-radius:8px;cursor:pointer">
-      <input type="checkbox" class="ech-ped" name="ech_ped" data-id="${id.replace(/"/g,'&quot;')}" data-num="${num.replace(/"/g,'&quot;')}" data-cli="${cli.replace(/"/g,'&quot;')}" data-end="${end.replace(/"/g,'&quot;')}" style="width:auto;margin-top:3px" onchange="entChamarPedExclusive(this)"/>
-      <span style="flex:1;min-width:0">
-        <b style="color:#f0c14a">#${num.replace(/</g,'')}</b>${badge}
-        <span style="display:block;font-size:12px;color:#e6e8ef">${cli.replace(/</g,'')}</span>
-        <span style="display:block;font-size:10px;color:#8b93a7;line-height:1.3">📍 ${end.replace(/</g,'')}</span>
-      </span>
-    </label>`;
+  box.innerHTML=_alPedidos.map((p,i)=>{
+    const t=_alTempo(p), sel=(_alPedSel===i);
+    return '<div class="al-ped'+(sel?' sel':'')+(_alFinalizado(p)?' fim':'')+'" onclick="alSelecionarPedido('+i+')">'+
+      '<div class="al-ped-top"><span class="al-ped-num">#'+_alEsc(p.numero_pedido||'—')+' · '+_alEsc(p.cliente_nome||'Cliente')+'</span><span class="al-chip '+t.cls+'">'+_alEsc(t.txt)+'</span></div>'+
+      '<div class="al-ped-end">'+_alEsc(p.cliente_endereco||'Sem endereço')+'</div>'+
+      (isM?'<div class="al-ped-ent">🛵 '+_alEsc(p._ent)+'</div>':'')+
+      '<div class="al-ped-mark">'+(sel?'✓ Pedido marcado':'Toque para marcar')+'</div></div>';
   }).join('');
 }
-
-function entChamarPedExclusive(el){
-  if(!el || !el.checked) return;
-  document.querySelectorAll('input.ech-ped').forEach(c=>{ if(c !== el) c.checked = false; });
-}
-
-/** Cola a mensagem padrão e envia o alerta para a loja na hora. */
-async function entChamarMsgRapida(texto){
-  const msgEl = document.getElementById('entChamarMsg');
-  if(msgEl) msgEl.value = texto || '';
-  await enviarChamadaEntregador();
-}
-
-async function enviarChamadaEntregador(){
-  if(!usuarioLogado || usuarioLogado.isMaster) return;
-  const msgEl = document.getElementById('entChamarMsg');
-  const mensagem = msgEl ? String(msgEl.value||'').trim() : '';
-  let pedido = null;
-  const checked = document.querySelector('input.ech-ped:checked');
-  if(checked){
-    pedido = {
-      pedido_numero: checked.getAttribute('data-num') || '',
-      pedido_cliente: checked.getAttribute('data-cli') || '',
-      pedido_endereco: checked.getAttribute('data-end') || ''
-    };
+function alSelecionarPedido(i){
+  _alPedSel=(_alPedSel===i)?null:i;
+  const isM=!!(usuarioLogado && usuarioLogado.isMaster);
+  if(isM){
+    const sel=document.getElementById('alDestino');
+    if(sel){
+      if(_alPedSel!==null){
+        const nome=_alPedidos[_alPedSel]._ent;
+        if(![...sel.options].some(o=>o.value===nome)){ const o=document.createElement('option'); o.value=nome; o.textContent=nome; sel.appendChild(o); }
+        sel.value=nome; sel.disabled=true;
+      } else sel.disabled=false;
+    }
   }
-  const st = document.getElementById('entChamarStatus');
-  if(st) st.textContent = 'Enviando…';
-  fecharModalEntChamar();
-  await iniciarChamadaPara('MASTER', {
-    mensagem: mensagem,
-    pedido_numero: pedido ? pedido.pedido_numero : '',
-    pedido_cliente: pedido ? pedido.pedido_cliente : '',
-    pedido_endereco: pedido ? pedido.pedido_endereco : ''
-  });
+  _alRenderPedidos();
+}
+function alMsgRapida(t){ const el=document.getElementById('alMsg'); if(el){ el.value=t; el.focus(); } }
+async function abrirModalAlerta(){
+  if(!usuarioLogado || _alAbrindo) return;
+  _alAbrindo=true; _alDesbloquear();
+  try{
+    const isM=!!usuarioLogado.isMaster;
+    document.getElementById('alTitulo').textContent = isM ? '🔔 Enviar alerta ao entregador' : '🔔 Enviar alerta à loja';
+    document.getElementById('alDestWrap').style.display = isM ? 'block' : 'none';
+    document.getElementById('alRapidas').innerHTML='';
+    _alCarregarModelos().then(_alMontarRapidas);
+    document.getElementById('alPedTitulo').textContent = isM ? 'Pedidos em andamento (mais atrasados primeiro):' : 'Pedidos da rota atual (inclui finalizados):';
+    document.getElementById('alMsg').value='';
+    document.getElementById('alSom').checked=true; document.getElementById('alVib').checked=true;
+    document.getElementById('alStatus').textContent='';
+    document.getElementById('alBtnEnviar').disabled=false;
+    _alPedSel=null; _alPedidos=[];
+    document.getElementById('alPedLista').innerHTML='<div class="al-vazio">Carregando pedidos…</div>';
+    document.getElementById('modalAlertaEnviar').style.display='flex';
+    if(isM){
+      const sel=document.getElementById('alDestino'); sel.disabled=false;
+      sel.innerHTML='<option value="*">👥 Todos os entregadores</option>';
+      _alCarregarEntregadores().then(nomes=>{
+        const atual=sel.value;
+        sel.innerHTML='<option value="*">👥 Todos os entregadores</option>'+nomes.map(n=>'<option value="'+_alEsc(n)+'">🛵 '+_alEsc(n)+'</option>').join('');
+        if([...sel.options].some(o=>o.value===atual)) sel.value=atual;
+      });
+    }
+    try{ await _alCarregarPedidosLista(); }
+    catch(e){ console.warn('alerta pedidos', e); document.getElementById('alStatus').textContent='Não foi possível carregar os pedidos: '+(e.message||e); _alPedidos=[]; }
+    _alRenderPedidos();
+  } finally { _alAbrindo=false; }
+}
+function fecharModalAlertaEnviar(){ const m=document.getElementById('modalAlertaEnviar'); if(m) m.style.display='none'; }
+async function enviarAlerta(){
+  if(_alEnviando) return;
+  const st=document.getElementById('alStatus');
+  const msg=(document.getElementById('alMsg').value||'').trim();
+  const ped=(_alPedSel!==null && _alPedidos[_alPedSel]) ? _alPedidos[_alPedSel] : null;
+  if(!msg && !ped){ st.textContent='Escreva uma mensagem ou marque um pedido.'; return; }
+  const isM=!!usuarioLogado.isMaster;
+  let destinos=[];
+  if(!isM) destinos=['MASTER'];
+  else if(ped) destinos=[ped._ent];
+  else {
+    const v=document.getElementById('alDestino').value;
+    if(v==='*') destinos=[...document.getElementById('alDestino').options].map(o=>o.value).filter(x=>x!=='*');
+    else destinos=[v];
+  }
+  destinos=destinos.filter(Boolean);
+  if(!destinos.length){ st.textContent='Nenhum entregador ativo para receber.'; return; }
+  const client=getSb(); if(!client){ st.textContent='Supabase não configurado.'; return; }
+  const op='som='+(document.getElementById('alSom').checked?1:0)+';vib='+(document.getElementById('alVib').checked?1:0);
+  const de=_alMeuNome();
+  const rows=destinos.map(d=>({
+    de_nome:de, para_nome:d, status:'chamando', mensagem:msg||null,
+    pedido_numero: ped?String(ped.numero_pedido||''):null,
+    pedido_cliente: ped?String(ped.cliente_nome||''):null,
+    pedido_endereco: ped?String(ped.cliente_endereco||''):null,
+    opcoes: op
+  }));
+  _alEnviando=true; const btn=document.getElementById('alBtnEnviar'); btn.disabled=true; st.textContent='Enviando…';
+  try{
+    let {error}=await client.from('chamadas_app').insert(rows);
+    if(error){ // coluna "opcoes" ainda não criada no Supabase → reenvia sem ela (som e vibração ficam ligados no destino)
+      const r2=rows.map(r=>{ const c=Object.assign({},r); delete c.opcoes; return c; });
+      ({error}=await client.from('chamadas_app').insert(r2));
+    }
+    if(error) throw error;
+    fecharModalAlertaEnviar();
+    _alToast('✓ Alerta enviado para '+(destinos.length>1?destinos.length+' entregadores':(isM?destinos[0]:'a loja')));
+  }catch(e){
+    console.error('enviarAlerta', e);
+    st.textContent='Erro ao enviar: '+(e.message||e)+' — confira a tabela chamadas_app (SQL nas Configurações).';
+    btn.disabled=false;
+  } finally { _alEnviando=false; }
 }
 
-async function iniciarChamadaPara(paraNome, opts){
-  opts = opts || {};
-  desbloquearAudioChamada();
-  const de = _nomeChamadaLocal();
-  if(!de || !paraNome) return;
-  const client = getSb();
-  if(!client){ alert('Supabase não configurado'); return; }
-  try{
+/* ---------- recebimento (fica na tela até o OK) ---------- */
+function _alOpcoes(s){
+  if(s==null || s==='') return {som:true, vib:true};
+  const t=String(s); return {som:/som=1/.test(t), vib:/vib=1/.test(t)};
+}
+function _alMostrarProximo(){
+  if(_alAtual || !_alFila.length){ _alAtualizarBadge(); return; }
+  const row=_alFila.shift(); _alAtual=row;
+  document.getElementById('alRecDe').textContent=(row.de_nome||'—')+' enviou um alerta';
+  const pb=document.getElementById('alRecPedido');
+  if(row.pedido_numero){
+    pb.style.display='block';
+    document.getElementById('alRecPedNum').textContent='Pedido #'+row.pedido_numero;
+    document.getElementById('alRecPedCli').textContent=row.pedido_cliente||'';
+    document.getElementById('alRecPedEnd').textContent=row.pedido_endereco||'';
+  } else pb.style.display='none';
+  const mb=document.getElementById('alRecMsg');
+  const txt=(row.mensagem||'').trim() || (row.pedido_numero ? 'Atenção com este pedido.' : '');
+  mb.textContent=txt; mb.style.display=txt?'block':'none';
+  document.getElementById('alRecMais').textContent=_alFila.length ? '+'+_alFila.length+' alerta(s) na fila' : '';
+  document.getElementById('modalAlertaRecebido').style.display='flex';
+  const op=_alOpcoes(row.opcoes);
+  if(op.som) tocarSomAlerta();
+  if(op.vib) vibrarAlerta();
+  _alAtualizarBadge();
+}
+function _alFecharRecebido(){
+  const m=document.getElementById('modalAlertaRecebido'); if(m) m.style.display='none';
+  try{ if(navigator.vibrate) navigator.vibrate(0); }catch(e){}
+}
+async function confirmarAlertaRecebido(){
+  const row=_alAtual; if(!row) return;
+  _alAtual=null; _alFecharRecebido();
+  const client=getSb();
+  if(client){
     try{
-      await client.from('chamadas_app').update({ status:'cancelado', updated_at: new Date().toISOString() })
-        .eq('de_nome', de).eq('status', 'chamando');
-    }catch(e){}
-    const payload = {
-      de_nome: de,
-      para_nome: paraNome,
-      status: 'chamando',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    if(opts.mensagem) payload.mensagem = String(opts.mensagem).slice(0, 200);
-    if(opts.pedido_numero) payload.pedido_numero = String(opts.pedido_numero);
-    if(opts.pedido_cliente) payload.pedido_cliente = String(opts.pedido_cliente);
-    if(opts.pedido_endereco) payload.pedido_endereco = String(opts.pedido_endereco);
-    let data = null, error = null;
-    ({data, error} = await client.from('chamadas_app').insert(payload).select('id').maybeSingle());
-    // fallback se colunas novas ainda não existem no banco
-    if(error && /mensagem|pedido_numero|column/i.test(error.message||'')){
-      ({data, error} = await client.from('chamadas_app').insert({
-        de_nome: de, para_nome: paraNome, status: 'chamando',
-        created_at: payload.created_at, updated_at: payload.updated_at
-      }).select('id').maybeSingle());
-    }
-    if(error) throw error;
-    _chamadaAtivaId = data && data.id ? data.id : null;
-    if(usuarioLogado.isMaster){
-      setBtnMasterChamarUI(true);
-    } else {
-      // só UI local — som/vibração apenas no aparelho que RECEBE o alerta
-      setBtnChamarUI(true);
-    }
-    if(_chamadaExpireTimer) clearTimeout(_chamadaExpireTimer);
-    const idExp = _chamadaAtivaId;
-    _chamadaExpireTimer = setTimeout(async ()=>{
-      if(!_chamadaAtivaId || _chamadaAtivaId !== idExp) return;
-      try{
-        await client.from('chamadas_app').update({ status:'expirado', updated_at: new Date().toISOString() })
-          .eq('id', idExp).eq('status', 'chamando');
-      }catch(e){}
-      if(_chamadaAtivaId === idExp){
-        _chamadaAtivaId = null;
-        setBtnChamarUI(false);
-        setBtnMasterChamarUI(false);
-        pararVibracaoChamada();
-      }
-    }, CHAMADA_DURACAO_MS);
-  }catch(e){
-    console.error('iniciarChamadaPara', e);
-    alert('Erro ao chamar: ' + (e.message||e) + '\n\nCrie a tabela chamadas_app no Supabase (SQL nas Configurações).');
-    _chamadaAtivaId = null;
-    setBtnChamarUI(false);
-    setBtnMasterChamarUI(false);
+      let {error}=await client.from('chamadas_app').update({status:'atendido', atendido_por:_alMeuNome(), updated_at:new Date().toISOString()}).eq('id',row.id);
+      if(error) ({error}=await client.from('chamadas_app').update({status:'atendido', updated_at:new Date().toISOString()}).eq('id',row.id));
+      if(error) throw error;
+    }catch(e){ console.warn('confirmar alerta', e); delete _alVistos[String(row.id)]; } // não confirmou no banco: volta no próximo ciclo
   }
+  _alMostrarProximo();
 }
-
-async function cancelarMinhaChamada(){
-  const id = _chamadaAtivaId;
-  _chamadaAtivaId = null;
-  setBtnChamarUI(false);
-  setBtnMasterChamarUI(false);
-  pararVibracaoChamada();
-  if(_chamadaExpireTimer){ clearTimeout(_chamadaExpireTimer); _chamadaExpireTimer = null; }
-  if(!id) return;
-  const client = getSb();
-  if(!client) return;
-  try{
-    await client.from('chamadas_app').update({ status:'cancelado', updated_at: new Date().toISOString() }).eq('id', id);
-  }catch(e){ console.warn(e); }
-}
-
-function mostrarModalChamadaRecebida(deNome, id, extra){
-  if(_chamadaRecebidaId === id) return;
-  _chamadaRecebidaId = id;
-  _chamadaSeenIds[id] = true;
-  extra = extra || {};
-  const m = document.getElementById('modalChamadaRecebida');
-  const nome = document.getElementById('chRecebidaNome');
-  const sub = document.getElementById('chRecebidaSub');
-  if(nome) nome.textContent = deNome || '—';
-  if(sub) sub.textContent = usuarioLogado && usuarioLogado.isMaster ? 'pediu atenção da loja' : 'a loja pediu sua atenção';
-  const boxPed = document.getElementById('chRecebidaPedido');
-  const pedNum = document.getElementById('chRecebidaPedidoNum');
-  const pedCli = document.getElementById('chRecebidaPedidoCliente');
-  const pedEnd = document.getElementById('chRecebidaPedidoEnd');
-  const pedTit = document.getElementById('chRecebidaPedidoTitulo');
-  const msgEl = document.getElementById('chRecebidaMsg');
-  const temPedido = !!(extra.pedido_numero && String(extra.pedido_numero).trim());
-  if(boxPed){
-    if(temPedido){
-      if(pedTit) pedTit.textContent = '⚠️ Atenção com pedido';
-      if(pedNum) pedNum.textContent = '#' + String(extra.pedido_numero).replace(/^#/,'');
-      if(pedCli) pedCli.textContent = extra.pedido_cliente ? ('👤 ' + extra.pedido_cliente) : '';
-      if(pedEnd) pedEnd.textContent = extra.pedido_endereco ? ('📍 ' + extra.pedido_endereco) : '';
-      boxPed.style.display = 'block';
-    } else {
-      boxPed.style.display = 'none';
-    }
-  }
-  if(msgEl){
-    const msg = (extra.mensagem && String(extra.mensagem).trim()) ? String(extra.mensagem).trim() : '';
-    if(msg){
-      msgEl.textContent = msg;
-      msgEl.style.display = 'block';
-    } else {
-      msgEl.textContent = '';
-      msgEl.style.display = 'none';
-    }
-  }
-  if(m) m.style.display = 'flex';
-  desbloquearAudioChamada();
-  iniciarSomChamada();
-  iniciarVibracaoChamada();
-  // tenta de novo o som após resume assíncrono do AudioContext
-  setTimeout(()=>{ try{ if(_chamadaRecebidaId === id){ desbloquearAudioChamada(); if(!_chamadaSomInterval) iniciarSomChamada(); } }catch(e){} }, 300);
-  setTimeout(()=>{ try{ if(_chamadaRecebidaId === id && !_chamadaSomInterval) iniciarSomChamada(); }catch(e){} }, 800);
-}
-
-async function atenderChamadaRecebida(){
-  desbloquearAudioChamada();
-  const id = _chamadaRecebidaId;
-  pararSomChamada(false);
-  pararVibracaoChamada();
-  const m = document.getElementById('modalChamadaRecebida');
-  if(m) m.style.display = 'none';
-  _chamadaRecebidaId = null;
-  if(!id) return;
-  const client = getSb();
-  if(!client) return;
-  try{
-    const quem = _nomeChamadaLocal() || '';
-    const {error} = await client.from('chamadas_app').update({
-      status:'atendido',
-      updated_at: new Date().toISOString(),
-      atendido_por: quem
-    }).eq('id', id);
-    if(error && /atendido_por|column/i.test(error.message||'')){
-      await client.from('chamadas_app').update({ status:'atendido', updated_at: new Date().toISOString() }).eq('id', id);
-    }
-  }catch(e){ console.warn(e); }
-}
-
-function onChamadaRealtime(payload){
-  try{
-    const row = (payload && (payload.new || payload.record)) || null;
-    if(!row) return;
-    processarLinhaChamada(row);
-  }catch(e){ console.warn('onChamadaRealtime', e); }
-}
-
-function processarLinhaChamada(row){
-  if(!usuarioLogado || !row) return;
-  const st = String(row.status||'');
-  const id = row.id;
-
-  // Chamada para mim
-  if(st === 'chamando' && _ehDestinatarioChamada(row.para_nome)){
-    if(String(row.de_nome||'').toLowerCase() === String(_nomeChamadaLocal()).toLowerCase()) return;
-    // ignora se já passou de 15s
-    if(row.created_at){
-      const t = new Date(row.created_at).getTime();
-      if(isFinite(t) && Date.now() - t > CHAMADA_DURACAO_MS + 2000) return;
-    }
-    mostrarModalChamadaRecebida(row.de_nome, id, {
-      mensagem: row.mensagem,
-      pedido_numero: row.pedido_numero,
-      pedido_cliente: row.pedido_cliente,
-      pedido_endereco: row.pedido_endereco
-    });
+function _alProcessarLinha(row){
+  if(!row || !row.id || !usuarioLogado) return;
+  const id=String(row.id), st=String(row.status||'').toLowerCase();
+  const eu=_alMeuNome().toLowerCase();
+  if(st==='chamando'){
+    if(!_alEhParaMim(row.para_nome)) return;
+    if(String(row.de_nome||'').trim().toLowerCase()===eu) return;
+    const t=Date.parse(row.created_at||''); if(isFinite(t) && Date.now()-t>ALERTA_MAX_IDADE_MS) return;
+    if(_alVistos[id]) return;
+    _alVistos[id]=true; _alFila.push(row); _alMostrarProximo();
     return;
   }
-
-  // Fim da chamada que estou recebendo
-  if(_chamadaRecebidaId && id === _chamadaRecebidaId && st !== 'chamando'){
-    pararSomChamada(false);
-    pararVibracaoChamada();
-    const m = document.getElementById('modalChamadaRecebida');
-    if(m) m.style.display = 'none';
-    _chamadaRecebidaId = null;
-    return;
-  }
-
-  // Fim da chamada que eu iniciei
-  if(_chamadaAtivaId && id === _chamadaAtivaId && st !== 'chamando'){
-    const eraAtendido = st === 'atendido';
-    _chamadaAtivaId = null;
-    setBtnChamarUI(false);
-    setBtnMasterChamarUI(false);
-    pararVibracaoChamada();
-    if(_chamadaExpireTimer){ clearTimeout(_chamadaExpireTimer); _chamadaExpireTimer = null; }
-    if(eraAtendido){
-      try{
-        let quem = (row.atendido_por && String(row.atendido_por).trim()) ? String(row.atendido_por).trim() : '';
-        if(!quem){
-          // fallback: se para era MASTER, não mostrar a palavra Master
-          const para = String(row.para_nome||'').trim();
-          if(para && para.toLowerCase() !== 'master') quem = para;
-          else quem = 'Loja';
-        }
-        if(String(quem).toLowerCase() === 'master') quem = 'Loja';
-        notificarAlertaVisto(quem);
-        const btn = document.getElementById(usuarioLogado.isMaster ? 'btnChamarMaster' : 'btnChamar');
-        if(btn){
-          btn.innerHTML = '✓ Viu';
-          setTimeout(()=>{
-            try{
-              if(usuarioLogado && usuarioLogado.isMaster){
-                btn.innerHTML = '🔔 <span class="hlbl">Chamar</span>';
-                setBtnMasterChamarUI(false);
-              } else {
-                btn.innerHTML = '🔔 <span class="hlbl" id="lblBtnChamar">Chamar</span>';
-                setBtnChamarUI(false);
-              }
-            }catch(e){}
-          }, 2500);
-        }
-      }catch(e){}
-    }
+  // confirmado em outro aparelho → some daqui
+  _alFila=_alFila.filter(r=>String(r.id)!==id); _alAtualizarBadge();
+  if(_alAtual && String(_alAtual.id)===id){ _alAtual=null; _alFecharRecebido(); _alMostrarProximo(); }
+  // aviso a quem enviou: o destinatário deu OK
+  if(st==='atendido' && String(row.de_nome||'').trim().toLowerCase()===eu && !_alAvisados[id]){
+    const t=Date.parse(row.updated_at||''); if(isFinite(t) && Date.now()-t>120000) return;
+    _alAvisados[id]=true; _alToast('✓ '+(row.atendido_por||row.para_nome||'Destinatário')+' viu o alerta');
   }
 }
-
-/** Polling a cada 2s — funciona mesmo sem Realtime habilitado na tabela. */
-async function pollChamadas(){
+async function _alPollar(){
   if(!usuarioLogado) return;
-  if(document.hidden) return;
-  const client = getSb();
-  if(!client) return;
+  const client=getSb(); if(!client) return;
   try{
-    const {data, error} = await client.from('chamadas_app')
-      .select('id,de_nome,para_nome,status,mensagem,pedido_numero,pedido_cliente,pedido_endereco,atendido_por,created_at,updated_at')
-      .eq('status', 'chamando')
-      .order('created_at', {ascending:false})
-      .limit(20);
+    const {data,error}=await client.from('chamadas_app').select('*').eq('status','chamando').order('created_at',{ascending:true}).limit(50);
     if(error) return;
-    const lista = data || [];
-    // processa recebidas
-    for(const c of lista){
-      processarLinhaChamada(c);
-    }
-    // se eu tinha chamada ativa e ela sumiu da lista (foi atendida/cancelada/expirada)
-    if(_chamadaAtivaId && !lista.some(c => c.id === _chamadaAtivaId)){
-      // busca status final
-      try{
-        const {data: one} = await client.from('chamadas_app').select('id,status,de_nome,para_nome,atendido_por').eq('id', _chamadaAtivaId).maybeSingle();
-        if(one) processarLinhaChamada(one);
-        else {
-          _chamadaAtivaId = null;
-          setBtnChamarUI(false);
-          setBtnMasterChamarUI(false);
-          pararVibracaoChamada();
-        }
-      }catch(e){}
-    }
-    // se estava recebendo e a chamada não está mais chamando
-    if(_chamadaRecebidaId && !lista.some(c => c.id === _chamadaRecebidaId)){
-      try{
-        const {data: one} = await client.from('chamadas_app').select('id,status,de_nome,para_nome,atendido_por').eq('id', _chamadaRecebidaId).maybeSingle();
-        if(one) processarLinhaChamada(one);
-        else {
-          pararSomChamada(false);
-          pararVibracaoChamada();
-          const m = document.getElementById('modalChamadaRecebida');
-          if(m) m.style.display = 'none';
-          _chamadaRecebidaId = null;
-        }
-      }catch(e){}
-    }
-  }catch(e){ console.warn('pollChamadas', e); }
+    const ids=new Set((data||[]).map(r=>String(r.id)));
+    (data||[]).forEach(_alProcessarLinha);
+    if(_alAtual && !ids.has(String(_alAtual.id))){ _alAtual=null; _alFecharRecebido(); _alMostrarProximo(); }
+    _alFila=_alFila.filter(r=>ids.has(String(r.id))); _alAtualizarBadge();
+  }catch(e){ console.warn('alertas poll', e); }
 }
-
-function iniciarMonitorChamadas(){
+function iniciarAlertas(){
   if(!usuarioLogado) return;
-  if(_chamadaPollTimer){ clearInterval(_chamadaPollTimer); _chamadaPollTimer = null; }
-  // poll imediato + a cada 15s (Realtime é a fonte principal; poll só como fallback conservador)
-  pollChamadas();
-  _chamadaPollTimer = setInterval(pollChamadas, 15000);
-  // canal dedicado (além do ouvir geral)
+  const b=document.getElementById('btnAlertas'); if(b) b.style.display='inline-block';
+  const bn=document.getElementById('btnNotif'); if(bn) bn.style.display='inline-block';
+  _alDesbloquear();
+  if(_alPollTimer) clearInterval(_alPollTimer);
+  _alPollTimer=setInterval(_alPollar,15000);
+  _alPollar();
+  const client=getSb();
+  if(client && !_alCanal){
+    try{
+      _alCanal=client.channel('alertas-app-v2')
+        .on('postgres_changes',{event:'*',schema:'public',table:'chamadas_app'},(payload)=>{ try{ _alProcessarLinha(payload.new); }catch(e){} })
+        .subscribe();
+    }catch(e){ console.warn('alertas realtime', e); }
+  }
+}
+function pararAlertasLocal(){
+  if(_alPollTimer){ clearInterval(_alPollTimer); _alPollTimer=null; }
+  try{ const c=getSb(); if(c && _alCanal) c.removeChannel(_alCanal); }catch(e){}
+  _alCanal=null; _alFila=[]; _alAtual=null; _alVistos={}; _alAvisados={}; _alPedidos=[]; _alPedSel=null;
+  _alFecharRecebido(); fecharModalAlertaEnviar();
+  const b=document.getElementById('btnAlertas'); if(b) b.style.display='none';
+  const bn=document.getElementById('btnNotif'); if(bn) bn.style.display='none';
+  try{ fecharModalNotif(); _alAtualizarBadge(); }catch(e){}
+}
+// =================== FIM ALERTAS ===================
+
+// ===================== ALERTAS: MENSAGENS PRONTAS (Config) + NOTIFICAÇÕES =====================
+const AL_PUBLICO_LBL = {entregadores:'🛵 Entregadores', admin:'👑 Admin', ambos:'👥 Ambos'};
+const AL_MODELOS_PADRAO_ADMIN = ['Volte para a loja','Cliente está ligando, atenda o telefone'];
+const AL_MODELOS_PADRAO_ENT = ['Cliente não atende','Preciso de ajuda com pedido'];
+let _alModelosCfg=[], _alModeloEditId=null, _alModelosVis=[];
+
+async function _alCarregarModelos(){
+  const client=getSb(); if(!client) return {ok:false, lista:[]};
   try{
-    const client = getSb();
-    if(client){
-      client.channel('chamadas-app-v1')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'chamadas_app' }, (payload)=>{
-          try{ onChamadaRealtime(payload); }catch(e){}
-        })
-        .subscribe((status)=>{ console.log('[chamadas] channel', status); });
-    }
-  }catch(e){}
-  document.addEventListener('visibilitychange', ()=>{
-    if(!document.hidden) pollChamadas();
-  });
+    const {data,error}=await client.from('alertas_modelos').select('*').order('created_at',{ascending:true});
+    if(error) throw error;
+    return {ok:true, lista:data||[]};
+  }catch(e){ return {ok:false, lista:[], erro:e}; }
+}
+/** Atalhos de mensagem no envio: Admin vê os de "Entregadores/Ambos"; entregador vê os de "Admin/Ambos". */
+function _alMontarRapidas(r){
+  const box=document.getElementById('alRapidas'); if(!box) return;
+  const isM=!!(usuarioLogado && usuarioLogado.isMaster);
+  const alvo=isM?['entregadores','ambos']:['admin','ambos'];
+  let lista;
+  if(!r.ok || !r.lista.length) lista=(isM?AL_MODELOS_PADRAO_ADMIN:AL_MODELOS_PADRAO_ENT).map(t=>({texto:t, som:true, vibracao:true}));
+  else lista=r.lista.filter(m=>m.ativo!==false && alvo.includes(m.publico));
+  _alModelosVis=lista;
+  box.innerHTML=lista.map((m,i)=>'<button type="button" class="btn al-rapida" onclick="alUsarModelo('+i+')">💬 '+_alEsc(m.texto)+'</button>').join('');
+  const lbl=document.getElementById('alRapidasLbl'); if(lbl) lbl.style.display=lista.length?'block':'none';
+}
+function alUsarModelo(i){
+  const m=_alModelosVis[i]; if(!m) return;
+  const t=document.getElementById('alMsg'); if(t){ t.value=m.texto; t.focus(); }
+  const s=document.getElementById('alSom'); if(s) s.checked=(m.som!==false);
+  const v=document.getElementById('alVib'); if(v) v.checked=(m.vibracao!==false);
 }
 
-function fecharModalMasterChamar(){
-  const m = document.getElementById('modalMasterChamar');
-  if(m) m.style.display = 'none';
-}
-async function abrirModalMasterChamar(){
-  desbloquearAudioChamada();
-  if(!usuarioLogado || !usuarioLogado.isMaster) return;
-  if(_chamadaAtivaId){
-    await cancelarMinhaChamada();
+/* ---- cadastro (Configurações › Alertas) ---- */
+async function carregarAlertasConfig(){
+  const st=document.getElementById('alCfgStatus'), box=document.getElementById('alCfgLista');
+  if(!box) return;
+  box.innerHTML='<div class="al-vazio">Carregando…</div>';
+  const r=await _alCarregarModelos();
+  if(!r.ok){
+    _alModelosCfg=[];
+    box.innerHTML='<div class="al-vazio">Tabela alertas_modelos não encontrada. Rode o SQL abaixo no Supabase e reabra esta aba.<br><span style="font-size:11px">Enquanto isso, os atalhos padrão continuam funcionando.</span></div>';
     return;
   }
-  const m = document.getElementById('modalMasterChamar');
-  const lista = document.getElementById('masterChamarLista');
-  const st = document.getElementById('masterChamarStatus');
-  const msgIn = document.getElementById('masterChamarMsg');
-  if(msgIn && !msgIn.value) msgIn.value = '';
-  if(m) m.style.display = 'flex';
-  if(lista) lista.innerHTML = '';
-  if(st) st.textContent = '⏳ Carregando…';
-  const client = getSb();
-  if(!client){ if(st) st.textContent = 'Supabase não configurado'; return; }
+  _alModelosCfg=r.lista; if(st) st.textContent='';
+  _alRenderModelosCfg();
+}
+function _alRenderModelosCfg(){
+  const box=document.getElementById('alCfgLista'); if(!box) return;
+  if(!_alModelosCfg.length){ box.innerHTML='<div class="al-vazio">Nenhuma mensagem pronta cadastrada.<br><span style="font-size:11px">Sem cadastro, o sistema usa os atalhos padrão.</span></div>'; return; }
+  box.innerHTML=_alModelosCfg.map(m=>{
+    const on=(m.ativo!==false);
+    return '<div class="al-ped'+(on?'':' fim')+'" style="cursor:default">'+
+      '<div class="al-ped-top"><span class="al-ped-num">'+_alEsc(m.texto)+'</span><span class="al-chip ok">'+(AL_PUBLICO_LBL[m.publico]||_alEsc(m.publico))+'</span></div>'+
+      '<div class="al-ped-end">'+(m.som!==false?'🔊 som':'🔇 sem som')+' · '+(m.vibracao!==false?'📳 vibração':'sem vibração')+(on?'':' · <b>desativada</b>')+'</div>'+
+      '<div style="display:flex;gap:6px;margin-top:8px">'+
+      '<button class="btn" style="flex:1;padding:8px;font-size:12px" onclick="alCfgEditar(\''+m.id+'\')">✏️ Editar</button>'+
+      '<button class="btn" style="flex:1;padding:8px;font-size:12px" onclick="alCfgAtivar(\''+m.id+'\','+(on?'false':'true')+')">'+(on?'⏸ Desativar':'▶️ Ativar')+'</button>'+
+      '<button class="btn" style="flex:none;padding:8px 12px;font-size:12px;color:#ff6b6b" onclick="alCfgExcluir(\''+m.id+'\')">🗑️</button>'+
+      '</div></div>';
+  }).join('');
+}
+function alCfgCancelarEdicao(){
+  _alModeloEditId=null;
+  document.getElementById('alCfgTexto').value='';
+  document.getElementById('alCfgPublico').value='entregadores';
+  document.getElementById('alCfgSom').checked=true; document.getElementById('alCfgVib').checked=true;
+  document.getElementById('alCfgBtnSalvar').textContent='➕ Adicionar';
+  document.getElementById('alCfgBtnCancelar').style.display='none';
+}
+function alCfgEditar(id){
+  const m=_alModelosCfg.find(x=>String(x.id)===String(id)); if(!m) return;
+  _alModeloEditId=m.id;
+  document.getElementById('alCfgTexto').value=m.texto||'';
+  document.getElementById('alCfgPublico').value=m.publico||'entregadores';
+  document.getElementById('alCfgSom').checked=(m.som!==false); document.getElementById('alCfgVib').checked=(m.vibracao!==false);
+  document.getElementById('alCfgBtnSalvar').textContent='💾 Salvar';
+  document.getElementById('alCfgBtnCancelar').style.display='block';
+  document.getElementById('alCfgTexto').focus();
+}
+async function alCfgSalvar(){
+  const st=document.getElementById('alCfgStatus');
+  const texto=(document.getElementById('alCfgTexto').value||'').trim();
+  if(!texto){ st.style.color='#ff6b6b'; st.textContent='Digite a mensagem.'; return; }
+  const client=getSb(); if(!client){ st.style.color='#ff6b6b'; st.textContent='Supabase não configurado.'; return; }
+  const reg={ texto, publico:document.getElementById('alCfgPublico').value, som:document.getElementById('alCfgSom').checked, vibracao:document.getElementById('alCfgVib').checked };
   try{
-    const {data, error} = await client.from('entregadores').select('id,nome,is_master,ativo').eq('ativo', true).order('nome');
-    if(error) throw error;
-    const ents = (data||[]).filter(e => e && e.nome && !e.is_master && String(e.nome).toLowerCase() !== 'master');
-    if(!ents.length){
-      if(st) st.textContent = 'Nenhum entregador ativo.';
-      return;
-    }
-    if(st) st.textContent = 'Marque o pedido e toque em Chamar.';
-    if(lista){
-      lista.innerHTML = ents.map((e, idx) => {
-        const nome = String(e.nome||'');
-        const nomeEsc = nome.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-        const nomeAttr = nome.replace(/\\/g,'\\\\').replace(/'/g, "\\'");
-        const peds = _pedidosAbertosDoEntregador(nome);
-        let pedHtml = '';
-        if(!peds.length){
-          pedHtml = '<div style="font-size:11px;color:#5a657a;padding:6px 0">Nenhum pedido em rota nem finalizado nos últimos 40 min</div>';
-        } else {
-          pedHtml = peds.map((p, pi) => {
-            const num = String(p.numero_pedido||'—');
-            const cli = String(p.cliente_nome||'—');
-            const end = String(p.cliente_endereco||'—');
-            const id = String(p.id||'');
-            const stP = String(p.status||'');
-            const finalizado = (stP==='codigo_informado' || stP==='finalizado' || stP==='entregue');
-            const badge = finalizado ? '<span style="font-size:9px;font-weight:800;color:#3dcc8a;margin-left:6px">✓ finalizado</span>' : '<span style="font-size:9px;font-weight:800;color:#f0c14a;margin-left:6px">em rota</span>';
-            return `<label style="display:flex;gap:8px;align-items:flex-start;padding:8px;margin-bottom:4px;background:#0e1118;border:1px solid ${finalizado?'#2a5a3a':'#2c3340'};border-radius:8px;cursor:pointer">
-              <input type="checkbox" class="mch-ped" name="mch_${idx}" data-ent="${nomeAttr}" data-id="${id.replace(/"/g,'&quot;')}" data-num="${num.replace(/"/g,'&quot;')}" data-cli="${cli.replace(/"/g,'&quot;')}" data-end="${end.replace(/"/g,'&quot;')}" style="width:auto;margin-top:3px" onchange="masterChamarPedExclusive(this)"/>
-              <span style="flex:1;min-width:0">
-                <b style="color:#f0c14a">#${num.replace(/</g,'')}</b>${badge}
-                <span style="display:block;font-size:12px;color:#e6e8ef">${cli.replace(/</g,'')}</span>
-                <span style="display:block;font-size:10px;color:#8b93a7;line-height:1.3">📍 ${end.replace(/</g,'')}</span>
-              </span>
-            </label>`;
-          }).join('');
-        }
-        return `<div style="background:#161a22;border:1px solid #2c3340;border-radius:12px;padding:12px">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
-            <div style="font-weight:900;color:#e6e8ef">🛵 ${nomeEsc}</div>
-            <button class="btn blue small" style="font-size:11px;padding:8px 12px;font-weight:800" onclick="masterChamarEntregador('${nomeAttr}', ${idx})">🔔 Chamar</button>
-          </div>
-          ${pedHtml}
-        </div>`;
-      }).join('');
-    }
-  }catch(e){
-    if(st) st.textContent = 'Erro: '+(e.message||e);
-  }
+    const q=_alModeloEditId ? client.from('alertas_modelos').update(reg).eq('id',_alModeloEditId) : client.from('alertas_modelos').insert(reg);
+    const {error}=await q; if(error) throw error;
+    alCfgCancelarEdicao(); await carregarAlertasConfig();
+    st.style.color='#3dcc8a'; st.textContent='✓ Salvo';
+  }catch(e){ st.style.color='#ff6b6b'; st.textContent='Erro: '+(e.message||e)+' — rode o SQL desta aba.'; }
+}
+async function alCfgAtivar(id,ativo){
+  const client=getSb(); if(!client) return;
+  const {error}=await client.from('alertas_modelos').update({ativo}).eq('id',id);
+  if(error){ document.getElementById('alCfgStatus').textContent='Erro: '+error.message; return; }
+  carregarAlertasConfig();
+}
+async function alCfgExcluir(id){
+  const m=_alModelosCfg.find(x=>String(x.id)===String(id)); if(!m) return;
+  const ok=await mostrarConfirmacao('Excluir a mensagem pronta?\n\n"'+m.texto+'"',{titulo:'Excluir',icone:'🗑️',okTexto:'Excluir',cancelarTexto:'Cancelar'});
+  if(!ok) return;
+  const client=getSb(); if(!client) return;
+  const {error}=await client.from('alertas_modelos').delete().eq('id',id);
+  if(error){ document.getElementById('alCfgStatus').textContent='Erro: '+error.message; return; }
+  if(String(_alModeloEditId)===String(id)) alCfgCancelarEdicao();
+  carregarAlertasConfig();
 }
 
-/** Só 1 pedido marcado por entregador. */
-function masterChamarPedExclusive(el){
-  if(!el || !el.checked) return;
-  const name = el.getAttribute('name');
-  if(!name) return;
-  document.querySelectorAll('input.mch-ped[name="'+name+'"]').forEach(c=>{
-    if(c !== el) c.checked = false;
-  });
+/* ---- notificações (cabeçalho): 3 últimos alertas recebidos ---- */
+function _alQuando(iso){
+  const t=Date.parse(iso||''); if(!isFinite(t)) return '';
+  const d=new Date(t); let dia='', hora='', dm='';
+  try{
+    dia=d.toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'});
+    hora=d.toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit',hour12:false});
+    dm=d.toLocaleDateString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit'});
+  }catch(e){ return ''; }
+  return dia===getHojeSP() ? hora : dm+' '+hora;
 }
-
-function _pedidosAbertosDoEntregador(nome){
-  const alvo = String(nome||'').trim().toLowerCase();
-  if(!alvo) return [];
-  const agora = Date.now();
-  const lim40 = 40 * 60 * 1000;
-  const lista = (todosPedidos||[]).filter(p=>{
-    if(!p) return false;
-    let n = '';
-    try{ n = getNomeReserva(p) || ''; }catch(e){}
-    n = n || p.entregador_nome || '';
-    if(String(n).trim().toLowerCase() !== alvo) return false;
-    const st = String(p.status||'');
-    // em rota (não finalizado)
-    if(st !== 'codigo_informado' && st !== 'finalizado' && st !== 'entregue') return true;
-    // finalizados nos últimos 40 min
-    const fim = p.codigo_informado_em || p.updated_at || p.created_at || null;
-    if(!fim) return false;
-    const t = new Date(fim).getTime();
-    if(!isFinite(t)) return false;
-    return (agora - t) <= lim40;
-  });
-  // pendentes primeiro, depois finalizados recentes; por número
-  lista.sort((a,b)=>{
-    const fa = (String(a.status||'')==='codigo_informado' || String(a.status||'')==='finalizado' || String(a.status||'')==='entregue') ? 1 : 0;
-    const fb = (String(b.status||'')==='codigo_informado' || String(b.status||'')==='finalizado' || String(b.status||'')==='entregue') ? 1 : 0;
-    if(fa !== fb) return fa - fb;
-    return String(a.numero_pedido||'').localeCompare(String(b.numero_pedido||''),'pt-BR',{numeric:true});
-  });
-  return lista;
+async function _alCarregarNotifs(){
+  const client=getSb(); if(!client || !usuarioLogado) return [];
+  const nome=_alMeuNome();
+  const alvos=[...new Set([nome, nome.toLowerCase(), nome.toUpperCase()].concat(usuarioLogado.isMaster?['MASTER','Master','master']:[]))].filter(Boolean);
+  const {data,error}=await client.from('chamadas_app').select('*').in('para_nome',alvos).order('created_at',{ascending:false}).limit(30);
+  if(error) throw error;
+  const eu=nome.toLowerCase();
+  return (data||[]).filter(r=>_alEhParaMim(r.para_nome) && String(r.de_nome||'').trim().toLowerCase()!==eu).slice(0,3);
 }
-
-async function masterChamarEntregador(nome, idx){
-  desbloquearAudioChamada();
-  const msgEl = document.getElementById('masterChamarMsg');
-  const mensagem = msgEl ? String(msgEl.value||'').trim() : '';
-  let pedido = null;
-  const name = 'mch_' + idx;
-  const checked = document.querySelector('input.mch-ped[name="'+name+'"]:checked');
-  if(checked){
-    pedido = {
-      pedido_numero: checked.getAttribute('data-num') || '',
-      pedido_cliente: checked.getAttribute('data-cli') || '',
-      pedido_endereco: checked.getAttribute('data-end') || ''
-    };
-  }
-  fecharModalMasterChamar();
-  await iniciarChamadaPara(nome, {
-    mensagem: mensagem,
-    pedido_numero: pedido ? pedido.pedido_numero : '',
-    pedido_cliente: pedido ? pedido.pedido_cliente : '',
-    pedido_endereco: pedido ? pedido.pedido_endereco : ''
-  });
+async function abrirModalNotif(){
+  if(!usuarioLogado) return;
+  const m=document.getElementById('modalNotif'), box=document.getElementById('ntLista');
+  m.style.display='flex';
+  if(!box.innerHTML) box.innerHTML='<div class="al-vazio">Carregando…</div>';
+  try{
+    const lista=await _alCarregarNotifs();
+    if(!lista.length){ box.innerHTML='<div class="al-vazio">Nenhuma notificação.</div>'; return; }
+    box.innerHTML=lista.map(r=>{
+      const pend=String(r.status||'').toLowerCase()==='chamando';
+      return '<div class="al-ped'+(pend?' sel':'')+'" style="cursor:default">'+
+        '<div class="al-ped-top"><span class="al-ped-num">📢 '+_alEsc(r.de_nome||'—')+'</span><span class="al-chip '+(pend?'late':'done')+'">'+(pend?'⏳ Pendente':'✓ Visto')+'</span></div>'+
+        (r.pedido_numero?'<div class="al-ped-ent">Pedido #'+_alEsc(r.pedido_numero)+(r.pedido_cliente?' · '+_alEsc(r.pedido_cliente):'')+'</div>':'')+
+        (r.mensagem?'<div style="font-size:13px;color:#e6e8ef;margin-top:4px;word-break:break-word">'+_alEsc(r.mensagem)+'</div>':'')+
+        '<div class="al-ped-mark">'+_alEsc(_alQuando(r.created_at))+'</div></div>';
+    }).join('');
+  }catch(e){ box.innerHTML='<div class="al-vazio">Erro ao carregar: '+_alEsc(e.message||e)+'</div>'; }
 }
-
-// =================== FIM CHAMADAS ===================// =================== FIM CHAMADAS ===================
+function fecharModalNotif(){ const m=document.getElementById('modalNotif'); if(m) m.style.display='none'; }
+function _alAtualizarBadge(){
+  const n=(_alAtual?1:0)+_alFila.length;
+  const b=document.getElementById('badgeNotif');
+  if(b){ b.textContent=String(n); b.style.display=n>0?'flex':'none'; }
+  const m=document.getElementById('modalNotif');
+  if(m && m.style.display==='flex'){ try{ abrirModalNotif(); }catch(e){} }
+}
+// =================== FIM ALERTAS: MODELOS/NOTIFICAÇÕES ===================
 
 (function(){
   document.getElementById('cfgUrl').value=localStorage.getItem('supabase_url')||DEFAULT_URL||'';
