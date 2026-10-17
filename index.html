@@ -821,12 +821,19 @@ body.modo-entregador .btn-entregador-localizador{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 161026.201953</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 161026.210000</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
-<span id="modoBadge" style="font-size:10px;color:#5a657a;font-weight:600;letter-spacing:0.03em;margin-left:2px;opacity:0.85"></span>
+<span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
 <div class="hdr-actions">
-<button class="btn" id="btnChamar" onclick="toggleChamadaEntregador()" style="display:none;font-size:11px;padding:8px 10px;background:#3a1a1a;border-color:#5a2a2a;color:#ff6b6b" title="Chamar atenção do Master">🔔 <span class="hlbl" id="lblBtnChamar">Chamar</span></button>
+<button type="button" class="btn" id="btnToggleChuva" onclick="toggleModoChuvaHeader()" style="display:none;font-size:11px;padding:6px 10px;align-items:center;gap:6px;background:#1c1c12;border-color:#5a4a2a;color:#f0c14a" title="Ligar/desligar modo Chuva">
+  <span id="lblToggleChuvaIcon">🌧️</span>
+  <span class="hlbl" id="lblToggleChuva">Chuva</span>
+  <span id="swChuva" style="display:inline-block;width:36px;height:20px;border-radius:999px;background:#3a3a45;position:relative;vertical-align:middle;margin-left:2px;transition:background .2s">
+    <span id="swChuvaKnob" style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s"></span>
+  </span>
+</button>
+<button class="btn" id="btnChamar" onclick="toggleChamadaEntregador()" style="display:none;font-size:11px;padding:8px 10px;background:#3a1a1a;border-color:#5a2a2a;color:#ff6b6b" title="Chamar atenção do Administrador">🔔 <span class="hlbl" id="lblBtnChamar">Chamar</span></button>
 <button class="btn" id="btnChamarMaster" onclick="abrirModalMasterChamar()" style="display:none;font-size:11px;padding:8px 10px;background:#1a2a3a;border-color:#2a4a5a;color:#6ab7ff" title="Chamar atenção do entregador">🔔 <span class="hlbl">Chamar</span></button>
 <button class="btn" id="btnDinheiro" onclick="abrirModalDinheiro()" style="display:none;font-size:11px;padding:8px 10px;position:relative;background:#1a2a1a;border-color:#2a5a3a;color:#3dcc8a" title="Controle de dinheiro (somente leitura)">
   💵 <span id="badgeDinheiro" style="display:none;position:absolute;top:-6px;right:-6px;background:#ff6b6b;color:#fff;font-size:10px;font-weight:900;min-width:18px;height:18px;border-radius:999px;align-items:center;justify-content:center;padding:0 4px">0</span>
@@ -834,7 +841,7 @@ body.modo-entregador .btn-entregador-localizador{
 <button class="btn" id="btnRelatorio" onclick="abrirModalRelatorios()" style="display:none;font-size:15px;padding:6px 10px;line-height:1;background:#141a2a;border-color:#2a4a7a;color:#6ab7ff" title="Relatórios" aria-label="Relatórios">📈</button>
 <button class="btn red" id="btnLimpeza30" onclick="abrirAlertaLimpeza30()" style="display:none;font-size:11px;padding:8px 10px" title="Excluir pedidos com mais de 30 dias no Supabase" aria-label="Limpeza 30 dias">🗑️ <span class="hlbl">Limpeza 30d</span></button>
 <button class="btn" id="btnModoAgrupar" onclick="toggleModoAgrupamento()" style="display:none;font-size:11px;padding:8px 10px;background:#1c1c12;border-color:#5a4a2a;color:#f0c14a" title="Agrupar pedidos com mesmo endereço (1 entrega)" aria-label="Agrupar">🔗 <span class="hlbl">Agrupar</span></button>
-<button class="btn" id="btnTrocarConta" onclick="abrirModalTrocarConta()" style="display:none;font-size:15px;padding:6px 10px;line-height:1;background:#141a2a;border-color:#2a4a7a;color:#6ab7ff" title="Trocar de conta (Master)" aria-label="Trocar de conta">🔄</button>
+<button class="btn" id="btnTrocarConta" onclick="abrirModalTrocarConta()" style="display:none;font-size:15px;padding:6px 10px;line-height:1;background:#141a2a;border-color:#2a4a7a;color:#6ab7ff" title="Trocar de conta (Administrador)" aria-label="Trocar de conta">🔄</button>
 <button class="btn" onclick="logout()" style="font-size:11px">Sair</button>
 <button class="btn" id="btnCfg" onclick="abrirCfg()" style="display:none" title="Configurações" aria-label="Configurações">⚙️</button>
 </div>
@@ -846,7 +853,7 @@ body.modo-entregador .btn-entregador-localizador{
 <div id="alertaLimpeza30" style="display:none;background:#2a1a0e;border-bottom:1px solid #5a3a1a;padding:10px 14px;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
   <div style="font-size:12px;color:#f0c14a;font-weight:700;flex:1;min-width:200px">
     ⚠️ Limpeza diária: existem pedidos com <b>mais de 30 dias</b> no Supabase.<br>
-    <span style="font-size:11px;color:#c4a574;font-weight:500">Excluir definitivamente? Só Master pode executar (1x por dia).</span>
+    <span style="font-size:11px;color:#c4a574;font-weight:500">Excluir definitivamente? Só o Administrador pode executar (1x por dia).</span>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap">
     <button class="btn red" style="font-size:11px;padding:8px 12px" onclick="executarLimpeza30Dias()">🗑️ Sim, excluir</button>
@@ -1147,14 +1154,14 @@ create policy "libera tudo anon consumos entregas" on consumos_entregas for all 
 <div id="abaEntregadores" style="display:none">
 <div style="font-size:11px;color:#8b93a7;margin-bottom:10px;line-height:1.4">
 Cadastro no Supabase (tabela <b style="color:#f0c14a">entregadores</b>). Login consulta o banco.<br>
-<span style="color:#f0c14a">Master pode ver e editar senhas</span> dos entregadores listados abaixo (todos vêm do Supabase).
+<span style="color:#f0c14a">Administrador pode ver e editar senhas</span> dos entregadores listados abaixo (todos vêm do Supabase).
 </div>
 <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
 <input id="novoNome" placeholder="Nome" style="flex:1;min-width:100px"/>
 <input id="novaSenha" placeholder="Senha" style="flex:1;min-width:100px"/>
 </div>
 <label style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:10px;cursor:pointer">
-<input type="checkbox" id="novoIsMaster" style="width:auto"/> Marcar como Master (acesso total + configurações)
+<input type="checkbox" id="novoIsMaster" style="width:auto"/> Marcar como Administrador (acesso total + configurações)
 </label>
 <button class="btn primary" onclick="addEntregador()" style="width:100%;margin-bottom:12px">Adicionar no Supabase</button>
 <div id="entregadoresStatus" style="font-size:11px;color:#8b93a7;text-align:center;margin-bottom:8px;min-height:16px"></div>
@@ -1163,29 +1170,32 @@ Cadastro no Supabase (tabela <b style="color:#f0c14a">entregadores</b>). Login c
 <div id="abaModo" style="display:none">
 <div style="padding:12px;background:#0e1118;border:1px solid #2c3340;border-radius:10px;margin-bottom:12px">
 <div style="font-size:12px;color:#f0c14a;font-weight:800;margin-bottom:8px">MODO DE CONFIRMAÇÃO</div>
-<div style="font-size:11px;color:#8b93a7;margin-bottom:12px">Escolha como o entregador confirma o pedido:</div>
+<div style="font-size:11px;color:#8b93a7;margin-bottom:12px">Escolha o modo de operação (vale para todos os entregadores):</div>
 <label style="display:flex;gap:10px;padding:12px;border:1px solid #2c3340;border-radius:10px;margin-bottom:8px;cursor:pointer;background:#161a22" id="labelAuto">
 <input type="radio" name="modoConfirmacao" value="automatico" id="modoAuto" onchange="salvarModo('automatico')" style="width:auto"/>
 <div style="flex:1">
-<div style="font-weight:800;color:#fff">🤖 AUTOMÁTICO</div>
-<div style="font-size:11px;color:#8b93a7">Modo padrão - clica em Código e digita 4 dígitos. Confirma no próprio site.</div>
+<div style="font-weight:800;color:#6ab7ff">🌧️ CHUVA</div>
+<div style="font-size:11px;color:#8b93a7">Modo chuva — clica em Código e digita 4 dígitos. Confirma no próprio site (antigo Automático).</div>
 </div>
 </label>
 <label style="display:flex;gap:10px;padding:12px;border:1px solid #2c3340;border-radius:10px;cursor:pointer;background:#161a22" id="labelEntregador">
 <input type="radio" name="modoConfirmacao" value="entregador" id="modoEntregador" onchange="salvarModo('entregador')" style="width:auto"/>
 <div style="flex:1">
-<div style="font-weight:800;color:#fff">🛵 ENTREGADOR (LOCALIZADOR)</div>
-<div style="font-size:11px;color:#8b93a7">Recebe o LOCALIZADOR automático. Ao clicar em COPIAR: grava no sistema, copia e abre o iFood.</div>
+<div style="font-weight:800;color:#fff">☀️ NORMAL</div>
+<div style="font-size:11px;color:#8b93a7">Modo normal — localizador automático. Ao clicar em COPIAR: grava, copia e abre o iFood.</div>
 </div>
 </label>
 <div id="modoStatus" style="margin-top:10px;padding:8px;border-radius:8px;font-size:11px;text-align:center;display:none"></div>
 </div>
 <div style="padding:10px;background:#1a1a0e;border:1px solid #3a3320;border-radius:8px;font-size:10px;color:#8b93a7">
-<b style="color:#f0c14a">Como funciona o modo ENTREGADOR:</b><br/>
+<b style="color:#6ab7ff">Modo CHUVA (interruptor ligado):</b> confirmação com código de 4 dígitos no app.<br/>
+<b style="color:#f0c14a">Modo NORMAL (interruptor desligado):</b> localizador + confirmação no iFood.<br/><br/>
+<b style="color:#f0c14a">Como funciona o modo NORMAL (localizador):</b><br/>
 1. Ao clicar em Localizador, abre modal com LOCALIZADOR preenchido<br/>
 2. Botão 📋 COPIAR: copia, grava no Supabase e abre o iFood<br/>
 3. Se estiver offline, a gravação fica na fila e sobe quando a internet voltar<br/>
-4. No iFood cole o localizador e confirme a entrega
+4. No iFood cole o localizador e confirme a entrega<br/>
+<span style="color:#6ab7ff">Dica:</span> o Administrador liga/desliga o modo Chuva pelo interruptor no cabeçalho.
 </div>
 </div>
 <div id="abaCusto" style="display:none">
@@ -1710,7 +1720,7 @@ Isso apaga o registro no Supabase (<b style="color:#f0c14a">pedidos_entrega_dia<
 <button class="btn small" type="button" id="btnToggleEditSenha" onclick="toggleEditEntSenhaVisivel()" title="Mostrar/ocultar">🙈</button>
 </div>
 <label style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:14px;cursor:pointer">
-<input type="checkbox" id="editEntIsMaster" style="width:auto"/> Master (acesso total + configurações)
+<input type="checkbox" id="editEntIsMaster" style="width:auto"/> Administrador (acesso total + configurações)
 </label>
 <div id="editEntStatus" style="font-size:11px;color:#8b93a7;text-align:center;margin-bottom:10px;min-height:16px"></div>
 <div style="display:flex;gap:8px">
@@ -2276,7 +2286,7 @@ function isPedidoCustoBloqueado(p){
 }
 function msgCustoBloqueado(p){
   const num = p && p.numero_pedido ? ('#'+p.numero_pedido) : 'Este pedido';
-  return num + ' está bloqueado: o custo da entrega já foi enviado. Apenas o Master pode reativar/liberar para permitir modificar de novo.';
+  return num + ' está bloqueado: o custo da entrega já foi enviado. Apenas o Administrador pode reativar/liberar para permitir modificar de novo.';
 }
 
 function getTempoRestanteEdicao(p){
@@ -2653,15 +2663,59 @@ function atualizarBadgeModo(){
   const el = document.getElementById('modoBadge');
   if(!el) return;
   const modo = getModoConfirmacao();
-  if(modo==='entregador'){
-    el.textContent='• MODO ENTREGADOR';
-    el.style.color='#6ab7ff';
-    el.title='Modo Entregador - copia localizador e abre iFood';
+  // CHUVA = automatico (código 4 dígitos) | NORMAL = entregador (localizador)
+  if(modo==='automatico'){
+    el.textContent='🌧️ MODO CHUVA';
+    el.style.color='#fff';
+    el.style.background='#1a3a5a';
+    el.style.borderColor='#3a6aaa';
+    el.style.opacity='1';
+    el.style.fontWeight='900';
+    el.title='Modo Chuva — código de 4 dígitos no app';
   } else {
-    el.textContent='• MODO AUTO';
-    el.style.color='#5a657a';
-    el.title='Modo Automático - informa código de 4 dígitos';
+    el.textContent='☀️ NORMAL';
+    el.style.color='#8b93a7';
+    el.style.background='transparent';
+    el.style.borderColor='transparent';
+    el.style.opacity='0.9';
+    el.style.fontWeight='700';
+    el.title='Modo Normal — localizador e confirmação no iFood';
   }
+  try{ atualizarToggleChuvaUI(); }catch(e){}
+}
+
+function atualizarToggleChuvaUI(){
+  const btn = document.getElementById('btnToggleChuva');
+  const sw = document.getElementById('swChuva');
+  const knob = document.getElementById('swChuvaKnob');
+  const lbl = document.getElementById('lblToggleChuva');
+  const isAdmin = !!(usuarioLogado && usuarioLogado.isMaster);
+  if(btn) btn.style.display = isAdmin ? 'inline-flex' : 'none';
+  if(!sw || !knob) return;
+  // LIGADO = CHUVA = automatico
+  const on = getModoConfirmacao()==='automatico';
+  if(on){
+    sw.style.background = '#2563eb';
+    knob.style.left = '18px';
+    if(btn){ btn.style.background='#1a2a3a'; btn.style.borderColor='#3a6aaa'; btn.style.color='#6ab7ff'; }
+    if(lbl) lbl.textContent = 'Chuva ON';
+  } else {
+    sw.style.background = '#3a3a45';
+    knob.style.left = '2px';
+    if(btn){ btn.style.background='#1c1c12'; btn.style.borderColor='#5a4a2a'; btn.style.color='#f0c14a'; }
+    if(lbl) lbl.textContent = 'Chuva';
+  }
+}
+
+async function toggleModoChuvaHeader(){
+  if(!usuarioLogado || !usuarioLogado.isMaster){
+    try{ mostrarAlerta('Apenas o Administrador pode alterar o modo.', {tipo:'aviso', titulo:'Modo', icone:'🌧️'}); }catch(e){ alert('Apenas o Administrador pode alterar o modo.'); }
+    return;
+  }
+  const atual = getModoConfirmacao();
+  // Ligar Chuva → automatico | Desligar → entregador (NORMAL)
+  const novo = (atual==='automatico') ? 'entregador' : 'automatico';
+  await salvarModo(novo);
 }
 function salvarCfgSupabase(){
   const url=document.getElementById('cfgUrl').value.trim();
@@ -2729,7 +2783,7 @@ function renderEntregadores(){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
         <div>
           <b style="color:#f0c14a;font-size:15px">${e.nome||'—'}</b>
-          ${isMaster ? ' <span style="color:#f0c14a;font-size:10px">👑 Master</span>' : ''}
+          ${isMaster ? ' <span style="color:#f0c14a;font-size:10px">👑 Administrador</span>' : ''}
           ${!ativo ? ' <span style="color:#ff6b6b;font-size:10px;font-weight:800">⛔ INATIVO — sem acesso</span>' : ''}
           <div style="font-size:10px;color:#5a657a;margin-top:2px">id: ${id.slice(0,8)}… · Supabase</div>
         </div>
@@ -2861,7 +2915,7 @@ async function addEntregador(){
   const nome = document.getElementById('novoNome').value.trim();
   const senha = document.getElementById('novaSenha').value.trim();
   if(!nome || !senha){ alert('Preencha nome e senha'); return; }
-  if(!usuarioLogado?.isMaster){ alert('Apenas Master pode cadastrar'); return; }
+  if(!usuarioLogado?.isMaster){ alert('Apenas o Administrador pode cadastrar'); return; }
   const client = getSb();
   if(!client){ alert('Supabase não configurado'); return; }
   try{
@@ -2880,7 +2934,7 @@ async function addEntregador(){
 }
 
 async function removerEntregador(id, nome){
-  if(!usuarioLogado?.isMaster){ alert('Apenas Master pode remover'); return; }
+  if(!usuarioLogado?.isMaster){ alert('Apenas o Administrador pode remover'); return; }
   if(String(id) === String(usuarioLogado && usuarioLogado.id)){ alert('Você não pode remover a sua própria conta.'); return; }
   if(!(await mostrarConfirmacao('Remover entregador "' + (nome||'') + '"?\n\nSe ele estiver logado, será deslogado automaticamente e não poderá mais fazer login.', { titulo:'Remover entregador', okTexto:'Remover', cancelarTexto:'Cancelar' }))) return;
   const client = getSb();
@@ -2898,7 +2952,7 @@ async function removerEntregador(id, nome){
 
 /** Master: desativa/reativa um entregador. Inativo = não consegue logar e, se estiver logado, é deslogado automaticamente. */
 async function alternarAtivoEntregador(id, nome){
-  if(!usuarioLogado?.isMaster){ alert('Apenas Master pode alterar'); return; }
+  if(!usuarioLogado?.isMaster){ alert('Apenas o Administrador pode alterar'); return; }
   const e = (cacheEntregadores||[]).find(x => String(x.id)===String(id));
   const ativoAtual = _entAtivo(e);
   const novo = !ativoAtual;
@@ -4597,7 +4651,7 @@ let _reabrirCustoTurno = null;
 
 function abrirModalReabrirCustoDia(turno){
   if(!podeReabrirCustoDia()){
-    alert('Apenas Master pode reabrir o custo');
+    alert('Apenas o Administrador pode reabrir o custo');
     return;
   }
   const t = (turno === 'almoco') ? 'almoco' : (turno === 'jantar' ? 'jantar' : null);
@@ -4990,7 +5044,7 @@ function toggleMasterCustoTurno(key){
 
 function abrirModalReabrirCustoMaster(nomeEnt, idEnt, turno){
   if(!podeReabrirCustoDia()){
-    mostrarAlerta('Apenas Master pode reabrir o custo', { tipo:'erro' });
+    mostrarAlerta('Apenas o Administrador pode reabrir o custo', { tipo:'erro' });
     return;
   }
   const t = (turno === 'almoco') ? 'almoco' : 'jantar';
@@ -6557,24 +6611,25 @@ function aplicarModoNaUI(modo){
   if(status){
     status.style.display='block';
     if(modo==='automatico'){
-      status.textContent='✅ Modo AUTOMÁTICO ativado GLOBALMENTE para todos entregadores';
+      status.textContent='✅ Modo CHUVA ativado GLOBALMENTE — código de 4 dígitos no app';
       status.style.background='#0f1f15'; status.style.color='#3dcc8a'; status.style.border='1px solid #2a5a3a';
       const la=document.getElementById('labelAuto'); if(la) la.style.borderColor='#f0c14a';
       const le=document.getElementById('labelEntregador'); if(le) le.style.borderColor='#2c3340';
     } else {
-      status.textContent='✅ Modo ENTREGADOR ativado GLOBALMENTE para todos entregadores - copia LOCALIZADOR e abre iFood';
+      status.textContent='✅ Modo NORMAL ativado GLOBALMENTE — localizador e confirmação no iFood';
       status.style.background='#1a1a0e'; status.style.color='#f0c14a'; status.style.border='1px solid #f0c14a';
       const la=document.getElementById('labelAuto'); if(la) la.style.borderColor='#2c3340';
       const le=document.getElementById('labelEntregador'); if(le) le.style.borderColor='#f0c14a';
     }
   }
   atualizarBadgeModo();
+  try{ atualizarToggleChuvaUI(); }catch(e){}
   try{ render(); }catch(e){}
 }
 
 async function salvarModo(modo){
   if(!usuarioLogado || !usuarioLogado.isMaster){
-    alert('Apenas o Master pode alterar o modo global');
+    alert('Apenas o Administrador pode alterar o modo global');
     return;
   }
   aplicarModoNaUI(modo);
@@ -6718,6 +6773,7 @@ async function fazerLogin(){
     erroEl.textContent = '';
     await carregarPedidosVisiveis();
     carregarModoGlobal();
+    try{ await carregarRotaUniaoDoServidor(); }catch(e){}
     atualizarBadgeModo();
     await carregar();
     ouvir();
@@ -6851,6 +6907,11 @@ function checkLoginPersistido(){
     try{
       usuarioLogado=JSON.parse(raw);
       try{ usuarioLogado.abas_visiveis = normalizarAbasVisiveis(usuarioLogado.abas_visiveis); }catch(e){}
+      try{
+        if(usuarioLogado && usuarioLogado.viaMaster && usuarioLogado.origemMaster){
+          localStorage.setItem('master_origem', JSON.stringify(usuarioLogado.origemMaster));
+        }
+      }catch(e){}
       document.getElementById('loginScreen').style.display='none';
       document.getElementById('userBadge').textContent=usuarioLogado.nome + (usuarioLogado.isMaster?' 👑':'');
       try{ atualizarModoEntregadorBody(); }catch(e){}
@@ -8811,7 +8872,7 @@ function getRotasByEntregador(entregas, opts){
       atual.pedidos.push(it.p);
     }
   }
-  // Master · aba Pedidos: rotas UNIDAS manualmente (pedido -> uniaoId) viram uma só rota
+  // Rotas UNIDAS pelo Administrador (pedido -> uniaoId) — compartilhado: entregador vê Em rota e Pedidos
   if(opts && opts.uniao){
     try{
       const um = _rotaUniaoMap();
@@ -8845,58 +8906,128 @@ function getRotasByEntregador(entregas, opts){
   });
   return rotas;
 }
-// ===================== UNIR ROTAS (Master · aba Pedidos) =====================
+// ===================== UNIR ROTAS (Admin · compartilhado com entregadores) =====================
 const ROTA_UNIAO_KEY = 'batataria_rota_uniao_v1';
+const ROTA_UNIAO_CFG_CHAVE = 'rota_uniao';
 let _rotaSelSet = new Set();      // chaves das rotas marcadas
-let _rotaSelIds = {};             // chave -> ids dos pedidos da rota (preenchido a cada render)
+let _rotaSelIds = {};             // chave -> ids dos pedidos da rota
+let _rotaUniaoCache = null;       // cache em memória do mapa pedidoId -> uniaoId
+let _rotaUniaoSyncTimer = null;
+
 function _rotaUniaoMap(){
-  try{ return JSON.parse(localStorage.getItem(ROTA_UNIAO_KEY)||'{}')||{}; }catch(e){ return {}; }
+  if(_rotaUniaoCache && typeof _rotaUniaoCache === 'object') return _rotaUniaoCache;
+  try{
+    const m = JSON.parse(localStorage.getItem(ROTA_UNIAO_KEY)||'{}')||{};
+    _rotaUniaoCache = m;
+    return m;
+  }catch(e){ _rotaUniaoCache = {}; return _rotaUniaoCache; }
 }
-function _rotaUniaoSalvar(m){ try{ localStorage.setItem(ROTA_UNIAO_KEY, JSON.stringify(m||{})); }catch(e){} }
-function _chaveRotaSel(r){ return String(r.pedidos[0].id).replace(/[^\w-]/g,''); }
-function toggleSelRota(key, on){
-  if(on) _rotaSelSet.add(key); else _rotaSelSet.delete(key);
+function _rotaUniaoSalvarLocal(m){
+  _rotaUniaoCache = m || {};
+  try{ localStorage.setItem(ROTA_UNIAO_KEY, JSON.stringify(_rotaUniaoCache)); }catch(e){}
+}
+function _rotaUniaoSalvar(m){
+  _rotaUniaoSalvarLocal(m);
+  // sobe pro Supabase (todos os aparelhos / entregadores veem a união)
+  try{ _agendarSyncRotaUniao(); }catch(e){}
+}
+function _agendarSyncRotaUniao(){
+  if(_rotaUniaoSyncTimer) clearTimeout(_rotaUniaoSyncTimer);
+  _rotaUniaoSyncTimer = setTimeout(()=>{ try{ sincronizarRotaUniaoParaServidor(); }catch(e){} }, 300);
+}
+async function sincronizarRotaUniaoParaServidor(){
+  const client = getSb();
+  if(!client) return;
+  try{
+    const m = _rotaUniaoMap();
+    const {error} = await client.from('app_config').upsert({
+      chave: ROTA_UNIAO_CFG_CHAVE,
+      valor: JSON.stringify(m||{}),
+      atualizado_em: new Date().toISOString()
+    }, {onConflict:'chave'});
+    if(error) console.warn('sync rota_uniao', error.message||error);
+  }catch(e){ console.warn('sincronizarRotaUniaoParaServidor', e); }
+}
+async function carregarRotaUniaoDoServidor(){
+  const client = getSb();
+  if(!client) return _rotaUniaoMap();
+  try{
+    const {data, error} = await client.from('app_config').select('valor').eq('chave', ROTA_UNIAO_CFG_CHAVE).maybeSingle();
+    if(error){ console.warn('carregar rota_uniao', error.message||error); return _rotaUniaoMap(); }
+    if(data && data.valor != null){
+      let m = {};
+      try{ m = typeof data.valor === 'string' ? JSON.parse(data.valor||'{}') : (data.valor||{}); }catch(e){ m = {}; }
+      if(!m || typeof m !== 'object') m = {};
+      _rotaUniaoSalvarLocal(m);
+      return m;
+    }
+  }catch(e){ console.warn('carregarRotaUniaoDoServidor', e); }
+  return _rotaUniaoMap();
+}
+function _aplicarRotaUniaoRemota(valor){
+  try{
+    let m = {};
+    if(valor == null) m = {};
+    else if(typeof valor === 'string'){ try{ m = JSON.parse(valor||'{}')||{}; }catch(e){ m = {}; } }
+    else if(typeof valor === 'object') m = valor;
+    if(!m || typeof m !== 'object') m = {};
+    const ant = JSON.stringify(_rotaUniaoMap());
+    const novo = JSON.stringify(m);
+    if(ant === novo) return;
+    _rotaUniaoSalvarLocal(m);
+    try{ render(); }catch(e){}
+  }catch(e){ console.warn('_aplicarRotaUniaoRemota', e); }
+}
+
+function toggleSelRota(key, checked){
+  if(checked) _rotaSelSet.add(key); else _rotaSelSet.delete(key);
   _atualizarBarraUniao();
 }
 function cancelarSelRotas(){
   _rotaSelSet.clear();
   _atualizarBarraUniao();
-  try{ render(); }catch(e){}
+}
+function _chaveRotaSel(r){
+  try{
+    const ids = (r.pedidos||[]).map(p=>p && p.id).filter(Boolean).map(String).sort();
+    return ids.join('|') || ('b'+String(r.baseMs||0));
+  }catch(e){ return 'x'+Math.random(); }
 }
 function _atualizarBarraUniao(){
   let el = document.getElementById('barraUniaoRotas');
   const n = _rotaSelSet.size;
-  if(!n){ if(el) el.style.display='none'; return; }
+  if(n < 1){
+    if(el) el.style.display = 'none';
+    return;
+  }
   if(!el){
     el = document.createElement('div');
     el.id = 'barraUniaoRotas';
-    el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:9999;display:flex;gap:8px;align-items:center;background:#1a1e2a;border:1px solid #2a4a7a;border-radius:12px;padding:8px 12px;box-shadow:0 4px 18px rgba(0,0,0,.5);font-size:12px;font-weight:800;color:#e8ecf5';
+    el.style.cssText = 'position:sticky;bottom:0;z-index:40;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;padding:10px 12px;background:#121826;border-top:1px solid #2a4a7a;';
     document.body.appendChild(el);
   }
   el.style.display = 'flex';
-  el.innerHTML = '<span>' + n + ' rota(s) marcada(s)</span>'
+  el.innerHTML = '<span style="color:#6ab7ff;font-weight:800;font-size:12px">🔗 ' + n + ' rota(s) marcada(s)</span>'
     + (n >= 2 ? '<button onclick="unirRotasSelecionadas()" style="background:#2563eb;color:#fff;border:0;border-radius:8px;padding:6px 10px;font-weight:800;cursor:pointer">🔗 Unir rotas</button>' : '<span style="color:#8b93a7;font-weight:600">marque ao menos 2</span>')
     + '<button onclick="cancelarSelRotas()" style="background:#2a3040;color:#e8ecf5;border:0;border-radius:8px;padding:6px 10px;font-weight:800;cursor:pointer">Cancelar</button>';
 }
 function unirRotasSelecionadas(){
   try{
-    if(!(usuarioLogado && usuarioLogado.isMaster)){ alert('Apenas Master'); return; }
+    if(!(usuarioLogado && usuarioLogado.isMaster)){ alert('Apenas o Administrador'); return; }
     const keys = Array.from(_rotaSelSet).filter(k=>_rotaSelIds[k]);
     if(keys.length < 2){ alert('Marque ao menos 2 rotas para unir.'); return; }
     const ids = [];
     keys.forEach(k=> (_rotaSelIds[k]||[]).forEach(id=> ids.push(id)));
-    // só rotas do mesmo entregador
     const nomes = new Set();
     ids.forEach(id=>{
       const ped = (todosPedidos||[]).find(x=>x && String(x.id)===String(id));
       if(ped) nomes.add(String(getNomeReserva(ped)||'').trim().toLowerCase());
     });
     if(nomes.size > 1){ alert('Só é possível unir rotas do mesmo entregador.'); return; }
-    const m = _rotaUniaoMap();
+    const m = Object.assign({}, _rotaUniaoMap());
     let uid = null;
     ids.forEach(id=>{ if(!uid && m[String(id)]) uid = m[String(id)]; });
     if(!uid) uid = 'u' + Date.now();
-    // quem já estava numa união com os pedidos escolhidos entra junto
     const antigos = new Set(ids.map(id=>m[String(id)]).filter(Boolean));
     Object.keys(m).forEach(k=>{ if(antigos.has(m[k])) m[k] = uid; });
     ids.forEach(id=>{ m[String(id)] = uid; });
@@ -8911,7 +9042,7 @@ function separarRotaUnida(key){
     const ids = _rotaSelIds[key] || [];
     if(!ids.length) return;
     if(!confirm('Separar as rotas unidas?')) return;
-    const m = _rotaUniaoMap();
+    const m = Object.assign({}, _rotaUniaoMap());
     ids.forEach(id=>{ delete m[String(id)]; });
     _rotaUniaoSalvar(m);
     _rotaSelSet.delete(key);
@@ -8919,7 +9050,6 @@ function separarRotaUnida(key){
     render();
   }catch(e){ console.warn('separarRotaUnida', e); }
 }
-/** Ordenação de EXIBIÇÃO: abertas (mais recente→antiga), depois finalizadas (última finalizada primeiro). */
 function _ordenarRotasExibicao(rotas){
   const abertas = (rotas||[]).filter(r=>r.aberta);
   const fechadas = (rotas||[]).filter(r=>!r.aberta);
@@ -9044,7 +9174,8 @@ function renderItensGridPorRotas(listaPedidos, ordenarItensFn){
   const lista = listaPedidos || [];
   if(!lista.length) return '';
   const _modoMasterUniao = !!(usuarioLogado && usuarioLogado.isMaster);
-  const rotas = _ordenarRotasExibicao(getRotasByEntregador(lista, { uniao: _modoMasterUniao }));
+  // União de rotas do Admin vale para TODOS (entregador vê Em rota + Pedidos)
+  const rotas = _ordenarRotasExibicao(getRotasByEntregador(lista, { uniao: true }));
   if(!rotas.length) return renderItensGrid(lista);
   // Só entregador na aba "Pedidos": rotas colapsáveis (pedidos ocultos por padrão)
   const colapsavel = !!(usuarioLogado && !usuarioLogado.isMaster && typeof abaEntregadorAtual !== 'undefined' && abaEntregadorAtual === 'pedidos');
@@ -9346,7 +9477,7 @@ function htmlMasterEmRotaColunas(pedidosDoTurno){
     let abertas = [];
     try{
       const rotas = (typeof getRotasByEntregador === 'function')
-        ? ((typeof _ordenarRotasExibicao === 'function') ? _ordenarRotasExibicao(getRotasByEntregador(lista)) : getRotasByEntregador(lista))
+        ? ((typeof _ordenarRotasExibicao === 'function') ? _ordenarRotasExibicao(getRotasByEntregador(lista, { uniao: true })) : getRotasByEntregador(lista, { uniao: true }))
         : [];
       abertas = (rotas||[]).filter(r => r && r.aberta);
     }catch(e){
@@ -9443,7 +9574,7 @@ function _htmlMasterEntColuna(nome, lista){
     // MASTER Em rota: 1º EM ROTA (a entregar) lado a lado; por último FINALIZADAS lado a lado
     // com o TEMPO entre as entregas (chip vertical entre os cards).
     let rotasCol = [];
-    try{ rotasCol = getRotasByEntregador(listaSegura).sort((a,b)=>(a.baseMs||0)-(b.baseMs||0)); }catch(e){ rotasCol = []; }
+    try{ rotasCol = getRotasByEntregador(listaSegura, { uniao: true }).sort((a,b)=>(a.baseMs||0)-(b.baseMs||0)); }catch(e){ rotasCol = []; }
     if(!rotasCol.length) rotasCol = [{ pedidos: listaSegura }];
     const itensPend = [], itensFin = [];
     rotasCol.forEach(r=>{
@@ -11473,7 +11604,7 @@ function fecharModalExcluirPedido(){
 }
 
 function abrirModalExcluirPedido(id){
-  if(!usuarioLogado?.isMaster){ alert('Apenas Master pode excluir definitivamente'); return; }
+  if(!usuarioLogado?.isMaster){ alert('Apenas o Administrador pode excluir definitivamente'); return; }
   const p = todosPedidos.find(x=>x.id===id);
   if(!p){ alert('Pedido não encontrado'); return; }
   if(isPedidoCustoBloqueado(p)){
@@ -11583,7 +11714,7 @@ function adiarLimpeza30(){
 }
 
 async function executarLimpeza30Dias(){
-  if(!usuarioLogado?.isMaster){ alert('Apenas Master pode executar a limpeza'); return; }
+  if(!usuarioLogado?.isMaster){ alert('Apenas o Administrador pode executar a limpeza'); return; }
   const limite = dataLimite30Dias();
   const qtd = await contarPedidosAntigos30();
   if(!qtd){
@@ -11647,7 +11778,7 @@ function restaurarHtmlAlertaLimpeza(){
   bar.innerHTML = `
   <div style="font-size:12px;color:#f0c14a;font-weight:700;flex:1;min-width:200px">
     ⚠️ Limpeza diária: existem pedidos com <b>mais de 30 dias</b> no Supabase.<br>
-    <span style="font-size:11px;color:#c4a574;font-weight:500">Excluir definitivamente? Só Master pode executar (1x por dia).</span>
+    <span style="font-size:11px;color:#c4a574;font-weight:500">Excluir definitivamente? Só o Administrador pode executar (1x por dia).</span>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap">
     <button class="btn red" style="font-size:11px;padding:8px 12px" onclick="executarLimpeza30Dias()">🗑️ Sim, excluir</button>
@@ -11691,7 +11822,7 @@ function fecharModalReativarPedido(){
 }
 
 function abrirModalReativarPedido(id){
-  if(!usuarioLogado?.isMaster){ alert('Apenas Master pode reativar'); return; }
+  if(!usuarioLogado?.isMaster){ alert('Apenas o Administrador pode reativar'); return; }
   const p = todosPedidos.find(x=>x.id===id);
   if(!p){ alert('Pedido não encontrado'); return; }
   const finalizado = p.status === 'codigo_informado';
@@ -11719,7 +11850,7 @@ function abrirModalReativarPedido(id){
     if(custoBloq){
       parts.push('Libera o <b style="color:#f0c14a">bloqueio de custo</b> para o entregador poder modificar de novo (transferir, editar, excluir da lista).');
     }
-    parts.push('<span style="color:#8b93a7">Apenas Master pode fazer isso.</span>');
+    parts.push('<span style="color:#8b93a7">Apenas o Administrador pode fazer isso.</span>');
     desc.innerHTML = parts.join('<br><br>');
   }
   const info = document.getElementById('reativarModalInfo');
@@ -12449,66 +12580,99 @@ async function processarFilaConfirmacoesOffline(){
 
 
 
-// ===================== TROCAR CONTA (Master ↔ entregadores) =====================
+// ===================== TROCAR CONTA (Administrador ↔ entregadores) =====================
 let _contasCache = [];
 function contaOrigemMaster(){
-  try{ const o = JSON.parse(localStorage.getItem('master_origem')||'null'); return (o && o.isMaster) ? o : null; }catch(e){ return null; }
+  try{
+    const o = JSON.parse(localStorage.getItem('master_origem')||'null');
+    if(o && (o.isMaster === true || o.isMaster === 1 || String(o.isMaster).toLowerCase()==='true')) return o;
+  }catch(e){}
+  try{
+    if(usuarioLogado && usuarioLogado.viaMaster && usuarioLogado.origemMaster){
+      const o = usuarioLogado.origemMaster;
+      if(o && (o.isMaster === true || o.isMaster === 1 || String(o.isMaster).toLowerCase()==='true')) return o;
+    }
+  }catch(e){}
+  return null;
+}
+function _salvarOrigemMaster(origem){
+  if(!origem) return null;
+  const o = { nome: origem.nome, lower: origem.lower || String(origem.nome||'').toLowerCase(), isMaster: true, id: origem.id || null };
+  try{ localStorage.setItem('master_origem', JSON.stringify(o)); }catch(e){}
+  return o;
 }
 function atualizarBotaoTrocarConta(){
   const b = document.getElementById('btnTrocarConta');
-  const podeTrocar = !!(usuarioLogado && (usuarioLogado.isMaster || contaOrigemMaster()));
-  if(b) b.style.display = podeTrocar ? 'inline-block' : 'none';
+  const origem = contaOrigemMaster();
+  const podeTrocar = !!(usuarioLogado && (usuarioLogado.isMaster || usuarioLogado.viaMaster || !!origem));
+  if(b){ b.style.display = podeTrocar ? 'inline-block' : 'none'; b.title = 'Trocar de conta (Administrador)'; }
   const ub = document.getElementById('userBadge');
   if(ub && usuarioLogado){
-    ub.textContent = usuarioLogado.nome + (usuarioLogado.isMaster ? ' 👑' : '') + (contaOrigemMaster() && !usuarioLogado.isMaster ? ' · via Master' : '');
+    let txt = usuarioLogado.nome + (usuarioLogado.isMaster ? ' 👑' : '');
+    if((usuarioLogado.viaMaster || origem) && !usuarioLogado.isMaster) txt += ' · via Admin';
+    ub.textContent = txt;
   }
 }
 function fecharModalTrocarConta(){
   const m = document.getElementById('modalTrocarConta'); if(m) m.style.display = 'none';
 }
 async function abrirModalTrocarConta(){
-  const origem = usuarioLogado && usuarioLogado.isMaster ? usuarioLogado : contaOrigemMaster();
-  if(!origem){ alert('Disponível somente para o Master'); return; }
+  let origem = (usuarioLogado && usuarioLogado.isMaster) ? usuarioLogado : contaOrigemMaster();
+  if(!origem && usuarioLogado && usuarioLogado.viaMaster && usuarioLogado.origemMaster){
+    origem = usuarioLogado.origemMaster; _salvarOrigemMaster(origem);
+  }
+  if(!origem){
+    try{ mostrarAlerta('Disponível somente para o Administrador.', {tipo:'aviso', titulo:'Trocar conta', icone:'🔄'}); }catch(e){ alert('Disponível somente para o Administrador'); }
+    return;
+  }
+  _salvarOrigemMaster(origem);
   const m = document.getElementById('modalTrocarConta');
   const listaEl = document.getElementById('trocarContaLista');
   const stEl = document.getElementById('trocarContaStatus');
-  m.style.display = 'flex';
-  listaEl.innerHTML = '';
-  stEl.textContent = '⏳ Carregando contas...';
+  if(m) m.style.display = 'flex';
+  if(listaEl) listaEl.innerHTML = '';
+  if(stEl) stEl.textContent = '⏳ Carregando contas...';
   const client = getSb();
-  if(!client){ stEl.textContent = 'Supabase não configurado'; return; }
+  if(!client){ if(stEl) stEl.textContent = 'Supabase não configurado'; return; }
   try{
-    const {data, error} = await client.from('entregadores').select('id,nome,is_master,ativo').eq('ativo', true).order('nome');
+    let data=null, error=null;
+    ({data, error} = await client.from('entregadores').select('id,nome,is_master,ativo,abas_visiveis').eq('ativo', true).order('nome'));
+    if(error && /abas_visiveis|column/i.test(error.message||'')){
+      ({data, error} = await client.from('entregadores').select('id,nome,is_master,ativo').eq('ativo', true).order('nome'));
+    }
     if(error) throw error;
-    const entregadores = (data||[]).filter(e => e && e.nome && !e.is_master && String(e.nome).toLowerCase() !== 'master');
-    _contasCache = [{ id: origem.id, nome: origem.nome, lower: (origem.lower||String(origem.nome).toLowerCase()), isMaster: true }]
-      .concat(entregadores.map(e => ({ id: e.id, nome: e.nome, lower: String(e.nome).toLowerCase(), isMaster: false })));
-    const atual = usuarioLogado ? usuarioLogado.lower : '';
-    listaEl.innerHTML = _contasCache.map((c,i)=>{
-      const ehAtual = c.lower === atual;
-      const rot = c.isMaster ? ('👑 ' + c.nome + ' <span style="font-size:10px;color:#8b93a7;font-weight:600">(voltar ao Master)</span>') : ('🛵 ' + c.nome);
-      return `<button class="btn" ${ehAtual?'disabled':''} onclick="trocarContaIdx(${i})" style="display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;padding:12px 14px;font-size:14px;font-weight:800;${ehAtual?'opacity:.6;border-color:#3dcc8a;color:#3dcc8a':'border-color:#2a4a7a;color:#e6e8ef'}">
-        <span>${rot}</span><span style="font-size:10px;color:${ehAtual?'#3dcc8a':'#6ab7ff'}">${ehAtual?'✔ conta atual':'Entrar →'}</span></button>`;
-    }).join('');
-    stEl.textContent = entregadores.length ? 'Toque na conta para entrar, sem digitar senha.' : 'Nenhum entregador ativo cadastrado.';
-  }catch(e){
-    stEl.textContent = 'Erro: ' + (e.message||e);
-  }
+    const isM = (e) => !!(e && (e.is_master===true || e.is_master===1 || String(e.is_master).toLowerCase()==='true'));
+    const entregadores = (data||[]).filter(e => e && e.nome && !isM(e) && String(e.nome).toLowerCase() !== 'master' && String(e.nome).toLowerCase() !== 'administrador');
+    _contasCache = [{ id: origem.id, nome: origem.nome, lower: (origem.lower||String(origem.nome).toLowerCase()), isMaster: true, abas_visiveis: null }]
+      .concat(entregadores.map(e => ({ id: e.id, nome: e.nome, lower: String(e.nome).toLowerCase(), isMaster: false, abas_visiveis: e.abas_visiveis })));
+    const atual = usuarioLogado ? String(usuarioLogado.lower||usuarioLogado.nome||'').toLowerCase() : '';
+    if(listaEl){
+      listaEl.innerHTML = _contasCache.map((c,i)=>{
+        const ehAtual = String(c.lower||'').toLowerCase() === atual;
+        const rot = c.isMaster ? ('👑 ' + c.nome + ' <span style="font-size:10px;color:#8b93a7;font-weight:600">(voltar ao Administrador)</span>') : ('🛵 ' + c.nome);
+        return `<button type="button" class="btn" ${ehAtual?'disabled':''} onclick="trocarContaIdx(${i})" style="display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;padding:12px 14px;font-size:14px;font-weight:800;${ehAtual?'opacity:.6;border-color:#3dcc8a;color:#3dcc8a':'border-color:#2a4a7a;color:#e6e8ef'}">
+          <span>${rot}</span><span style="font-size:10px;color:${ehAtual?'#3dcc8a':'#6ab7ff'}">${ehAtual?'✔ conta atual':'Entrar →'}</span></button>`;
+      }).join('');
+    }
+    if(stEl) stEl.textContent = entregadores.length ? 'Toque na conta para entrar, sem digitar senha. O botão 🔄 continua disponível para trocar de novo.' : 'Nenhum entregador ativo cadastrado.';
+  }catch(e){ if(stEl) stEl.textContent = 'Erro: '+(e.message||e); }
 }
 function trocarContaIdx(i){
   const c = _contasCache[i]; if(!c) return;
-  const origem = usuarioLogado && usuarioLogado.isMaster ? usuarioLogado : contaOrigemMaster();
-  if(!origem) return;
+  let origem = (usuarioLogado && usuarioLogado.isMaster) ? usuarioLogado : contaOrigemMaster();
+  if(!origem && usuarioLogado && usuarioLogado.origemMaster) origem = usuarioLogado.origemMaster;
+  if(!origem){ try{ alert('Sessão do Administrador perdida. Faça login novamente.'); }catch(e){} return; }
+  const origemSalva = _salvarOrigemMaster(origem);
   if(c.isMaster){
     usuarioLogado = { nome: origem.nome, lower: origem.lower || String(origem.nome).toLowerCase(), isMaster: true, id: origem.id };
-    localStorage.removeItem('master_origem');
+    try{ localStorage.removeItem('master_origem'); }catch(e){}
   } else {
-    localStorage.setItem('master_origem', JSON.stringify({ nome: origem.nome, lower: origem.lower || String(origem.nome).toLowerCase(), isMaster: true, id: origem.id }));
-    usuarioLogado = { nome: c.nome, lower: c.lower, isMaster: false, id: c.id, viaMaster: true, abas_visiveis: normalizarAbasVisiveis(c.abas_visiveis) };
+    const o = origemSalva || _salvarOrigemMaster(origem);
+    usuarioLogado = { nome: c.nome, lower: c.lower, isMaster: false, id: c.id, viaMaster: true, origemMaster: o, abas_visiveis: normalizarAbasVisiveis(c.abas_visiveis) };
+    try{ localStorage.setItem('master_origem', JSON.stringify(o)); }catch(e){}
   }
-  localStorage.setItem('usuario_logado', JSON.stringify(usuarioLogado));
-  localStorage.setItem('entregador_nome', usuarioLogado.nome);
-  // recarrega: reinicia realtime, timers e estado já como a conta escolhida
+  try{ localStorage.setItem('usuario_logado', JSON.stringify(usuarioLogado)); }catch(e){}
+  try{ localStorage.setItem('entregador_nome', usuarioLogado.nome); }catch(e){}
   location.reload();
 }
 // =================== FIM TROCAR CONTA ===================
@@ -13309,7 +13473,7 @@ function agendarAtualizacaoDinheiro(){
   clearTimeout(_debDinheiro);
   _debDinheiro = setTimeout(()=>{ try{ carregarControleDinheiro(); }catch(e){ console.warn(e); } }, 600);
 }
-document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) agendarAtualizacaoDinheiro(); });
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ agendarAtualizacaoDinheiro(); try{ carregarRotaUniaoDoServidor(); }catch(e){} } });
 window.addEventListener('focus', agendarAtualizacaoDinheiro);
 window.addEventListener('online', agendarAtualizacaoDinheiro);
 function pararMonitorDinheiro(){
@@ -14215,7 +14379,7 @@ async function informarCodigo(id){
     return;
   }
   if(_pedCheck && isPedidoBloqueadoPorTempo(_pedCheck)){
-    mostrarAlerta('Pedido bloqueado para edição: limite de '+ (configHorarios.horas_bloqueio_edicao||5) +'h desde a criação do pedido.\n\nApenas Master pode finalizar.', { tipo:'erro', titulo:'Pedido bloqueado', icone:'⛔' });
+    mostrarAlerta('Pedido bloqueado para edição: limite de '+ (configHorarios.horas_bloqueio_edicao||5) +'h desde a criação do pedido.\n\nApenas o Administrador pode finalizar.', { tipo:'erro', titulo:'Pedido bloqueado', icone:'⛔' });
     return;
   }
   if(_pedCheck && isPedidoExterno(_pedCheck.numero_pedido)){
@@ -14242,7 +14406,7 @@ async function editarCodigo(id,atual){
     return;
   }
   if(_pedCheckEdit && isPedidoBloqueadoPorTempo(_pedCheckEdit)){
-    mostrarAlerta('Pedido bloqueado para edição: limite de '+ (configHorarios.horas_bloqueio_edicao||5) +'h desde a criação do pedido.\n\nApenas Master pode reativar/finalizar.', { tipo:'erro', titulo:'Pedido bloqueado', icone:'⛔' });
+    mostrarAlerta('Pedido bloqueado para edição: limite de '+ (configHorarios.horas_bloqueio_edicao||5) +'h desde a criação do pedido.\n\nApenas o Administrador pode reativar/finalizar.', { tipo:'erro', titulo:'Pedido bloqueado', icone:'⛔' });
     return;
   }
   const modo = getModoConfirmacao();
@@ -14277,8 +14441,11 @@ function ouvir(){
     .on('postgres_changes',{event:'*',schema:'public',table:'entregadores'},()=>{ try{ verificarAcessoAtivo(); }catch(e){} try{ atualizarAbasVisiveisDoServidor(); }catch(e){} })
     .on('postgres_changes',{event:'*',schema:'public',table:'app_config'}, (payload)=>{
       if(payload.new && payload.new.chave==='modo_confirmacao' && payload.new.valor){
-        console.log('Modo global alterado pelo Master:', payload.new.valor);
+        console.log('Modo global alterado pelo Administrador:', payload.new.valor);
         aplicarModoNaUI(payload.new.valor);
+      }
+      if(payload.new && payload.new.chave==='rota_uniao'){
+        try{ _aplicarRotaUniaoRemota(payload.new.valor); }catch(e){}
       }
     })
     .on('postgres_changes',{event:'*',schema:'public',table:'config_horarios'}, ()=>{
@@ -14317,7 +14484,7 @@ function avisoRecarregandoModo(modo){
   try{
     const d = document.createElement('div');
     d.style.cssText = 'position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1a1a0e;color:#f0c14a;border:1px solid #f0c14a;border-radius:12px;padding:12px 16px;font-weight:800;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.5);text-align:center;max-width:92vw';
-    d.textContent = '🔄 Modo alterado para ' + (modo==='entregador' ? 'ENTREGADOR' : 'AUTOMÁTICO') + ' — atualizando...';
+    d.textContent = '🔄 Modo alterado para ' + (modo==='automatico' ? 'CHUVA' : 'NORMAL') + ' — atualizando...';
     document.body.appendChild(d);
   }catch(e){}
 }
@@ -14374,11 +14541,13 @@ function atualizarBotoesChamada(){
   if(!usuarioLogado){
     if(btnE) btnE.style.display = 'none';
     if(btnM) btnM.style.display = 'none';
+    try{ const t=document.getElementById('btnToggleChuva'); if(t) t.style.display='none'; }catch(e){}
     return;
   }
   const isMaster = !!usuarioLogado.isMaster;
   if(btnE) btnE.style.display = isMaster ? 'none' : 'inline-block';
   if(btnM) btnM.style.display = isMaster ? 'inline-block' : 'none';
+  try{ atualizarToggleChuvaUI(); }catch(e){}
 }
 
 function _nomeChamadaLocal(){
@@ -15145,7 +15314,7 @@ async function masterChamarEntregador(nome, idx){
   if(!localStorage.getItem('supabase_url')) localStorage.setItem('supabase_url',DEFAULT_URL);
   if(!localStorage.getItem('supabase_key')) localStorage.setItem('supabase_key',DEFAULT_KEY);
   try{ localStorage.removeItem('entregadores_lista'); }catch(e){}
-  if(checkLoginPersistido()){ carregar(); ouvir(); carregarModoGlobal(); try{ verificarAcessoAtivo(); }catch(e){} } else { carregarModoGlobal(); }
+  if(checkLoginPersistido()){ carregar(); ouvir(); carregarModoGlobal(); try{ carregarRotaUniaoDoServidor().then(()=>{ try{ render(); }catch(e){} }); }catch(e){} try{ verificarAcessoAtivo(); }catch(e){} } else { carregarModoGlobal(); try{ carregarRotaUniaoDoServidor(); }catch(e){} }
   try{ iniciarMonitorAcessoAtivo(); }catch(e){ console.warn(e); }
   try{ iniciarMonitorAbasVisiveis(); }catch(e){ console.warn(e); }
   atualizarBadgeModo();
