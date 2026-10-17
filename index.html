@@ -824,7 +824,7 @@ body.modo-entregador .btn-entregador-localizador{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 161026.214900</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 161026.221200</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -1028,6 +1028,23 @@ create table if not exists app_config (
 alter table app_config enable row level security;
 create policy "libera tudo anon 3" on app_config for all using (true) with check (true);
 insert into app_config (chave, valor) values ('modo_confirmacao','automatico') on conflict (chave) do nothing;
+
+-- União de ROTAS (Admin une rotas; entregador vê no celular)
+-- NÃO confundir com grupo_entrega (mesmo endereço = 1 entrega)
+create table if not exists rota_uniao (
+  pedido_id text primary key,
+  uniao_id text not null,
+  entregador_nome text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create index if not exists idx_rota_uniao_uniao_id on rota_uniao (uniao_id);
+create index if not exists idx_rota_uniao_entregador on rota_uniao (entregador_nome);
+alter table rota_uniao enable row level security;
+create policy "libera tudo anon rota_uniao" on rota_uniao for all using (true) with check (true);
+-- Realtime (rode 1x; ignore se já estiver na publication)
+alter publication supabase_realtime add table rota_uniao;
+
 
 -- Coluna recebido (sim/nao) - controle de dinheiro na entrega
 alter table public.pedidos_entrega_dia
@@ -8914,13 +8931,14 @@ function getRotasByEntregador(entregas, opts){
 }
 // ===================== UNIR ROTAS (Admin · compartilhado com entregadores) =====================
 const ROTA_UNIAO_KEY = 'batataria_rota_uniao_v1';
-const ROTA_UNIAO_CFG_CHAVE = 'rota_uniao';
-let _rotaSelSet = new Set();      // chaves das rotas marcadas
-let _rotaSelIds = {};             // chave -> ids dos pedidos da rota
-let _rotaUniaoCache = null;       // cache em memória do mapa pedidoId -> uniaoId
+const ROTA_UNIAO_CFG_CHAVE = 'rota_uniao'; // legado app_config (ainda lido como fallback)
+let _rotaSelSet = new Set();
+let _rotaSelIds = {};
+let _rotaUniaoCache = null;
 let _rotaUniaoSyncTimer = null;
 let _rotaUniaoPollTimer = null;
 let _rotaUniaoCarregando = false;
+let _rotaUniaoTabelaOk = null; // null=desconhecido, true=tabela existe, false=falhou (usa app_config)
 
 function _rotaUniaoMap(){
   if(_rotaUniaoCache && typeof _rotaUniaoCache === 'object') return _rotaUniaoCache;
@@ -8942,50 +8960,130 @@ function _agendarSyncRotaUniao(){
   if(_rotaUniaoSyncTimer) clearTimeout(_rotaUniaoSyncTimer);
   _rotaUniaoSyncTimer = setTimeout(()=>{ try{ sincronizarRotaUniaoParaServidor(); }catch(e){} }, 200);
 }
+
+/** Grava mapa pedido_id -> uniao_id na tabela rota_uniao (fonte da verdade). */
 async function sincronizarRotaUniaoParaServidor(){
   const client = getSb();
   if(!client) return false;
+  const m = _rotaUniaoMap() || {};
+  // 1) Tabela dedicada (preferencial)
   try{
-    const m = _rotaUniaoMap();
-    const payload = {
-      chave: ROTA_UNIAO_CFG_CHAVE,
-      valor: JSON.stringify(m||{}),
-      atualizado_em: new Date().toISOString()
-    };
-    let {error} = await client.from('app_config').upsert(payload, {onConflict:'chave'});
-    if(error){
-      // fallback: update depois insert
-      const up = await client.from('app_config').update({ valor: payload.valor, atualizado_em: payload.atualizado_em }).eq('chave', ROTA_UNIAO_CFG_CHAVE);
-      if(up.error){
-        const ins = await client.from('app_config').insert(payload);
-        if(ins.error){ console.warn('sync rota_uniao', ins.error.message||ins.error); return false; }
+    const idsMap = Object.keys(m);
+    // Busca linhas atuais para saber o que apagar
+    let atuais = [];
+    try{
+      const {data, error} = await client.from('rota_uniao').select('pedido_id,uniao_id');
+      if(error) throw error;
+      atuais = data || [];
+      _rotaUniaoTabelaOk = true;
+    }catch(e){
+      _rotaUniaoTabelaOk = false;
+      console.warn('tabela rota_uniao indisponível, usando app_config', e.message||e);
+      return await _syncRotaUniaoAppConfig(m);
+    }
+    const atuaisSet = new Set((atuais||[]).map(r=>String(r.pedido_id)));
+    const novosSet = new Set(idsMap.map(String));
+    // deletes
+    const aRemover = [...atuaisSet].filter(id => !novosSet.has(id));
+    for(let i=0;i<aRemover.length;i+=80){
+      const chunk = aRemover.slice(i,i+80);
+      if(chunk.length){
+        const {error} = await client.from('rota_uniao').delete().in('pedido_id', chunk);
+        if(error) console.warn('rota_uniao delete', error.message||error);
       }
     }
+    // upserts
+    const rows = idsMap.map(pid => {
+      let nome = '';
+      try{
+        const p = (todosPedidos||[]).find(x=>x && String(x.id)===String(pid));
+        if(p) nome = String(getNomeReserva(p)||p.entregador_nome||'').trim();
+      }catch(e){}
+      return {
+        pedido_id: String(pid),
+        uniao_id: String(m[pid]),
+        entregador_nome: nome || null,
+        updated_at: new Date().toISOString()
+      };
+    });
+    for(let i=0;i<rows.length;i+=80){
+      const chunk = rows.slice(i,i+80);
+      if(!chunk.length) continue;
+      const {error} = await client.from('rota_uniao').upsert(chunk, {onConflict:'pedido_id'});
+      if(error){
+        console.warn('rota_uniao upsert', error.message||error);
+        return false;
+      }
+    }
+    // também espelha no app_config (compatibilidade)
+    try{ await _syncRotaUniaoAppConfig(m); }catch(e){}
     return true;
-  }catch(e){ console.warn('sincronizarRotaUniaoParaServidor', e); return false; }
+  }catch(e){
+    console.warn('sincronizarRotaUniaoParaServidor', e);
+    try{ return await _syncRotaUniaoAppConfig(m); }catch(e2){ return false; }
+  }
 }
+async function _syncRotaUniaoAppConfig(m){
+  const client = getSb();
+  if(!client) return false;
+  const payload = {
+    chave: ROTA_UNIAO_CFG_CHAVE,
+    valor: JSON.stringify(m||{}),
+    atualizado_em: new Date().toISOString()
+  };
+  let {error} = await client.from('app_config').upsert(payload, {onConflict:'chave'});
+  if(error){
+    const up = await client.from('app_config').update({ valor: payload.valor, atualizado_em: payload.atualizado_em }).eq('chave', ROTA_UNIAO_CFG_CHAVE);
+    if(up.error){
+      const ins = await client.from('app_config').insert(payload);
+      if(ins.error){ console.warn('app_config rota_uniao', ins.error.message||ins.error); return false; }
+    }
+  }
+  return true;
+}
+
 async function carregarRotaUniaoDoServidor(forcarRender){
   if(_rotaUniaoCarregando) return _rotaUniaoMap();
   const client = getSb();
   if(!client) return _rotaUniaoMap();
   _rotaUniaoCarregando = true;
   try{
-    const {data, error} = await client.from('app_config').select('valor').eq('chave', ROTA_UNIAO_CFG_CHAVE).maybeSingle();
-    if(error){ console.warn('carregar rota_uniao', error.message||error); return _rotaUniaoMap(); }
-    if(data && data.valor != null){
-      let m = {};
-      try{ m = typeof data.valor === 'string' ? JSON.parse(data.valor||'{}') : (data.valor||{}); }catch(e){ m = {}; }
-      if(!m || typeof m !== 'object' || Array.isArray(m)) m = {};
-      const ant = JSON.stringify(_rotaUniaoMap()||{});
-      const novo = JSON.stringify(m);
-      _rotaUniaoSalvarLocal(m);
-      if(forcarRender || ant !== novo){
-        try{ render(); }catch(e){}
+    // 1) Tabela dedicada
+    if(_rotaUniaoTabelaOk !== false){
+      try{
+        const {data, error} = await client.from('rota_uniao').select('pedido_id,uniao_id');
+        if(error) throw error;
+        _rotaUniaoTabelaOk = true;
+        const m = {};
+        (data||[]).forEach(r=>{
+          if(r && r.pedido_id && r.uniao_id) m[String(r.pedido_id)] = String(r.uniao_id);
+        });
+        const ant = JSON.stringify(_rotaUniaoMap()||{});
+        const novo = JSON.stringify(m);
+        _rotaUniaoSalvarLocal(m);
+        if(forcarRender || ant !== novo){ try{ render(); }catch(e){} }
+        return m;
+      }catch(e){
+        _rotaUniaoTabelaOk = false;
+        console.warn('carregar rota_uniao tabela', e.message||e);
       }
-      return m;
     }
-  }catch(e){ console.warn('carregarRotaUniaoDoServidor', e); }
-  finally { _rotaUniaoCarregando = false; }
+    // 2) Fallback app_config
+    try{
+      const {data, error} = await client.from('app_config').select('valor').eq('chave', ROTA_UNIAO_CFG_CHAVE).maybeSingle();
+      if(error){ console.warn('carregar rota_uniao app_config', error.message||error); return _rotaUniaoMap(); }
+      if(data && data.valor != null){
+        let m = {};
+        try{ m = typeof data.valor === 'string' ? JSON.parse(data.valor||'{}') : (data.valor||{}); }catch(e){ m = {}; }
+        if(!m || typeof m !== 'object' || Array.isArray(m)) m = {};
+        const ant = JSON.stringify(_rotaUniaoMap()||{});
+        const novo = JSON.stringify(m);
+        _rotaUniaoSalvarLocal(m);
+        if(forcarRender || ant !== novo){ try{ render(); }catch(e){} }
+        return m;
+      }
+    }catch(e){ console.warn('carregarRotaUniaoDoServidor', e); }
+  }finally{ _rotaUniaoCarregando = false; }
   return _rotaUniaoMap();
 }
 function _aplicarRotaUniaoRemota(valor){
@@ -9004,14 +9102,13 @@ function _aplicarRotaUniaoRemota(valor){
 }
 function iniciarPollRotaUniao(){
   if(_rotaUniaoPollTimer) return;
-  // Celular: Realtime às vezes falha; poll garante que a união do Admin chegue
   _rotaUniaoPollTimer = setInterval(()=>{
     try{
       if(!usuarioLogado) return;
       if(document.hidden) return;
       carregarRotaUniaoDoServidor(true);
     }catch(e){}
-  }, 20000);
+  }, 15000);
   document.addEventListener('visibilitychange', ()=>{
     if(!document.hidden){ try{ carregarRotaUniaoDoServidor(true); }catch(e){} }
   });
@@ -9077,7 +9174,7 @@ function unirRotasSelecionadas(){
     (async ()=>{
       const ok = await sincronizarRotaUniaoParaServidor();
       if(!ok){
-        try{ mostrarAlerta('União salva neste aparelho, mas falhou ao enviar ao servidor.\nNo celular do entregador pode não aparecer até sincronizar.\nVerifique a internet e tente unir de novo.', {tipo:'aviso', titulo:'Sincronizar união', icone:'🔗'}); }
+        try{ mostrarAlerta('União salva neste aparelho, mas falhou ao gravar no Supabase.\nCrie a tabela rota_uniao (SQL nas Configurações) e tente unir de novo.\nSem isso o celular do entregador não vê a união.', {tipo:'aviso', titulo:'Tabela rota_uniao', icone:'🔗'}); }
         catch(e){ alert('União local ok, mas falhou sync com servidor — celular pode não ver.'); }
       }
     })();
@@ -14488,12 +14585,15 @@ function ouvir(){
     .on('postgres_changes',{event:'*',schema:'public',table:'entregadores'},()=>{ try{ verificarAcessoAtivo(); }catch(e){} try{ atualizarAbasVisiveisDoServidor(); }catch(e){} })
     .on('postgres_changes',{event:'*',schema:'public',table:'app_config'}, (payload)=>{
       if(payload.new && payload.new.chave==='modo_confirmacao' && payload.new.valor){
-        console.log('Modo global alterado pelo Administrador:', payload.new.valor);
+        console.log('Modo global alterado:', payload.new.valor);
         aplicarModoNaUI(payload.new.valor);
       }
       if(payload.new && payload.new.chave==='rota_uniao'){
         try{ _aplicarRotaUniaoRemota(payload.new.valor); }catch(e){}
       }
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'rota_uniao'}, ()=>{
+      try{ carregarRotaUniaoDoServidor(true); }catch(e){}
     })
     .on('postgres_changes',{event:'*',schema:'public',table:'config_horarios'}, ()=>{
       try{ carregarHorarios(); }catch(e){}
