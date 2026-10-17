@@ -824,7 +824,7 @@ body.modo-entregador .btn-entregador-localizador{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 161026.221200</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 161026.222500</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -843,7 +843,7 @@ body.modo-entregador .btn-entregador-localizador{
 </button>
 <button class="btn" id="btnRelatorio" onclick="abrirModalRelatorios()" style="display:none;font-size:15px;padding:6px 10px;line-height:1;background:#141a2a;border-color:#2a4a7a;color:#6ab7ff" title="Relatórios" aria-label="Relatórios">📈</button>
 <button class="btn red" id="btnLimpeza30" onclick="abrirAlertaLimpeza30()" style="display:none;font-size:11px;padding:8px 10px" title="Excluir pedidos com mais de 30 dias no Supabase" aria-label="Limpeza 30 dias">🗑️ <span class="hlbl">Limpeza 30d</span></button>
-<button class="btn" id="btnModoAgrupar" onclick="toggleModoAgrupamento()" style="display:none;font-size:11px;padding:8px 10px;background:#1c1c12;border-color:#5a4a2a;color:#f0c14a" title="Agrupar pedidos com mesmo endereço (1 entrega)" aria-label="Agrupar">🔗 <span class="hlbl">Agrupar</span></button>
+<button class="btn" id="btnModoAgrupar" onclick="abrirModalTipoAgrupar()" style="display:none;font-size:11px;padding:8px 10px;background:#1c1c12;border-color:#5a4a2a;color:#f0c14a" title="Agrupar pedidos ou unir rotas" aria-label="Agrupar">🔗 <span class="hlbl">Agrupar</span></button>
 <button class="btn" id="btnTrocarConta" onclick="abrirModalTrocarConta()" style="display:none;font-size:15px;padding:6px 10px;line-height:1;background:#141a2a;border-color:#2a4a7a;color:#6ab7ff" title="Trocar de conta (Administrador)" aria-label="Trocar de conta">🔄</button>
 <button class="btn" onclick="logout()" style="font-size:11px">Sair</button>
 <button class="btn" id="btnCfg" onclick="abrirCfg()" style="display:none" title="Configurações" aria-label="Configurações">⚙️</button>
@@ -870,6 +870,27 @@ body.modo-entregador .btn-entregador-localizador{
     <button class="btn primary" style="font-size:11px;padding:8px 14px" onclick="confirmarAgrupamentoSelecionado()">✅ Confirmar agrupamento</button>
     <button class="btn" style="font-size:11px;padding:8px 14px" onclick="cancelarSelecaoAgrupamento()">✖️ Cancelar</button>
   </div>
+</div>
+
+<!-- MODAL: Agrupar → Pedido ou Rota -->
+<div id="modalTipoAgrupar" class="overlay" style="display:none;z-index:260" role="dialog" aria-modal="true">
+<div class="card" style="width:100%;max-width:400px;margin:0;padding:18px 16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <h3 style="margin:0;color:#f0c14a;font-weight:900">🔗 Agrupar</h3>
+    <button type="button" class="btn" onclick="fecharModalTipoAgrupar()">✕</button>
+  </div>
+  <div style="font-size:12px;color:#8b93a7;margin-bottom:14px;line-height:1.4">Escolha o que deseja agrupar:</div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <button type="button" class="btn" onclick="iniciarAgruparPedidos()" style="text-align:left;padding:14px 16px;border-color:#5a4a2a;background:#1c1c12">
+      <div style="font-weight:900;color:#f0c14a;font-size:14px">📦 Pedido</div>
+      <div style="font-size:11px;color:#8b93a7;margin-top:4px;font-weight:600">Mesmo endereço = 1 entrega (custo/faturamento)</div>
+    </button>
+    <button type="button" class="btn" onclick="iniciarAgruparRotas()" style="text-align:left;padding:14px 16px;border-color:#2a4a7a;background:#121826">
+      <div style="font-weight:900;color:#6ab7ff;font-size:14px">🛵 Rota</div>
+      <div style="font-size:11px;color:#8b93a7;margin-top:4px;font-weight:600">Unir rotas do mesmo entregador (aparece Em rota e Pedidos)</div>
+    </button>
+  </div>
+</div>
 </div>
 <!-- MODAL TROCAR CONTA (Master navega entre entregadores sem logar) -->
 <div id="modalTrocarConta" class="overlay" style="display:none;z-index:250">
@@ -2174,6 +2195,7 @@ let pedidosVisiveisIds=[];
 let ordemRota=[];
 // ===== Agrupamento de pedidos (Master agrupa pedidos com mesmo endereço = 1 entrega) =====
 let modoAgrupamento=false;
+let modoUniaoRotas=false; // seleção de rotas para unir (via botão Agrupar → Rota)
 let selecaoAgrupamento=new Set();
 
 
@@ -9120,7 +9142,10 @@ function toggleSelRota(key, checked){
 }
 function cancelarSelRotas(){
   _rotaSelSet.clear();
+  try{ modoUniaoRotas = false; }catch(e){}
+  try{ _atualizarBtnAgruparHeader(); }catch(e){}
   _atualizarBarraUniao();
+  try{ render(); }catch(e){}
 }
 function _chaveRotaSel(r){
   try{
@@ -9131,7 +9156,8 @@ function _chaveRotaSel(r){
 function _atualizarBarraUniao(){
   let el = document.getElementById('barraUniaoRotas');
   const n = _rotaSelSet.size;
-  if(n < 1){
+  const ativo = !!(typeof modoUniaoRotas !== 'undefined' && modoUniaoRotas);
+  if(!ativo && n < 1){
     if(el) el.style.display = 'none';
     return;
   }
@@ -9141,9 +9167,10 @@ function _atualizarBarraUniao(){
     el.style.cssText = 'position:sticky;bottom:0;z-index:40;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;padding:10px 12px;background:#121826;border-top:1px solid #2a4a7a;';
     document.body.appendChild(el);
   }
+  if(!ativo){ el.style.display = 'none'; return; }
   el.style.display = 'flex';
-  el.innerHTML = '<span style="color:#6ab7ff;font-weight:800;font-size:12px">🔗 ' + n + ' rota(s) marcada(s)</span>'
-    + (n >= 2 ? '<button onclick="unirRotasSelecionadas()" style="background:#2563eb;color:#fff;border:0;border-radius:8px;padding:6px 10px;font-weight:800;cursor:pointer">🔗 Unir rotas</button>' : '<span style="color:#8b93a7;font-weight:600">marque ao menos 2</span>')
+  el.innerHTML = '<span style="color:#6ab7ff;font-weight:800;font-size:12px">🛵 Unir rotas · ' + n + ' marcada(s)</span>'
+    + (n >= 2 ? '<button onclick="unirRotasSelecionadas()" style="background:#2563eb;color:#fff;border:0;border-radius:8px;padding:6px 10px;font-weight:800;cursor:pointer">🔗 Unir rotas</button>' : '<span style="color:#8b93a7;font-weight:600">marque ao menos 2 rotas do mesmo entregador</span>')
     + '<button onclick="cancelarSelRotas()" style="background:#2a3040;color:#e8ecf5;border:0;border-radius:8px;padding:6px 10px;font-weight:800;cursor:pointer">Cancelar</button>';
 }
 function unirRotasSelecionadas(){
@@ -9168,6 +9195,8 @@ function unirRotasSelecionadas(){
     ids.forEach(id=>{ m[String(id)] = uid; });
     _rotaUniaoSalvarLocal(m);
     _rotaSelSet.clear();
+    try{ modoUniaoRotas = false; }catch(e){}
+    try{ _atualizarBtnAgruparHeader(); }catch(e){}
     _atualizarBarraUniao();
     render();
     // grava no servidor AGORA (sem esperar debounce) — essencial para o celular do entregador
@@ -9180,18 +9209,41 @@ function unirRotasSelecionadas(){
     })();
   }catch(e){ console.warn('unirRotasSelecionadas', e); }
 }
-function separarRotaUnida(key){
+async function separarRotaUnida(key){
   try{
     const ids = _rotaSelIds[key] || [];
     if(!ids.length) return;
-    if(!confirm('Separar as rotas unidas?')) return;
+    const qtd = ids.length;
+    let ok = false;
+    try{
+      ok = await mostrarConfirmacao(
+        'Deseja separar esta rota unida?\n\nOs ' + qtd + ' pedido(s) voltam a aparecer em rotas separadas (por horário).\nIsso vale para o Administrador e para o entregador.',
+        {
+          titulo: 'Separar rotas unidas',
+          tipo: 'aviso',
+          icone: '✂️',
+          okTexto: 'Sim, separar',
+          cancelarTexto: 'Cancelar'
+        }
+      );
+    }catch(e){
+      ok = window.confirm('Separar as rotas unidas?');
+    }
+    if(!ok) return;
     const m = Object.assign({}, _rotaUniaoMap());
     ids.forEach(id=>{ delete m[String(id)]; });
     _rotaUniaoSalvarLocal(m);
     _rotaSelSet.delete(key);
     _atualizarBarraUniao();
     render();
-    (async ()=>{ await sincronizarRotaUniaoParaServidor(); })();
+    const syncOk = await sincronizarRotaUniaoParaServidor();
+    if(!syncOk){
+      try{
+        mostrarAlerta('Rotas separadas neste aparelho, mas falhou ao gravar no servidor.\nO celular do entregador pode continuar vendo a união até sincronizar.', {
+          tipo: 'aviso', titulo: 'Sincronização', icone: '⚠️'
+        });
+      }catch(e){}
+    }
   }catch(e){ console.warn('separarRotaUnida', e); }
 }
 function _ordenarRotasExibicao(rotas){
@@ -9354,13 +9406,15 @@ function renderItensGridPorRotas(listaPedidos, ordenarItensFn){
         if(rr.total) btnRefriRota = _htmlBotaoRefri(rr.total, "abrirModalRefriRota('" + kRota + "')", 'Refrigerantes dos pedidos desta rota');
       }
     }catch(e){}
-    // Master: marcar rota para unir / separar rota unida
+    // Admin: checkbox só no modo Agrupar → Rota; Separar sempre em rota unida
     let ctrlUniao = '';
     if(_modoMasterUniao && r.pedidos && r.pedidos.length){
       const kSel = _chaveRotaSel(r);
       _rotaSelIds[kSel] = r.pedidos.map(p=>p.id);
-      ctrlUniao = '<label onclick="event.stopPropagation()" title="Marcar para unir rotas" style="display:flex;align-items:center;cursor:pointer"><input type="checkbox" '
-        + (_rotaSelSet.has(kSel) ? 'checked ' : '') + 'onchange="toggleSelRota(\'' + kSel + '\',this.checked)" style="width:16px;height:16px;margin:0 4px 0 0;cursor:pointer"></label>';
+      if(typeof modoUniaoRotas !== 'undefined' && modoUniaoRotas){
+        ctrlUniao = '<label onclick="event.stopPropagation()" title="Marcar para unir rotas" style="display:flex;align-items:center;cursor:pointer"><input type="checkbox" '
+          + (_rotaSelSet.has(kSel) ? 'checked ' : '') + 'onchange="toggleSelRota(\'' + kSel + '\',this.checked)" style="width:16px;height:16px;margin:0 4px 0 0;cursor:pointer"></label>';
+      }
       if(r.uniao) ctrlUniao += '<button onclick="event.stopPropagation();separarRotaUnida(\'' + kSel + '\')" title="Separar rotas unidas" style="background:#2a3040;color:#e8ecf5;border:0;border-radius:6px;padding:2px 6px;font-size:10px;font-weight:800;cursor:pointer;margin-right:4px">✂️ Separar</button>';
     }
     const toggleIcon = colapsavel ? '<span class="rota-toggle-icon" aria-hidden="true">🙈</span>' : '';
@@ -10514,16 +10568,99 @@ function enviarPedidoParaEntregador(pedidoId, nome){
 
 // ===================== MASTER: AGRUPAR PEDIDOS (mesmo endereço = 1 entrega) =====================
 
-function toggleModoAgrupamento(){
+function fecharModalTipoAgrupar(){
+  const m = document.getElementById('modalTipoAgrupar');
+  if(m) m.style.display = 'none';
+}
+function abrirModalTipoAgrupar(){
   if(!usuarioLogado?.isMaster) return;
-  modoAgrupamento = !modoAgrupamento;
-  selecaoAgrupamento.clear();
+  // Se já está em algum modo de seleção, cancelar
+  if(modoAgrupamento || modoUniaoRotas){
+    cancelarTudoAgrupar();
+    return;
+  }
+  const m = document.getElementById('modalTipoAgrupar');
+  if(m) m.style.display = 'flex';
+}
+function _atualizarBtnAgruparHeader(){
   const btn = document.getElementById('btnModoAgrupar');
-  if(btn) btn.innerHTML = modoAgrupamento ? '✖️ <span class="hlbl">Cancelar</span>' : '🔗 <span class="hlbl">Agrupar</span>';
+  if(!btn) return;
+  if(modoAgrupamento){
+    btn.innerHTML = '✖️ <span class="hlbl">Cancelar</span>';
+    btn.style.background = '#3a1a1a';
+    btn.style.borderColor = '#5a2a2a';
+    btn.style.color = '#ff6b6b';
+    btn.title = 'Cancelar agrupamento de pedidos';
+  } else if(modoUniaoRotas){
+    btn.innerHTML = '✖️ <span class="hlbl">Cancelar</span>';
+    btn.style.background = '#1a2a3a';
+    btn.style.borderColor = '#2a4a7a';
+    btn.style.color = '#6ab7ff';
+    btn.title = 'Cancelar união de rotas';
+  } else {
+    btn.innerHTML = '🔗 <span class="hlbl">Agrupar</span>';
+    btn.style.background = '#1c1c12';
+    btn.style.borderColor = '#5a4a2a';
+    btn.style.color = '#f0c14a';
+    btn.title = 'Agrupar pedidos ou unir rotas';
+  }
+}
+function cancelarTudoAgrupar(){
+  modoAgrupamento = false;
+  modoUniaoRotas = false;
+  try{ selecaoAgrupamento.clear(); }catch(e){}
+  try{ _rotaSelSet.clear(); }catch(e){}
   const barra = document.getElementById('barraAgrupamento');
-  if(barra) barra.style.display = modoAgrupamento ? 'flex' : 'none';
+  if(barra) barra.style.display = 'none';
+  try{ _atualizarBarraUniao(); }catch(e){}
+  _atualizarBtnAgruparHeader();
+  try{ render(); }catch(e){}
+}
+function iniciarAgruparPedidos(){
+  fecharModalTipoAgrupar();
+  if(!usuarioLogado?.isMaster) return;
+  // desliga modo rota se estiver
+  modoUniaoRotas = false;
+  try{ _rotaSelSet.clear(); }catch(e){}
+  try{ _atualizarBarraUniao(); }catch(e){}
+  modoAgrupamento = true;
+  selecaoAgrupamento.clear();
+  const barra = document.getElementById('barraAgrupamento');
+  if(barra){
+    barra.style.display = 'flex';
+    const sp = barra.querySelector('span');
+    if(sp && sp.tagName==='SPAN'){
+      // keep default text via HTML
+    }
+  }
   atualizarBarraAgrupamento();
+  _atualizarBtnAgruparHeader();
   render();
+}
+function iniciarAgruparRotas(){
+  fecharModalTipoAgrupar();
+  if(!usuarioLogado?.isMaster) return;
+  // desliga modo pedido
+  modoAgrupamento = false;
+  try{ selecaoAgrupamento.clear(); }catch(e){}
+  const barra = document.getElementById('barraAgrupamento');
+  if(barra) barra.style.display = 'none';
+  modoUniaoRotas = true;
+  try{ _rotaSelSet.clear(); }catch(e){}
+  _atualizarBtnAgruparHeader();
+  _atualizarBarraUniao();
+  render();
+  try{
+    mostrarAlerta('Toque no quadrado de cada rota para marcar.\nMarque 2 ou mais rotas do mesmo entregador e confirme na barra.', {
+      tipo: 'info', titulo: 'Unir rotas', icone: '🛵', okTexto: 'Entendi'
+    });
+  }catch(e){}
+}
+function toggleModoAgrupamento(){
+  // compat: alterna agrupamento de PEDIDOS (legado)
+  if(!usuarioLogado?.isMaster) return;
+  if(modoAgrupamento){ cancelarTudoAgrupar(); return; }
+  iniciarAgruparPedidos();
 }
 function toggleSelecaoAgrupamento(id){
   if(selecaoAgrupamento.has(id)) selecaoAgrupamento.delete(id); else selecaoAgrupamento.add(id);
@@ -10535,7 +10672,7 @@ function atualizarBarraAgrupamento(){
   if(el) el.textContent = selecaoAgrupamento.size;
 }
 function cancelarSelecaoAgrupamento(){
-  toggleModoAgrupamento();
+  cancelarTudoAgrupar();
 }
 let idsPendentesAgrupamento = [];
 
@@ -10640,7 +10777,7 @@ async function executarAgrupamentoConfirmado(){
     // Encerra modo de seleção
     modoAgrupamento=false;
     selecaoAgrupamento.clear();
-    const btnHeader=document.getElementById('btnModoAgrupar'); if(btnHeader) btnHeader.innerHTML='🔗 <span class="hlbl">Agrupar</span>';
+    try{ modoUniaoRotas=false; }catch(e){} try{ _atualizarBtnAgruparHeader(); }catch(e){ const btnHeader=document.getElementById('btnModoAgrupar'); if(btnHeader) btnHeader.innerHTML='🔗 <span class="hlbl">Agrupar</span>'; }
     const barra=document.getElementById('barraAgrupamento'); if(barra) barra.style.display='none';
     idsPendentesAgrupamento = [];
     render();
