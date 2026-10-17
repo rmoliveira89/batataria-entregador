@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 <title>Entregador - A Batataria</title>
 <style>
 *{box-sizing:border-box} body{margin:0;background:#0c0e12;color:#e6e8ef;font-family:Inter,system-ui,sans-serif}
@@ -821,7 +824,7 @@ body.modo-entregador .btn-entregador-localizador{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 161026.210000</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 161026.214900</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -6777,6 +6780,7 @@ async function fazerLogin(){
     atualizarBadgeModo();
     await carregar();
     ouvir();
+    try{ iniciarPollRotaUniao(); }catch(e){}
     try{ await verificarAlertaLimpezaMaster(); }catch(e){ console.warn(e); }
     try{ iniciarMonitorDinheiro(); await carregarControleDinheiro(); }catch(e){ console.warn(e); }
   }catch(e){
@@ -7855,6 +7859,8 @@ async function abrirMapaPorId(id){
 }
 
 async function carregar(){
+ // União de rotas: busca no servidor ANTES de montar a lista (celular do entregador depende disso)
+ try{ await carregarRotaUniaoDoServidor(false); }catch(e){}
  const client=getSb();
  if(!client){
    document.getElementById('listaJantarPendente').innerHTML='<div class="card" style="color:#ff6b6b">⚠️ Supabase não configurado. Master: vá na engrenagem ⚙️ e configure URL e Key</div>';
@@ -8913,6 +8919,8 @@ let _rotaSelSet = new Set();      // chaves das rotas marcadas
 let _rotaSelIds = {};             // chave -> ids dos pedidos da rota
 let _rotaUniaoCache = null;       // cache em memória do mapa pedidoId -> uniaoId
 let _rotaUniaoSyncTimer = null;
+let _rotaUniaoPollTimer = null;
+let _rotaUniaoCarregando = false;
 
 function _rotaUniaoMap(){
   if(_rotaUniaoCache && typeof _rotaUniaoCache === 'object') return _rotaUniaoCache;
@@ -8928,40 +8936,56 @@ function _rotaUniaoSalvarLocal(m){
 }
 function _rotaUniaoSalvar(m){
   _rotaUniaoSalvarLocal(m);
-  // sobe pro Supabase (todos os aparelhos / entregadores veem a união)
   try{ _agendarSyncRotaUniao(); }catch(e){}
 }
 function _agendarSyncRotaUniao(){
   if(_rotaUniaoSyncTimer) clearTimeout(_rotaUniaoSyncTimer);
-  _rotaUniaoSyncTimer = setTimeout(()=>{ try{ sincronizarRotaUniaoParaServidor(); }catch(e){} }, 300);
+  _rotaUniaoSyncTimer = setTimeout(()=>{ try{ sincronizarRotaUniaoParaServidor(); }catch(e){} }, 200);
 }
 async function sincronizarRotaUniaoParaServidor(){
   const client = getSb();
-  if(!client) return;
+  if(!client) return false;
   try{
     const m = _rotaUniaoMap();
-    const {error} = await client.from('app_config').upsert({
+    const payload = {
       chave: ROTA_UNIAO_CFG_CHAVE,
       valor: JSON.stringify(m||{}),
       atualizado_em: new Date().toISOString()
-    }, {onConflict:'chave'});
-    if(error) console.warn('sync rota_uniao', error.message||error);
-  }catch(e){ console.warn('sincronizarRotaUniaoParaServidor', e); }
+    };
+    let {error} = await client.from('app_config').upsert(payload, {onConflict:'chave'});
+    if(error){
+      // fallback: update depois insert
+      const up = await client.from('app_config').update({ valor: payload.valor, atualizado_em: payload.atualizado_em }).eq('chave', ROTA_UNIAO_CFG_CHAVE);
+      if(up.error){
+        const ins = await client.from('app_config').insert(payload);
+        if(ins.error){ console.warn('sync rota_uniao', ins.error.message||ins.error); return false; }
+      }
+    }
+    return true;
+  }catch(e){ console.warn('sincronizarRotaUniaoParaServidor', e); return false; }
 }
-async function carregarRotaUniaoDoServidor(){
+async function carregarRotaUniaoDoServidor(forcarRender){
+  if(_rotaUniaoCarregando) return _rotaUniaoMap();
   const client = getSb();
   if(!client) return _rotaUniaoMap();
+  _rotaUniaoCarregando = true;
   try{
     const {data, error} = await client.from('app_config').select('valor').eq('chave', ROTA_UNIAO_CFG_CHAVE).maybeSingle();
     if(error){ console.warn('carregar rota_uniao', error.message||error); return _rotaUniaoMap(); }
     if(data && data.valor != null){
       let m = {};
       try{ m = typeof data.valor === 'string' ? JSON.parse(data.valor||'{}') : (data.valor||{}); }catch(e){ m = {}; }
-      if(!m || typeof m !== 'object') m = {};
+      if(!m || typeof m !== 'object' || Array.isArray(m)) m = {};
+      const ant = JSON.stringify(_rotaUniaoMap()||{});
+      const novo = JSON.stringify(m);
       _rotaUniaoSalvarLocal(m);
+      if(forcarRender || ant !== novo){
+        try{ render(); }catch(e){}
+      }
       return m;
     }
   }catch(e){ console.warn('carregarRotaUniaoDoServidor', e); }
+  finally { _rotaUniaoCarregando = false; }
   return _rotaUniaoMap();
 }
 function _aplicarRotaUniaoRemota(valor){
@@ -8970,13 +8994,27 @@ function _aplicarRotaUniaoRemota(valor){
     if(valor == null) m = {};
     else if(typeof valor === 'string'){ try{ m = JSON.parse(valor||'{}')||{}; }catch(e){ m = {}; } }
     else if(typeof valor === 'object') m = valor;
-    if(!m || typeof m !== 'object') m = {};
+    if(!m || typeof m !== 'object' || Array.isArray(m)) m = {};
     const ant = JSON.stringify(_rotaUniaoMap());
     const novo = JSON.stringify(m);
     if(ant === novo) return;
     _rotaUniaoSalvarLocal(m);
     try{ render(); }catch(e){}
   }catch(e){ console.warn('_aplicarRotaUniaoRemota', e); }
+}
+function iniciarPollRotaUniao(){
+  if(_rotaUniaoPollTimer) return;
+  // Celular: Realtime às vezes falha; poll garante que a união do Admin chegue
+  _rotaUniaoPollTimer = setInterval(()=>{
+    try{
+      if(!usuarioLogado) return;
+      if(document.hidden) return;
+      carregarRotaUniaoDoServidor(true);
+    }catch(e){}
+  }, 20000);
+  document.addEventListener('visibilitychange', ()=>{
+    if(!document.hidden){ try{ carregarRotaUniaoDoServidor(true); }catch(e){} }
+  });
 }
 
 function toggleSelRota(key, checked){
@@ -9031,10 +9069,18 @@ function unirRotasSelecionadas(){
     const antigos = new Set(ids.map(id=>m[String(id)]).filter(Boolean));
     Object.keys(m).forEach(k=>{ if(antigos.has(m[k])) m[k] = uid; });
     ids.forEach(id=>{ m[String(id)] = uid; });
-    _rotaUniaoSalvar(m);
+    _rotaUniaoSalvarLocal(m);
     _rotaSelSet.clear();
     _atualizarBarraUniao();
     render();
+    // grava no servidor AGORA (sem esperar debounce) — essencial para o celular do entregador
+    (async ()=>{
+      const ok = await sincronizarRotaUniaoParaServidor();
+      if(!ok){
+        try{ mostrarAlerta('União salva neste aparelho, mas falhou ao enviar ao servidor.\nNo celular do entregador pode não aparecer até sincronizar.\nVerifique a internet e tente unir de novo.', {tipo:'aviso', titulo:'Sincronizar união', icone:'🔗'}); }
+        catch(e){ alert('União local ok, mas falhou sync com servidor — celular pode não ver.'); }
+      }
+    })();
   }catch(e){ console.warn('unirRotasSelecionadas', e); }
 }
 function separarRotaUnida(key){
@@ -9044,10 +9090,11 @@ function separarRotaUnida(key){
     if(!confirm('Separar as rotas unidas?')) return;
     const m = Object.assign({}, _rotaUniaoMap());
     ids.forEach(id=>{ delete m[String(id)]; });
-    _rotaUniaoSalvar(m);
+    _rotaUniaoSalvarLocal(m);
     _rotaSelSet.delete(key);
     _atualizarBarraUniao();
     render();
+    (async ()=>{ await sincronizarRotaUniaoParaServidor(); })();
   }catch(e){ console.warn('separarRotaUnida', e); }
 }
 function _ordenarRotasExibicao(rotas){
@@ -15314,7 +15361,7 @@ async function masterChamarEntregador(nome, idx){
   if(!localStorage.getItem('supabase_url')) localStorage.setItem('supabase_url',DEFAULT_URL);
   if(!localStorage.getItem('supabase_key')) localStorage.setItem('supabase_key',DEFAULT_KEY);
   try{ localStorage.removeItem('entregadores_lista'); }catch(e){}
-  if(checkLoginPersistido()){ carregar(); ouvir(); carregarModoGlobal(); try{ carregarRotaUniaoDoServidor().then(()=>{ try{ render(); }catch(e){} }); }catch(e){} try{ verificarAcessoAtivo(); }catch(e){} } else { carregarModoGlobal(); try{ carregarRotaUniaoDoServidor(); }catch(e){} }
+  if(checkLoginPersistido()){ carregarModoGlobal(); try{ carregarRotaUniaoDoServidor(false).then(()=>{ try{ carregar(); }catch(e){} try{ render(); }catch(e){} }); }catch(e){ try{ carregar(); }catch(e2){} } ouvir(); try{ iniciarPollRotaUniao(); }catch(e){} try{ verificarAcessoAtivo(); }catch(e){} } else { carregarModoGlobal(); try{ carregarRotaUniaoDoServidor(); }catch(e){} }
   try{ iniciarMonitorAcessoAtivo(); }catch(e){ console.warn(e); }
   try{ iniciarMonitorAbasVisiveis(); }catch(e){ console.warn(e); }
   atualizarBadgeModo();
