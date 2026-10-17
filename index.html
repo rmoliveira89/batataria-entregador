@@ -843,7 +843,7 @@ body.modo-entregador .btn-entregador-localizador{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 171026.113508</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 171026.114610</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -1371,6 +1371,7 @@ Cadastre <b style="color:#f0c14a">mensagens prontas</b> para o botão <b style="
   <div id="alCfgStatus" style="font-size:11px;color:#8b93a7;text-align:center;margin-top:8px;min-height:14px"></div>
 </div>
 <div id="alCfgLista" style="display:flex;flex-direction:column;gap:8px;max-height:45vh;overflow:auto"></div>
+<button class="btn" style="width:100%;margin-top:8px;padding:10px;font-size:12px" onclick="alCfgRestaurarPadroes()">↺ Restaurar padrões</button>
 <div style="margin-top:12px;padding:10px;background:#0e1118;border:1px solid #2c3340;border-radius:8px;font-size:10px;color:#8b93a7">
 <b style="color:#f0c14a">SQL - rode uma vez no Supabase:</b><br/>
 <code style="color:#fff;display:block;margin-top:6px;white-space:pre-wrap">create table if not exists alertas_modelos (
@@ -15208,15 +15209,35 @@ function pararAlertasLocal(){
 
 // ===================== ALERTAS: MENSAGENS PRONTAS (Config) + NOTIFICAÇÕES =====================
 const AL_PUBLICO_LBL = {entregadores:'🛵 Entregadores', admin:'👑 Admin', ambos:'👥 Ambos'};
-const AL_MODELOS_PADRAO_ADMIN = ['Volte para a loja','Cliente está ligando, atenda o telefone'];
-const AL_MODELOS_PADRAO_ENT = ['Cliente não atende','Preciso de ajuda com pedido'];
+// Alertas que já existiam fixos nos modais: viram cadastro (editáveis/excluíveis) na 1ª carga
+const AL_MODELOS_SEED = [
+  {texto:'Volte para a loja', publico:'entregadores'},
+  {texto:'Cliente está ligando, atenda o telefone', publico:'entregadores'},
+  {texto:'Cliente não atende', publico:'admin'},
+  {texto:'Preciso de ajuda com pedido', publico:'admin'}
+].map(m=>Object.assign({som:true, vibracao:true, ativo:true}, m));
+const AL_SEED_CHAVE = 'alertas_modelos_semeado';
+async function _alSeedFeito(client){
+  try{ if(localStorage.getItem(AL_SEED_CHAVE)==='1') return true; }catch(e){}
+  try{ const {data}=await client.from('app_config').select('valor').eq('chave',AL_SEED_CHAVE).maybeSingle(); return !!(data && data.valor); }catch(e){ return false; }
+}
+async function _alMarcarSeed(client){
+  try{ localStorage.setItem(AL_SEED_CHAVE,'1'); }catch(e){}
+  try{ await client.from('app_config').upsert({chave:AL_SEED_CHAVE, valor:'1', atualizado_em:new Date().toISOString()},{onConflict:'chave'}); }catch(e){}
+}
 let _alModelosCfg=[], _alModeloEditId=null, _alModelosVis=[];
 
 async function _alCarregarModelos(){
   const client=getSb(); if(!client) return {ok:false, lista:[]};
   try{
-    const {data,error}=await client.from('alertas_modelos').select('*').order('created_at',{ascending:true});
+    const sel=()=>client.from('alertas_modelos').select('*').order('created_at',{ascending:true});
+    let {data,error}=await sel();
     if(error) throw error;
+    if(!(data||[]).length && !(await _alSeedFeito(client))){
+      // primeira vez: cadastra os alertas que existiam fixos nos modais
+      const ins=await client.from('alertas_modelos').insert(AL_MODELOS_SEED);
+      if(!ins.error){ await _alMarcarSeed(client); ({data,error}=await sel()); if(error) throw error; }
+    } else if((data||[]).length){ _alMarcarSeed(client); }
     return {ok:true, lista:data||[]};
   }catch(e){ return {ok:false, lista:[], erro:e}; }
 }
@@ -15226,7 +15247,7 @@ function _alMontarRapidas(r){
   const isM=!!(usuarioLogado && usuarioLogado.isMaster);
   const alvo=isM?['entregadores','ambos']:['admin','ambos'];
   let lista;
-  if(!r.ok || !r.lista.length) lista=(isM?AL_MODELOS_PADRAO_ADMIN:AL_MODELOS_PADRAO_ENT).map(t=>({texto:t, som:true, vibracao:true}));
+  if(!r.ok) lista=AL_MODELOS_SEED.filter(m=>alvo.includes(m.publico)); // tabela ainda não criada: usa os padrões
   else lista=r.lista.filter(m=>m.ativo!==false && alvo.includes(m.publico));
   _alModelosVis=lista;
   box.innerHTML=lista.map((m,i)=>'<button type="button" class="btn al-rapida" onclick="alUsarModelo('+i+')">💬 '+_alEsc(m.texto)+'</button>').join('');
@@ -15247,7 +15268,7 @@ async function carregarAlertasConfig(){
   const r=await _alCarregarModelos();
   if(!r.ok){
     _alModelosCfg=[];
-    box.innerHTML='<div class="al-vazio">Tabela alertas_modelos não encontrada. Rode o SQL abaixo no Supabase e reabra esta aba.<br><span style="font-size:11px">Enquanto isso, os atalhos padrão continuam funcionando.</span></div>';
+    box.innerHTML='<div class="al-vazio">Tabela alertas_modelos não encontrada. Rode o SQL abaixo no Supabase e reabra esta aba.<br><span style="font-size:11px">Ao criar a tabela, os alertas que já existiam nos modais serão cadastrados aqui automaticamente.</span></div>';
     return;
   }
   _alModelosCfg=r.lista; if(st) st.textContent='';
@@ -15255,7 +15276,7 @@ async function carregarAlertasConfig(){
 }
 function _alRenderModelosCfg(){
   const box=document.getElementById('alCfgLista'); if(!box) return;
-  if(!_alModelosCfg.length){ box.innerHTML='<div class="al-vazio">Nenhuma mensagem pronta cadastrada.<br><span style="font-size:11px">Sem cadastro, o sistema usa os atalhos padrão.</span></div>'; return; }
+  if(!_alModelosCfg.length){ box.innerHTML='<div class="al-vazio">Nenhuma mensagem pronta cadastrada.<br><span style="font-size:11px">Os modais ficam sem atalhos. Use "Restaurar padrões" para trazer de volta os originais.</span></div>'; return; }
   box.innerHTML=_alModelosCfg.map(m=>{
     const on=(m.ativo!==false);
     return '<div class="al-ped'+(on?'':' fim')+'" style="cursor:default">'+
@@ -15298,6 +15319,14 @@ async function alCfgSalvar(){
     alCfgCancelarEdicao(); await carregarAlertasConfig();
     st.style.color='#3dcc8a'; st.textContent='✓ Salvo';
   }catch(e){ st.style.color='#ff6b6b'; st.textContent='Erro: '+(e.message||e)+' — rode o SQL desta aba.'; }
+}
+async function alCfgRestaurarPadroes(){
+  const st=document.getElementById('alCfgStatus'), client=getSb(); if(!client) return;
+  const faltam=AL_MODELOS_SEED.filter(m=>!_alModelosCfg.some(x=>x.texto===m.texto && x.publico===m.publico));
+  if(!faltam.length){ st.style.color='#8b93a7'; st.textContent='Todos os padrões já estão cadastrados.'; return; }
+  const {error}=await client.from('alertas_modelos').insert(faltam);
+  if(error){ st.style.color='#ff6b6b'; st.textContent='Erro: '+error.message; return; }
+  await carregarAlertasConfig(); st.style.color='#3dcc8a'; st.textContent='✓ '+faltam.length+' padrão(ões) restaurado(s)';
 }
 async function alCfgAtivar(id,ativo){
   const client=getSb(); if(!client) return;
