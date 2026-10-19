@@ -18,6 +18,10 @@ header{position:sticky;top:0;z-index:10;background:#161a22;border-bottom:1px sol
   .hdr-left .logo{font-size:15px;white-space:nowrap}
   .hdr-actions{width:100%;flex-wrap:nowrap;gap:6px}
   .hdr-actions .btn{flex:1 1 0;min-width:0;height:40px;padding:0 6px !important;font-size:13px !important;line-height:38px;text-align:center;white-space:nowrap;overflow:visible}
+  /* Chuva: no celular o botão é estreito; o interruptor (36px) vazava para cima do botão vizinho.
+     Esconde o interruptor — o estado continua visível pela cor do botão (azul = ligado, amarelo = desligado). */
+  #btnToggleChuva{justify-content:center;gap:0 !important;overflow:hidden !important}
+  #btnToggleChuva #swChuva{display:none !important}
 }
 @media (max-width:520px){ .hdr-actions .hlbl{display:none} }
 .logo{font-weight:800;color:#f0c14a;font-size:16px}
@@ -328,6 +332,8 @@ body.ifood-modal-open{
 @media (max-width:400px){
   .master-rota-fin-row{grid-template-columns:1fr}
   .master-rota-fin-unit{flex-direction:column}
+  /* No modo coluna, "flex:1 1 0" vira altura 0 e o card ficava recortado (minimizado). Mantém a altura natural. */
+  .master-rota-fin-unit > .pedido-mini{flex:0 0 auto !important;width:100% !important;height:auto !important;min-height:0 !important;max-height:none !important;overflow:visible}
   .master-rota-fin-unit > .rota-lado-entre{
     flex:0 0 auto;width:100%;min-height:26px;flex-direction:row;justify-content:center;
   }
@@ -843,7 +849,7 @@ body.modo-entregador .btn-entregador-localizador{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 171026.114610</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 181026.233058</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -861,7 +867,6 @@ body.modo-entregador .btn-entregador-localizador{
   💵 <span id="badgeDinheiro" style="display:none;position:absolute;top:-6px;right:-6px;background:#ff6b6b;color:#fff;font-size:10px;font-weight:900;min-width:18px;height:18px;border-radius:999px;align-items:center;justify-content:center;padding:0 4px">0</span>
 </button>
 <button class="btn" id="btnRelatorio" onclick="abrirModalRelatorios()" style="display:none;font-size:15px;padding:6px 10px;line-height:1;background:#141a2a;border-color:#2a4a7a;color:#6ab7ff" title="Relatórios" aria-label="Relatórios">📈</button>
-<button class="btn red" id="btnLimpeza30" onclick="abrirAlertaLimpeza30()" style="display:none;font-size:11px;padding:8px 10px" title="Excluir pedidos com mais de 30 dias no Supabase" aria-label="Limpeza 30 dias">🗑️ <span class="hlbl">Limpeza 30d</span></button>
 <button class="btn" id="btnModoAgrupar" onclick="abrirModalTipoAgrupar()" style="display:none;font-size:11px;padding:8px 10px;background:#1c1c12;border-color:#5a4a2a;color:#f0c14a" title="Agrupar pedidos ou unir rotas" aria-label="Agrupar">🔗 <span class="hlbl">Agrupar</span></button>
 <button class="btn" id="btnTrocarConta" onclick="abrirModalTrocarConta()" style="display:none;font-size:15px;padding:6px 10px;line-height:1;background:#141a2a;border-color:#2a4a7a;color:#6ab7ff" title="Trocar de conta (Administrador)" aria-label="Trocar de conta">🔄</button>
 <button class="btn" onclick="logout()" style="font-size:11px">Sair</button>
@@ -871,16 +876,6 @@ body.modo-entregador .btn-entregador-localizador{
 <!-- Alerta alta demanda (entregadores): >7 pedidos em espera -->
 <div id="alertaAltaDemanda" style="display:none;background:#2a1212;border-bottom:1px solid #5a2a2a;padding:6px 12px;text-align:center;line-height:1.25">
   <span style="font-size:14px;font-weight:900;color:#ff4d4d;letter-spacing:0.02em">🔴 ALTA DEMANDA — <span id="alertaAltaDemandaQtd">0</span> PEDIDOS AGUARDANDO ENTREGADOR</span>
-</div>
-<div id="alertaLimpeza30" style="display:none;background:#2a1a0e;border-bottom:1px solid #5a3a1a;padding:10px 14px;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-  <div style="font-size:12px;color:#f0c14a;font-weight:700;flex:1;min-width:200px">
-    ⚠️ Limpeza diária: existem pedidos com <b>mais de 30 dias</b> no Supabase.<br>
-    <span style="font-size:11px;color:#c4a574;font-weight:500">Excluir definitivamente? Só o Administrador pode executar (1x por dia).</span>
-  </div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap">
-    <button class="btn red" style="font-size:11px;padding:8px 12px" onclick="executarLimpeza30Dias()">🗑️ Sim, excluir</button>
-    <button class="btn" style="font-size:11px;padding:8px 12px" onclick="adiarLimpeza30()">Agora não</button>
-  </div>
 </div>
 <!-- Barra de confirmação do agrupamento (Master) — logo abaixo do cabeçalho -->
 <div id="barraAgrupamento" style="display:none;background:#1c1c12;border-bottom:1px solid #5a4a2a;padding:10px 14px;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;position:sticky;top:var(--hdr-h,52px);z-index:15">
@@ -6877,7 +6872,6 @@ async function fazerLogin(){
     if(!isMaster){ try{ carregarOpcoesCusto(); }catch(e){} }
     document.getElementById('btnCfg').style.display = isMaster ? 'block' : 'none';
     const masterExtras = document.getElementById('masterAddExtras'); if(masterExtras) masterExtras.style.display = isMaster ? 'flex' : 'none';
-    const btnLimpeza = document.getElementById('btnLimpeza30'); if(btnLimpeza) btnLimpeza.style.display = isMaster ? 'inline-block' : 'none';
     const btnAgrupar = document.getElementById('btnModoAgrupar'); if(btnAgrupar) btnAgrupar.style.display = isMaster ? 'inline-block' : 'none';
     const btnDin = document.getElementById('btnDinheiro'); if(btnDin) btnDin.style.display = 'inline-block';
     try{ atualizarToggleChuvaUI(); }catch(e){}
@@ -6891,7 +6885,6 @@ async function fazerLogin(){
     await carregar();
     ouvir();
     try{ iniciarPollRotaUniao(); }catch(e){}
-    try{ await verificarAlertaLimpezaMaster(); }catch(e){ console.warn(e); }
     try{ iniciarMonitorDinheiro(); await carregarControleDinheiro(); }catch(e){ console.warn(e); }
   }catch(e){
     erroEl.style.color = '#ff6b6b';
@@ -6985,13 +6978,11 @@ function _executarLogout(){
   try{ atualizarModoEntregadorBody(); }catch(e){}
   document.getElementById('loginUser').value='';
   document.getElementById('loginPass').value='';
-  const btnLimpeza = document.getElementById('btnLimpeza30'); if(btnLimpeza) btnLimpeza.style.display='none';
   const btnAgrupar = document.getElementById('btnModoAgrupar'); if(btnAgrupar) btnAgrupar.style.display='none';
   const btnDin = document.getElementById('btnDinheiro'); if(btnDin) btnDin.style.display='none';
   try{ atualizarBotaoRelatorio(); }catch(e){}
   try{ pararAlertasLocal(); }catch(e){}
 
-  try{ mostrarAlertaLimpezaUI(false); }catch(e){}
   try{ pararMonitorDinheiro(); }catch(e){}
   try{ const ad=document.getElementById('alertaAltaDemanda'); if(ad) ad.style.display='none'; }catch(e){}
   const btnCfg=document.getElementById('btnCfg'); if(btnCfg) btnCfg.style.display='none';
@@ -7032,7 +7023,6 @@ function checkLoginPersistido(){
       if(!usuarioLogado.isMaster){ try{ carregarOpcoesCusto(); }catch(e){} }
       const btnCfg=document.getElementById('btnCfg'); if(btnCfg) btnCfg.style.display = usuarioLogado.isMaster ? 'block' : 'none';
       const masterExtras2 = document.getElementById('masterAddExtras'); if(masterExtras2) masterExtras2.style.display = usuarioLogado.isMaster ? 'flex' : 'none';
-      const btnLimpeza2 = document.getElementById('btnLimpeza30'); if(btnLimpeza2) btnLimpeza2.style.display = usuarioLogado.isMaster ? 'inline-block' : 'none';
       const btnAgrupar2 = document.getElementById('btnModoAgrupar'); if(btnAgrupar2) btnAgrupar2.style.display = usuarioLogado.isMaster ? 'inline-block' : 'none';
       const btnDin2 = document.getElementById('btnDinheiro'); if(btnDin2) btnDin2.style.display = 'inline-block';
       try{ atualizarToggleChuvaUI(); }catch(e){}
@@ -7040,7 +7030,6 @@ function checkLoginPersistido(){
       try{ atualizarBotaoTrocarConta(); }catch(e){}
       atualizarBadgeModo();
       try{ carregarPedidosVisiveis(); }catch(e){}
-      try{ setTimeout(()=>{ verificarAlertaLimpezaMaster(); }, 800); }catch(e){}
       try{ setTimeout(()=>{ iniciarMonitorDinheiro(); carregarControleDinheiro(); }, 1000); setTimeout(()=>{ carregarControleDinheiro(); }, 4000); }catch(e){}
       return true;
     }catch(e){}
@@ -12019,142 +12008,6 @@ async function executarExcluirPedidoConfirmado(){
   }
 }
 
-const LIMPEZA_30_KEY = 'limpeza_30_dias_feita_em';
-const LIMPEZA_30_ADIADA_KEY = 'limpeza_30_dias_adiada_em';
-
-function dataLimite30Dias(){
-  const d = new Date();
-  d.setDate(d.getDate()-30);
-  const fmt = new Intl.DateTimeFormat('en-CA', {timeZone:'America/Sao_Paulo', year:'numeric', month:'2-digit', day:'2-digit'});
-  return fmt.format(d);
-}
-function limpeza30JaFeitaHoje(){ return localStorage.getItem(LIMPEZA_30_KEY) === getHojeSP(); }
-function limpeza30AdiadaHoje(){ return localStorage.getItem(LIMPEZA_30_ADIADA_KEY) === getHojeSP(); }
-
-async function contarPedidosAntigos30(){
-  const client = getSb();
-  if(!client) return 0;
-  const limite = dataLimite30Dias();
-  try{
-    const {count, error} = await client.from('pedidos_entrega_dia').select('id', {count:'exact', head:true}).lt('data', limite);
-    if(error){
-      const {data} = await client.from('pedidos_entrega_dia').select('id').lt('data', limite).limit(1000);
-      return (data||[]).length;
-    }
-    return count||0;
-  }catch(e){ console.warn('contarPedidosAntigos30', e); return 0; }
-}
-
-function mostrarAlertaLimpezaUI(mostrar){
-  const bar = document.getElementById('alertaLimpeza30');
-  if(!bar) return;
-  bar.style.display = (mostrar && usuarioLogado?.isMaster) ? 'flex' : 'none';
-}
-function abrirAlertaLimpeza30(){
-  if(!usuarioLogado?.isMaster){ alert('Apenas Master'); return; }
-  mostrarAlertaLimpezaUI(true);
-  const n = document.getElementById('alertaLimpeza30');
-  if(n) n.scrollIntoView({behavior:'smooth', block:'nearest'});
-}
-function adiarLimpeza30(){
-  localStorage.setItem(LIMPEZA_30_ADIADA_KEY, getHojeSP());
-  mostrarAlertaLimpezaUI(false);
-}
-
-async function executarLimpeza30Dias(){
-  if(!usuarioLogado?.isMaster){ alert('Apenas o Administrador pode executar a limpeza'); return; }
-  const limite = dataLimite30Dias();
-  const qtd = await contarPedidosAntigos30();
-  if(!qtd){
-    alert('Nenhum pedido com mais de 30 dias encontrado (antes de '+limite+').');
-    localStorage.setItem(LIMPEZA_30_KEY, getHojeSP());
-    mostrarAlertaLimpezaUI(false);
-    return;
-  }
-  if(!(await mostrarConfirmacao('Limpeza diária\n\nExcluir DEFINITIVAMENTE '+qtd+' pedido(s) com data anterior a '+limite+' (mais de 30 dias)?\n\nTambém remove reservas desses pedidos no Supabase.\nNão dá para desfazer.', { titulo:'Limpeza 30 dias', tipo:'erro', icone:'🗑️', okTexto:'Excluir', cancelarTexto:'Cancelar' }))) return;
-  if(!(await mostrarConfirmacao('Última confirmação: apagar '+qtd+' pedido(s) antigos no Supabase?', { titulo:'Confirmar exclusão', tipo:'erro', icone:'⚠️', okTexto:'Sim, apagar', cancelarTexto:'Cancelar' }))) return;
-  const client = getSb();
-  if(!client){ alert('Supabase não configurado'); return; }
-  const bar = document.getElementById('alertaLimpeza30');
-  if(bar){
-    bar.innerHTML = '<div style="font-size:12px;color:#f0c14a;font-weight:700;padding:4px 0">⏳ Excluindo pedidos anteriores a '+limite+'...</div>';
-    bar.style.display = 'flex';
-  }
-  try{
-    let totalDel = 0;
-    const {data: rows, error: errSel} = await client.from('pedidos_entrega_dia').select('id').lt('data', limite).limit(5000);
-    if(errSel) throw errSel;
-    const ids = (rows||[]).map(r=>r.id).filter(Boolean);
-    if(!ids.length){
-      localStorage.setItem(LIMPEZA_30_KEY, getHojeSP());
-      mostrarAlertaLimpezaUI(false);
-      alert('Nada a excluir.');
-      return;
-    }
-    for(let i=0;i<ids.length;i+=100){
-      const chunk = ids.slice(i, i+100);
-      try{ await client.from('reservas_entregadores').delete().in('pedido_id', chunk); }catch(e){ console.warn('limpeza reservas', e); }
-    }
-    for(let i=0;i<ids.length;i+=100){
-      const chunk = ids.slice(i, i+100);
-      const {error} = await client.from('pedidos_entrega_dia').delete().in('id', chunk);
-      if(error) throw error;
-      totalDel += chunk.length;
-    }
-    localStorage.setItem(LIMPEZA_30_KEY, getHojeSP());
-    localStorage.removeItem(LIMPEZA_30_ADIADA_KEY);
-    ids.forEach(id=>{ delete mapaReservas[id]; });
-    todosPedidos = todosPedidos.filter(p=> !ids.includes(p.id));
-    pedidosVisiveisIds = pedidosVisiveisIds.filter(id=> !ids.includes(id));
-    if(bar){
-      bar.innerHTML = '<div style="font-size:12px;color:#3dcc8a;font-weight:700;padding:4px 0">✅ Limpeza concluída: '+totalDel+' pedido(s) excluídos (antes de '+limite+').</div>';
-      setTimeout(()=>{ mostrarAlertaLimpezaUI(false); try{ restaurarHtmlAlertaLimpeza(); }catch(e){} }, 4000);
-    }
-    alert('✅ Limpeza concluída: '+totalDel+' pedido(s) com mais de 30 dias foram excluídos do Supabase.');
-    render();
-    setTimeout(()=>{ try{ carregar(); }catch(e){} }, 500);
-  }catch(e){
-    console.error('executarLimpeza30Dias', e);
-    alert('Erro na limpeza: '+(e.message||e));
-    try{ restaurarHtmlAlertaLimpeza(); mostrarAlertaLimpezaUI(true); }catch(err){}
-  }
-}
-
-function restaurarHtmlAlertaLimpeza(){
-  const bar = document.getElementById('alertaLimpeza30');
-  if(!bar) return;
-  bar.innerHTML = `
-  <div style="font-size:12px;color:#f0c14a;font-weight:700;flex:1;min-width:200px">
-    ⚠️ Limpeza diária: existem pedidos com <b>mais de 30 dias</b> no Supabase.<br>
-    <span style="font-size:11px;color:#c4a574;font-weight:500">Excluir definitivamente? Só o Administrador pode executar (1x por dia).</span>
-  </div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap">
-    <button class="btn red" style="font-size:11px;padding:8px 12px" onclick="executarLimpeza30Dias()">🗑️ Sim, excluir</button>
-    <button class="btn" style="font-size:11px;padding:8px 12px" onclick="adiarLimpeza30()">Agora não</button>
-  </div>`;
-}
-
-async function verificarAlertaLimpezaMaster(){
-  if(!usuarioLogado?.isMaster){
-    mostrarAlertaLimpezaUI(false);
-    const btn = document.getElementById('btnLimpeza30');
-    if(btn) btn.style.display = 'none';
-    return;
-  }
-  const btn = document.getElementById('btnLimpeza30');
-  if(btn) btn.style.display = 'inline-block';
-  if(limpeza30JaFeitaHoje() || limpeza30AdiadaHoje()){
-    mostrarAlertaLimpezaUI(false);
-    return;
-  }
-  const qtd = await contarPedidosAntigos30();
-  if(qtd > 0){
-    restaurarHtmlAlertaLimpeza();
-    mostrarAlertaLimpezaUI(true);
-  } else {
-    mostrarAlertaLimpezaUI(false);
-  }
-}
 
 /** Master: desfaz finalização, remove reserva e devolve o pedido para “em espera” (pode ser pego de novo). */
 let reativarPedidoPendenteId = null;
