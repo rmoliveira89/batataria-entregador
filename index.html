@@ -805,6 +805,28 @@ body.modo-entregador .btn-entregador-localizador{
 </div>
 </div>
 
+<!-- MODAL CANCELAR PEDIDO (Admin) -->
+<div id="modalCancelarPedido" class="overlay" style="display:none;z-index:300">
+<div class="card" style="width:100%;max-width:420px;margin:0">
+  <h3 style="margin:0 0 10px;color:#ff6b6b;font-size:16px">🚫 Cancelar pedido</h3>
+  <div id="cancInfo" style="font-size:13px;color:#e6e8ef;line-height:1.5;margin-bottom:10px"></div>
+  <label style="font-size:11px;color:#8b93a7;font-weight:700">Motivo (opcional)</label>
+  <div style="display:flex;flex-wrap:wrap;gap:6px;margin:6px 0">
+    <button type="button" class="btn" style="padding:6px 10px;font-size:11px" onclick="document.getElementById('cancMotivo').value='Cliente cancelou'">Cliente cancelou</button>
+    <button type="button" class="btn" style="padding:6px 10px;font-size:11px" onclick="document.getElementById('cancMotivo').value='Pedido duplicado'">Duplicado</button>
+    <button type="button" class="btn" style="padding:6px 10px;font-size:11px" onclick="document.getElementById('cancMotivo').value='Cancelado no iFood'">Cancelado no iFood</button>
+    <button type="button" class="btn" style="padding:6px 10px;font-size:11px" onclick="document.getElementById('cancMotivo').value='Endereço inválido'">Endereço inválido</button>
+  </div>
+  <input id="cancMotivo" maxlength="120" placeholder="Ex.: Cliente cancelou" style="margin-bottom:10px"/>
+  <div style="font-size:11px;color:#f0c14a;line-height:1.4;margin-bottom:8px">O pedido sai das listas, da rota e do custo. Fica na seção 🚫 CANCELADOS e pode ser reativado.</div>
+  <div id="cancStatus" style="font-size:12px;color:#ff6b6b;text-align:center;min-height:14px;margin-bottom:8px"></div>
+  <div style="display:flex;gap:8px">
+    <button class="btn" style="flex:1;padding:14px" onclick="fecharCancelarPedido()">Voltar</button>
+    <button class="btn red" id="cancBtn" style="flex:1;padding:14px;font-weight:900" onclick="confirmarCancelarPedido()">🚫 Cancelar pedido</button>
+  </div>
+</div>
+</div>
+
 <!-- MODAL ENVIAR ALERTA -->
 <div id="modalAlertaEnviar" class="overlay" style="display:none;z-index:250">
 <div class="card" style="width:100%;max-width:480px;margin:0;max-height:92vh;overflow:auto">
@@ -849,7 +871,7 @@ body.modo-entregador .btn-entregador-localizador{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 181026.233058</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 191026.174628</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -1188,6 +1210,32 @@ create table if not exists alertas_modelos (
 );
 alter table alertas_modelos enable row level security;
 create policy "libera tudo anon alertas_modelos" on alertas_modelos for all using (true) with check (true);
+
+-- Status CANCELADO em pedidos_entrega_dia (Admin cancela o pedido pelo card)
+-- Diagnóstico (opcional): select conname, pg_get_constraintdef(oid) from pg_constraint where conrelid = 'public.pedidos_entrega_dia'::regclass and contype = 'c';
+alter table public.pedidos_entrega_dia add column if not exists cancelado_em timestamptz;
+alter table public.pedidos_entrega_dia add column if not exists cancelado_por text;
+alter table public.pedidos_entrega_dia add column if not exists motivo_cancelamento text;
+create index if not exists idx_pedidos_status on public.pedidos_entrega_dia (status);
+do $$
+declare r record; t text;
+begin
+  -- se "status" for enum, acrescenta o valor
+  select udt_name into t from information_schema.columns
+   where table_schema = 'public' and table_name = 'pedidos_entrega_dia' and column_name = 'status';
+  if t is not null and t not in ('text', 'varchar', 'bpchar') then
+    execute format('alter type %I add value if not exists %L', t, 'cancelado');
+  end if;
+  -- se existir CHECK limitando os valores de status e ele não aceitar "cancelado", remove
+  for r in select conname, pg_get_constraintdef(oid) as def from pg_constraint
+            where conrelid = 'public.pedidos_entrega_dia'::regclass and contype = 'c'
+              and pg_get_constraintdef(oid) ilike '%status%' loop
+    if r.def not ilike '%cancelado%' then
+      execute format('alter table public.pedidos_entrega_dia drop constraint %I', r.conname);
+      raise notice 'CHECK % removido: %', r.conname, r.def;
+    end if;
+  end loop;
+end $$;
 
 -- Repasse semanal (gravado por outro sistema; o site só lê e exibe)
 create table if not exists repasse_entregador (
@@ -1992,6 +2040,7 @@ Remove a finalização e a reserva. O pedido volta para <b style="color:#f0c14a"
   <div id="listaJantarConfirmado" style="display:none"></div>
 </div>
 </div><!-- /viewTurnos -->
+<div id="boxCancelados" style="display:none;margin:8px 0"></div>
 <div id="listaVazia" style="display:none;" class="card"><div style="text-align:center;color:#8b93a7;padding:10px">Nenhum pedido</div></div>
 
 
@@ -5210,6 +5259,7 @@ async function renderAbaCustoMaster(){
             if(i>=0) todosPedidos[i] = p;
             else todosPedidos.push(p);
           });
+          try{ _cancSeparar(); }catch(e){}
         }
         try{
           const {data: res} = await client.from('reservas_entregadores').select('pedido_id,entregador_nome,data,created_at').eq('data', dataAlvo);
@@ -5382,6 +5432,7 @@ async function renderAbaCusto(){
             if(i>=0) todosPedidos[i] = p;
             else todosPedidos.push(p);
           });
+          try{ _cancSeparar(); }catch(e){}
         }
         try{
           const {data: res} = await client.from('reservas_entregadores').select('pedido_id,entregador_nome,data,created_at').eq('data', dataAlvo);
@@ -8059,6 +8110,7 @@ async function carregar(){
    todosPedidos = dataResult;
  }
  if(usuarioLogado?.isMaster && dataResult.length===0){ console.log('Master: nenhum pedido para', datasParaBuscar); }
+ pedidosCancelados=[]; try{ _cancSeparar(); }catch(e){}
  render();
  try{ if(abaEntregadorAtual==='custo' && usuarioLogado && !usuarioLogado.isMaster) renderAbaCusto(); if(abaEntregadorAtual==='faturamento') renderQuadroFaturamentoSemana(); }catch(e){}
  try{ agendarAtualizacaoDinheiro(); }catch(e){}
@@ -10246,6 +10298,9 @@ async function abrirModalMasterPedido(pedidoId){
   if(!custoBloq){
     acoes += `<button class="btn red" onclick="excluirPedidoDefinitivo('${p.id}')">🗑️ Excluir DEFINITIVO</button>`;
   }
+  if(!custoBloq && !isCodigo){
+    acoes += `<button class="btn red" onclick="abrirCancelarPedido('${p.id}')">🚫 Cancelar pedido</button>`;
+  }
   document.getElementById('masterModalAcoesGerais').innerHTML = acoes;
 
   const tituloLista = custoBloq
@@ -11009,6 +11064,9 @@ async function abrirModalMasterGrupo(gid){
   let acoes = `<button class="btn blue" onclick="abrirMapa('${(membros[0].cliente_endereco||'').replace(/'/g,"\\'")}')">📍 Ver no Mapa</button>`;
   acoes += `<button class="btn" style="background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="abrirModalEditarEndereco('${membros[0].id}')">✏️ Editar</button>`;
   acoes += `<button class="btn red" onclick="desfazerGrupo('${gid}'); fecharModalMasterPedido()">🔓 Desfazer agrupamento</button>`;
+  membros.filter(m=>m.status!=='codigo_informado' && !isPedidoCustoBloqueado(m)).forEach(m=>{
+    acoes += `<button class="btn red" onclick="abrirCancelarPedido('${m.id}')">🚫 Cancelar #${m.numero_pedido}</button>`;
+  });
   document.getElementById('masterModalAcoesGerais').innerHTML = acoes;
   document.getElementById('masterModalListaTitulo').textContent = nomeReserva ? '🔄 Transferir grupo para:' : '📤 Enviar grupo para:';
   const listaEl = document.getElementById('masterModalListaEntregadores');
@@ -11425,6 +11483,7 @@ function _refreshModalRefri(){
 }
 
 function render(){
+  try{ _cancSeparar(); renderCancelados(); }catch(e){}
   try{ sincronizarFlagsConfirmacaoLocal(todosPedidos); }catch(e){}
 
   try{ _aplicarAlertasMasterLocais(todosPedidos); }catch(e){}
@@ -14823,7 +14882,7 @@ async function _alCarregarPedidosLista(){
   ]);
   if(rp.error) throw rp.error;
   const reserva={}; (rr.data||[]).forEach(r=>{ if(r.pedido_id) reserva[r.pedido_id]=r.entregador_nome||''; });
-  const todos=(rp.data||[]).map(p=>Object.assign({}, p, {_ent: String(reserva[p.id]||p.entregador_nome||'').trim()})).filter(p=>p._ent);
+  const todos=(rp.data||[]).map(p=>Object.assign({}, p, {_ent: String(reserva[p.id]||p.entregador_nome||'').trim()})).filter(p=>p._ent && !ehCancelado(p));
   const isM=!!(usuarioLogado && usuarioLogado.isMaster);
   if(isM){
     // Admin: só não finalizados, do mais atrasado para o menos atrasado; ignora os dele próprio
@@ -15245,6 +15304,100 @@ function _alAtualizarBadge(){
   if(m && m.style.display==='flex'){ try{ abrirModalNotif(); }catch(e){} }
 }
 // =================== FIM ALERTAS: MODELOS/NOTIFICAÇÕES ===================
+
+// ===================== STATUS CANCELADO (Admin) =====================
+let pedidosCancelados=[], _cancPedidoId=null, _cancAberto=true, _cancEnviando=false;
+function ehCancelado(p){ return !!p && String(p.status||'').trim().toLowerCase()==='cancelado'; }
+/** Tira os cancelados de todosPedidos (assim nenhuma contagem/rota/custo/auto-finalização os enxerga) e guarda à parte. */
+function _cancSeparar(){
+  if(!Array.isArray(todosPedidos) || !todosPedidos.some(ehCancelado)) return;
+  todosPedidos.filter(ehCancelado).forEach(p=>{
+    const i=pedidosCancelados.findIndex(x=>x.id===p.id);
+    if(i>=0) pedidosCancelados[i]=p; else pedidosCancelados.push(p);
+  });
+  todosPedidos=todosPedidos.filter(p=>!ehCancelado(p));
+}
+function renderCancelados(){
+  const box=document.getElementById('boxCancelados'); if(!box) return;
+  const isM=!!(usuarioLogado && usuarioLogado.isMaster);
+  const aba=(typeof abaEntregadorAtual!=='undefined')?abaEntregadorAtual:'';
+  if(!isM || aba==='custo' || aba==='faturamento' || !pedidosCancelados.length){ box.style.display='none'; box.innerHTML=''; return; }
+  const lista=pedidosCancelados.slice().sort((a,b)=>(Date.parse(b.cancelado_em||'')||0)-(Date.parse(a.cancelado_em||'')||0));
+  box.style.display='block';
+  box.innerHTML='<div class="sub-header" style="background:#2a1212;border:1px solid #5a2a2a;color:#ff6b6b;cursor:pointer" onclick="_cancAberto=!_cancAberto;renderCancelados()"><span>🚫 CANCELADOS - '+lista.length+'</span><span>'+(_cancAberto?'🙈 Ocultar':'👁️ Mostrar')+'</span></div>'+
+  (_cancAberto?'<div style="display:flex;flex-direction:column;gap:8px;padding:8px 0">'+lista.map(p=>{
+    let ent=''; try{ ent=getNomeReserva(p)||p.entregador_nome||''; }catch(e){ ent=p.entregador_nome||''; }
+    return '<div class="al-ped fim" style="cursor:default;border-color:#5a2a2a">'+
+      '<div class="al-ped-top"><span class="al-ped-num">#'+_alEsc(p.numero_pedido||'—')+' · '+_alEsc(p.cliente_nome||'Cliente')+'</span><span class="al-chip late">🚫 Cancelado</span></div>'+
+      '<div class="al-ped-end">'+_alEsc(p.cliente_endereco||'')+'</div>'+
+      (ent?'<div class="al-ped-ent">🛵 '+_alEsc(ent)+'</div>':'')+
+      '<div class="al-ped-mark">'+(p.motivo_cancelamento?_alEsc(p.motivo_cancelamento)+' · ':'')+(p.cancelado_por?'por '+_alEsc(p.cancelado_por)+' · ':'')+_alEsc(_alQuando(p.cancelado_em))+'</div>'+
+      '<div style="display:flex;gap:6px;margin-top:8px">'+
+      '<button class="btn" style="flex:1;padding:8px;font-size:12px;background:#3a2a1a;color:#f0c14a;border-color:#5a4a2a" onclick="reativarCancelado(\''+p.id+'\')">↺ Reativar</button>'+
+      '<button class="btn red" style="flex:1;padding:8px;font-size:12px" onclick="excluirPedidoDefinitivo(\''+p.id+'\')">🗑️ Excluir</button>'+
+      '</div></div>';
+  }).join('')+'</div>':'');
+}
+function abrirCancelarPedido(id){
+  if(!usuarioLogado || !usuarioLogado.isMaster) return;
+  const p=todosPedidos.find(x=>x.id===id); if(!p){ alert('Pedido não encontrado'); return; }
+  _cancPedidoId=id;
+  let ent=''; try{ ent=getNomeReserva(p)||''; }catch(e){}
+  document.getElementById('cancInfo').innerHTML='<b style="color:#f0c14a">#'+_alEsc(p.numero_pedido||'')+'</b> · '+_alEsc(p.cliente_nome||'—')+'<br><span style="color:#8b93a7;font-size:12px">'+_alEsc(p.cliente_endereco||'')+'</span>'+(ent?'<br><span style="color:#6ab7ff;font-size:12px">🛵 '+_alEsc(ent)+' será avisado</span>':'');
+  document.getElementById('cancMotivo').value='';
+  document.getElementById('cancStatus').textContent='';
+  document.getElementById('cancBtn').disabled=false;
+  document.getElementById('modalCancelarPedido').style.display='flex';
+  try{ fecharModalMasterPedido(); }catch(e){}
+}
+function fecharCancelarPedido(){ const m=document.getElementById('modalCancelarPedido'); if(m) m.style.display='none'; _cancPedidoId=null; }
+async function confirmarCancelarPedido(){
+  if(_cancEnviando || !_cancPedidoId) return;
+  const id=_cancPedidoId, p=todosPedidos.find(x=>x.id===id); if(!p){ fecharCancelarPedido(); return; }
+  const st=document.getElementById('cancStatus'), btn=document.getElementById('cancBtn');
+  const motivo=(document.getElementById('cancMotivo').value||'').trim();
+  const client=getSb(); if(!client){ st.textContent='Supabase não configurado.'; return; }
+  _cancEnviando=true; btn.disabled=true; st.textContent='Cancelando…';
+  let ent=''; try{ ent=getNomeReserva(p)||''; }catch(e){}
+  const agora=new Date().toISOString();
+  try{
+    let {error}=await client.from('pedidos_entrega_dia').update({status:'cancelado', cancelado_em:agora, cancelado_por:_alMeuNome(), motivo_cancelamento:motivo||null}).eq('id',id);
+    if(error){ // colunas novas ainda não criadas → grava só o status
+      ({error}=await client.from('pedidos_entrega_dia').update({status:'cancelado'}).eq('id',id));
+    }
+    if(error) throw error;
+    Object.assign(p,{status:'cancelado', cancelado_em:agora, cancelado_por:_alMeuNome(), motivo_cancelamento:motivo||null});
+    _cancSeparar();
+    // avisa o entregador pelo sistema de alertas
+    if(ent){
+      try{
+        const row={de_nome:_alMeuNome(), para_nome:ent, status:'chamando', mensagem:'🚫 Pedido #'+(p.numero_pedido||'')+' foi CANCELADO'+(motivo?': '+motivo:''), pedido_numero:String(p.numero_pedido||''), pedido_cliente:String(p.cliente_nome||''), pedido_endereco:String(p.cliente_endereco||''), opcoes:'som=1;vib=1'};
+        let r=await client.from('chamadas_app').insert(row);
+        if(r.error){ delete row.opcoes; await client.from('chamadas_app').insert(row); }
+      }catch(e){ console.warn('aviso cancelamento', e); }
+    }
+    fecharCancelarPedido(); render();
+    _alToast('🚫 Pedido #'+(p.numero_pedido||'')+' cancelado');
+  }catch(e){
+    console.error('cancelar pedido', e);
+    st.textContent='Erro: '+(e.message||e)+' — rode o SQL "Status CANCELADO" (Configurações › SQL).';
+    btn.disabled=false;
+  } finally { _cancEnviando=false; }
+}
+async function reativarCancelado(id){
+  const p=pedidosCancelados.find(x=>String(x.id)===String(id)); if(!p) return;
+  const ok=await mostrarConfirmacao('Reativar o pedido #'+(p.numero_pedido||'')+'?\n\nEle volta como "A entregar".',{titulo:'Reativar pedido',icone:'↺',okTexto:'Reativar',cancelarTexto:'Voltar'});
+  if(!ok) return;
+  const client=getSb(); if(!client) return;
+  let {error}=await client.from('pedidos_entrega_dia').update({status:'pendente', cancelado_em:null, cancelado_por:null, motivo_cancelamento:null}).eq('id',id);
+  if(error) ({error}=await client.from('pedidos_entrega_dia').update({status:'pendente'}).eq('id',id));
+  if(error){ alert('Erro ao reativar: '+error.message); return; }
+  pedidosCancelados=pedidosCancelados.filter(x=>String(x.id)!==String(id));
+  Object.assign(p,{status:'pendente', cancelado_em:null, cancelado_por:null, motivo_cancelamento:null});
+  if(!todosPedidos.some(x=>x.id===p.id)) todosPedidos.push(p);
+  render(); _alToast('↺ Pedido reativado');
+}
+// =================== FIM STATUS CANCELADO ===================
 
 (function(){
   document.getElementById('cfgUrl').value=localStorage.getItem('supabase_url')||DEFAULT_URL||'';
