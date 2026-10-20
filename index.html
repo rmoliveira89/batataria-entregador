@@ -871,7 +871,7 @@ body.modo-entregador .btn-entregador-localizador{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 191026.232500</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 191026.232900</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -8120,6 +8120,10 @@ async function carregar(){
  if(usuarioLogado?.isMaster && dataResult.length===0){ console.log('Master: nenhum pedido para', datasParaBuscar); }
  // Reaplica endereços corrigidos (sync externo costuma reescrever cliente_endereco)
  try{ _aplicarEnderecosCorrigidos(todosPedidos); }catch(e){ console.warn('aplicar enderecos corrigidos', e); }
+ // Detecta finalizações novas (entregador finalizou → bip no Admin) e atualiza cache de status
+ try{ _avisarFinalizacoesNovas(todosPedidos); }catch(e){
+   try{ _sincronizarCacheStatusPedidos(todosPedidos); }catch(e2){}
+ }
  pedidosCancelados=[]; try{ _cancSeparar(); }catch(e){}
  render();
  try{ if(abaEntregadorAtual==='custo' && usuarioLogado && !usuarioLogado.isMaster) renderAbaCusto(); if(abaEntregadorAtual==='faturamento') renderQuadroFaturamentoSemana(); }catch(e){}
@@ -14910,12 +14914,88 @@ function carregarDebounced(){
   }, 800);
 }
 
+/** Cache de status para detectar finalização remota (entregador finalizou → bip no Admin). */
+let _statusPedidosCache = {};
+function _statusNorm(s){ return String(s||'').trim().toLowerCase(); }
+function _ehStatusFinalizado(s){
+  const n = _statusNorm(s);
+  return n==='codigo_informado' || n==='finalizado' || n==='entregue';
+}
+function _sincronizarCacheStatusPedidos(lista){
+  const map = {};
+  (lista||[]).forEach(p=>{ if(p && p.id) map[String(p.id)] = _statusNorm(p.status); });
+  _statusPedidosCache = map;
+}
+/**
+ * Detecta pedidos que acabaram de ser finalizados por outro usuário.
+ * Admin: toca bip de finalização + toast.
+ */
+function _avisarFinalizacoesNovas(lista){
+  if(!usuarioLogado) return;
+  const isMaster = !!usuarioLogado.isMaster;
+  const meuNome = String(usuarioLogado.nome||'').trim().toLowerCase();
+  let avisos = 0;
+  (lista||[]).forEach(p=>{
+    if(!p || !p.id) return;
+    const id = String(p.id);
+    const st = _statusNorm(p.status);
+    const ant = _statusPedidosCache[id];
+    // só interessa transição para finalizado
+    if(!_ehStatusFinalizado(st)) return;
+    if(ant === undefined) return; // 1ª carga: não avisa
+    if(_ehStatusFinalizado(ant)) return; // já estava finalizado
+    // quem finalizou
+    const quem = String(p.entregador_nome || (typeof getNomeReserva==='function' ? (getNomeReserva(p)||'') : '') || '').trim();
+    const quemL = quem.toLowerCase();
+    // se fui eu (mesmo aparelho/master se auto-finalizou), bip mais suave só se master
+    const souEu = quemL && meuNome && quemL === meuNome;
+    if(isMaster){
+      // Admin: sempre ouve quando alguém finaliza (incluindo se for ele mesmo em outro fluxo)
+      try{ tocarSomFinalizacao(); }catch(e){}
+      avisos++;
+      if(avisos === 1){
+        try{
+          const num = p.numero_pedido || '—';
+          const txt = souEu
+            ? ('✅ Pedido #'+num+' finalizado')
+            : ('✅ '+(quem||'Entregador')+' finalizou #'+num);
+          if(typeof _alToast==='function') _alToast(txt);
+        }catch(e){}
+      }
+    }
+  });
+  // atualiza cache
+  _sincronizarCacheStatusPedidos(lista);
+}
+function _onPedidoEntregaChange(payload){
+  try{
+    const n = payload && payload.new;
+    if(n && n.id){
+      const id = String(n.id);
+      const st = _statusNorm(n.status);
+      const ant = _statusPedidosCache[id];
+      if(_ehStatusFinalizado(st) && ant !== undefined && !_ehStatusFinalizado(ant)){
+        if(usuarioLogado && usuarioLogado.isMaster){
+          try{ tocarSomFinalizacao(); }catch(e){}
+          try{
+            const quem = String(n.entregador_nome||'').trim() || 'Entregador';
+            const num = n.numero_pedido || '—';
+            if(typeof _alToast==='function') _alToast('✅ '+quem+' finalizou #'+num);
+          }catch(e){}
+        }
+      }
+      _statusPedidosCache[id] = st;
+    }
+  }catch(e){}
+  carregarDebounced();
+}
+
 function ouvir(){
   const client=getSb();
   if(!client) return;
   client.channel('entregador-v8')
     .on('postgres_changes',{event:'*',schema:'public',table:'refri_pedidos'},()=>{ try{ _agendarRefriCache(true); }catch(e){} })
-    .on('postgres_changes',{event:'*',schema:'public',table:'pedidos_entrega_dia'},()=>carregarDebounced())
+    .on('postgres_changes',{event:'*',schema:'public',table:'pedidos_entrega_dia'}, (payload)=>_onPedidoEntregaChange(payload))
     .on('postgres_changes',{event:'*',schema:'public',table:'reservas_entregadores'},()=>carregarDebounced())
     .on('postgres_changes',{event:'*',schema:'public',table:'entregadores'},()=>{ try{ verificarAcessoAtivo(); }catch(e){} try{ atualizarAbasVisiveisDoServidor(); }catch(e){} })
     .on('postgres_changes',{event:'*',schema:'public',table:'app_config'}, (payload)=>{
@@ -15063,6 +15143,15 @@ function _alBip(freq,dur){
 function tocarSomAlerta(){
   _alDesbloquear();
   _alBip(880,0.14); setTimeout(()=>_alBip(1175,0.14),190); setTimeout(()=>_alBip(880,0.14),380);
+}
+/** Bip de sucesso: entregador finalizou um pedido (Admin ouve). */
+function tocarSomFinalizacao(){
+  _alDesbloquear();
+  // C5 → E5 → G5 (acorde ascendente, ~0,45 s)
+  _alBip(523,0.08);
+  setTimeout(()=>_alBip(659,0.09), 110);
+  setTimeout(()=>_alBip(784,0.14), 230);
+  try{ if(navigator.vibrate) navigator.vibrate([40,40,60]); }catch(e){}
 }
 function vibrarAlerta(){ try{ if(navigator.vibrate) navigator.vibrate([250,100,250,100,400]); }catch(e){} }
 function _alToast(txt){
