@@ -871,7 +871,7 @@ body.modo-entregador .btn-entregador-localizador{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 191026.224200</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 191026.232500</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -1118,7 +1118,8 @@ create index if not exists idx_pedidos_grupo_entrega on public.pedidos_entrega_d
 alter table public.pedidos_entrega_dia
   add column if not exists alterado boolean default false,
   add column if not exists endereco_original text,
-  add column if not exists endereco_alterado_em timestamptz;
+  add column if not exists endereco_alterado_em timestamptz,
+  add column if not exists endereco_corrigido text;
 create index if not exists idx_pedidos_alterado on public.pedidos_entrega_dia (alterado) where alterado is not null;
 
 -- valor_entrega + custo_bloqueado (após enviar custos, pedido fica bloqueado p/ edição/transferência/exclusão)
@@ -8010,7 +8011,7 @@ async function abrirMapaPorId(id){
     }catch(e){ console.warn('abrirMapaPorId fetch', e); }
   }
   if(!p){ alert('Pedido não encontrado'); return; }
-  abrirMapa(p.cliente_endereco);
+  abrirMapa(typeof enderecoEfetivo==='function' ? enderecoEfetivo(p) : p.cliente_endereco);
 }
 
 async function carregar(){
@@ -8117,6 +8118,8 @@ async function carregar(){
    todosPedidos = dataResult;
  }
  if(usuarioLogado?.isMaster && dataResult.length===0){ console.log('Master: nenhum pedido para', datasParaBuscar); }
+ // Reaplica endereços corrigidos (sync externo costuma reescrever cliente_endereco)
+ try{ _aplicarEnderecosCorrigidos(todosPedidos); }catch(e){ console.warn('aplicar enderecos corrigidos', e); }
  pedidosCancelados=[]; try{ _cancSeparar(); }catch(e){}
  render();
  try{ if(abaEntregadorAtual==='custo' && usuarioLogado && !usuarioLogado.isMaster) renderAbaCusto(); if(abaEntregadorAtual==='faturamento') renderQuadroFaturamentoSemana(); }catch(e){}
@@ -9576,14 +9579,16 @@ function atualizarModoEntregadorBody(){
 }
 
 function ordenarPorRota(lista, data){
-  if(usuarioLogado?.isMaster){ return lista.sort((a,b)=> new Date(a.created_at)-new Date(b.created_at)); }
-  const keyOrdem = getKeyOrdem(data);
-  let ordem=[]; try{ ordem=JSON.parse(localStorage.getItem(keyOrdem)||'[]'); }catch(e){ ordem=[]; }
-  if(!ordem.length){ return lista.sort((a,b)=> new Date(a.created_at)-new Date(b.created_at)); }
-  return lista.sort((a,b)=>{
-    const ia=ordem.indexOf(a.id); const ib=ordem.indexOf(b.id);
-    if(ia===-1 && ib===-1) return new Date(a.created_at)-new Date(b.created_at);
-    if(ia===-1) return 1; if(ib===-1) return -1; return ia-ib;
+  // Sempre: menor tempo restante (mais urgente) primeiro — todos os usuários / abas Em rota e Pedidos
+  return (lista||[]).slice().sort((a,b)=>{
+    const da = parsePrevEntrega(a), db = parsePrevEntrega(b);
+    const ta = da ? da.getTime() : Infinity;
+    const tb = db ? db.getTime() : Infinity;
+    if(ta !== tb) return ta - tb;
+    // desempate: finalizados por último entre pendentes já filtrados; created_at
+    const ca = new Date(a.created_at||0).getTime() || 0;
+    const cb = new Date(b.created_at||0).getTime() || 0;
+    return ca - cb;
   });
 }
 function getNomeReserva(pedido){
@@ -9718,28 +9723,18 @@ function secaoMasterEntregador(key, titulo, lista, tipo){
   if(!itens.length){
     html += `<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum</div>`;
   } else if(tipo==='espera'){
-    // Em espera: sem rotas de entregador — grid simples
-    const itensOrd = [...itens].sort((a,b)=>{
-      const ac = itemEhConfirmado(a)?1:0;
-      const bc = itemEhConfirmado(b)?1:0;
-      if(ac!==bc) return ac-bc;
-      const da = a.tipo==='grupo' ? a.pedidos[0].created_at : a.pedido.created_at;
-      const db = b.tipo==='grupo' ? b.pedidos[0].created_at : b.pedido.created_at;
-      return new Date(da)-new Date(db);
-    });
+    // Em espera: ordena pelo tempo restante (mais urgente primeiro)
+    const pend = itens.filter(it=>!itemEhConfirmado(it));
+    const conf = itens.filter(itemEhConfirmado);
+    const itensOrd = ordenarItensPendentesEntregador(pend).concat(ordenarItensFinalizadosEntregador(conf));
     const htmlCards = itensOrd.map((it,i)=> it.tipo==='grupo' ? cardGrupoPedidos(it) : cardPedido(it.pedido,i,lista)).join('');
     html += wrapPedidosGrid(htmlCards);
   } else {
-    // Por entregador: agrupa visualmente em ROTAS (janela 10 min)
+    // Por entregador: dentro de cada rota, ordena pendentes pelo tempo restante
     const ordFn = (its)=>{
-      return [...its].sort((a,b)=>{
-        const ac = itemEhConfirmado(a)?1:0;
-        const bc = itemEhConfirmado(b)?1:0;
-        if(ac!==bc) return ac-bc;
-        const da = a.tipo==='grupo' ? getRotaBaseMs(a.pedidos[0]) : getRotaBaseMs(a.pedido);
-        const db = b.tipo==='grupo' ? getRotaBaseMs(b.pedidos[0]) : getRotaBaseMs(b.pedido);
-        return da-db;
-      });
+      const pend = (its||[]).filter(it=>!itemEhConfirmado(it));
+      const conf = (its||[]).filter(itemEhConfirmado);
+      return ordenarItensPendentesEntregador(pend).concat(ordenarItensFinalizadosEntregador(conf));
     };
     html += renderItensGridPorRotas(lista, ordFn);
   }
@@ -9840,14 +9835,9 @@ function htmlMasterEmRotaColunas(pedidosDoTurno){
   if(!itensEsp.length){
     out += `<div class="card" style="text-align:center;color:#555;font-size:12px">Nenhum pedido em espera</div>`;
   } else {
-    const itensOrd = [...itensEsp].sort((a,b)=>{
-      const ac = itemEhConfirmado(a)?1:0;
-      const bc = itemEhConfirmado(b)?1:0;
-      if(ac!==bc) return ac-bc;
-      const da = a.tipo==='grupo' ? a.pedidos[0].created_at : a.pedido.created_at;
-      const db = b.tipo==='grupo' ? b.pedidos[0].created_at : b.pedido.created_at;
-      return new Date(da)-new Date(db);
-    });
+    const pendEspIt = itensEsp.filter(it=>!itemEhConfirmado(it));
+    const confEspIt = itensEsp.filter(itemEhConfirmado);
+    const itensOrd = ordenarItensPendentesEntregador(pendEspIt).concat(ordenarItensFinalizadosEntregador(confEspIt));
     const htmlCards = itensOrd.map((it,i)=> it.tipo==='grupo' ? cardGrupoPedidos(it) : cardPedido(it.pedido,i,espera)).join('');
     out += `<div class="master-espera-grid">${htmlCards}</div>`;
   }
@@ -9902,11 +9892,13 @@ function _htmlMasterEntColuna(nome, lista){
       let ant = null;
       fin.forEach(it => { itensFin.push({ it, ant, rotaPeds: r.pedidos || [] }); ant = it; });
     });
-    const its = itensPend.concat(itensFin.map(x=>x.it));
+    // pendentes: mais urgente (menos tempo restante) primeiro
+    const itensPendOrd = ordenarItensPendentesEntregador(itensPend);
+    const its = itensPendOrd.concat(itensFin.map(x=>x.it));
     let htmlCards = '';
-    if(itensPend.length){
+    if(itensPendOrd.length){
       if(itensFin.length) htmlCards += '<div class="master-rota-pend-label">🛵 EM ROTA</div>';
-      htmlCards += itensPend.map((it,i)=> cardHtml(it, i, listaSegura)).join('');
+      htmlCards += itensPendOrd.map((it,i)=> cardHtml(it, i, listaSegura)).join('');
     }
     if(itensFin.length){
       if(itensPend.length) htmlCards += '<div class="master-rota-fin-label">✅ FINALIZADAS</div>';
@@ -10025,10 +10017,112 @@ function _enderecoAlterado(p){
     const n = v.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     return n === 'true' || n === 'sim' || n === 's' || n === 'yes';
   }
+  // também considera se há correção local / coluna dedicada
+  try{
+    if(p.endereco_corrigido && String(p.endereco_corrigido).trim()) return true;
+    const rec = _endCorrMap()[String(p.id||'')];
+    if(rec && rec.novo) return true;
+  }catch(e){}
   return false;
 }
 function _algumAlterado(lista){ return (lista||[]).some(_enderecoAlterado); }
 function _escAttrTxt(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/** Backup local do endereço corrigido (sobrevive a sync externo que reescreve cliente_endereco). */
+const END_CORR_LS = 'bat_enderecos_corrigidos_v1';
+function _endCorrMap(){
+  try{ return JSON.parse(localStorage.getItem(END_CORR_LS)||'{}') || {}; }catch(e){ return {}; }
+}
+function _endCorrSalvar(id, novo, original){
+  if(!id) return;
+  const m = _endCorrMap();
+  m[String(id)] = {
+    novo: String(novo||'').replace(/\s+/g,' ').trim(),
+    original: String(original||'').replace(/\s+/g,' ').trim(),
+    at: Date.now()
+  };
+  try{ localStorage.setItem(END_CORR_LS, JSON.stringify(m)); }catch(e){}
+}
+function _endCorrLimpar(id){
+  if(!id) return;
+  const m = _endCorrMap();
+  if(m[String(id)]){ delete m[String(id)]; try{ localStorage.setItem(END_CORR_LS, JSON.stringify(m)); }catch(e){} }
+}
+/** Endereço que deve ser exibido/usado (prioriza correção manual). */
+function enderecoEfetivo(p){
+  if(!p) return '';
+  const corrCol = (p.endereco_corrigido != null && String(p.endereco_corrigido).trim()) ? String(p.endereco_corrigido).replace(/\s+/g,' ').trim() : '';
+  if(corrCol) return corrCol;
+  try{
+    const rec = _endCorrMap()[String(p.id||'')];
+    if(rec && rec.novo) return String(rec.novo).replace(/\s+/g,' ').trim();
+  }catch(e){}
+  return String(p.cliente_endereco||'').replace(/\s+/g,' ').trim();
+}
+/**
+ * Após carregar do banco: se sync externo reverteu cliente_endereco, reaplica a correção
+ * a partir de endereco_corrigido (coluna) ou localStorage.
+ */
+function _aplicarEnderecosCorrigidos(lista){
+  const map = _endCorrMap();
+  const reparar = [];
+  (lista||[]).forEach(p=>{
+    if(!p || !p.id) return;
+    let corr = (p.endereco_corrigido != null && String(p.endereco_corrigido).trim())
+      ? String(p.endereco_corrigido).replace(/\s+/g,' ').trim() : '';
+    const rec = map[String(p.id)];
+    if(!corr && rec && rec.novo) corr = String(rec.novo).replace(/\s+/g,' ').trim();
+    if(!corr) return;
+    const atual = String(p.cliente_endereco||'').replace(/\s+/g,' ').trim();
+    if(atual !== corr){
+      p.cliente_endereco = corr;
+      p.alterado = true;
+      if(!p.endereco_original && rec && rec.original) p.endereco_original = rec.original;
+      if(!p.endereco_corrigido) p.endereco_corrigido = corr;
+      reparar.push({ id: p.id, end: corr, original: p.endereco_original || (rec && rec.original) || '' });
+    } else {
+      if(!p.endereco_corrigido) p.endereco_corrigido = corr;
+      if(!_enderecoAlterado({alterado:p.alterado})) p.alterado = true;
+    }
+  });
+  if(reparar.length) _agendarRepararEnderecosDB(reparar);
+}
+let _repararEndTimer = null;
+let _repararEndFila = [];
+function _agendarRepararEnderecosDB(itens){
+  if(!itens || !itens.length) return;
+  // só Master regrava no banco (evita corrida de vários aparelhos)
+  if(!(usuarioLogado && usuarioLogado.isMaster)) return;
+  itens.forEach(it=>{
+    const i = _repararEndFila.findIndex(x=>x.id===it.id);
+    if(i>=0) _repararEndFila[i] = it; else _repararEndFila.push(it);
+  });
+  clearTimeout(_repararEndTimer);
+  _repararEndTimer = setTimeout(async ()=>{
+    const fila = _repararEndFila.splice(0);
+    const client = getSb();
+    if(!client || !fila.length) return;
+    for(const it of fila){
+      try{
+        const payload = {
+          cliente_endereco: it.end,
+          endereco_corrigido: it.end,
+          alterado: true
+        };
+        if(it.original) payload.endereco_original = it.original;
+        let {error} = await client.from('pedidos_entrega_dia').update(payload).eq('id', it.id);
+        if(error && /endereco_corrigido|column|schema cache/i.test(String(error.message||''))){
+          const pl2 = { cliente_endereco: it.end, alterado: true };
+          if(it.original) pl2.endereco_original = it.original;
+          const {error: e2} = await client.from('pedidos_entrega_dia').update(pl2).eq('id', it.id);
+          if(e2) console.warn('reparar endereco', it.id, e2);
+        } else if(error){
+          console.warn('reparar endereco', it.id, error);
+        }
+      }catch(e){ console.warn('reparar endereco', e); }
+    }
+  }, 1200);
+}
 /** Faixa de destaque: aceita 1 pedido ou lista (grupo). */
 function _htmlAlteradoEnd(pedOuLista){
   const lista = Array.isArray(pedOuLista) ? pedOuLista : [pedOuLista];
@@ -10041,8 +10135,11 @@ function _htmlAlteradoEnd(pedOuLista){
       if(!isNaN(d)) quando = ' · ' + d.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
     }
   }catch(e){}
+  const efetivo = enderecoEfetivo(alt);
   const ant = alt.endereco_original ? `<div class="alt-end-ant">Antes: ${_escAttrTxt(alt.endereco_original)}</div>` : '';
-  return `<div class="alt-end">✏️ ENDEREÇO NOVO — alterado${quando}${ant}</div>`;
+  const novoLinha = (efetivo && efetivo !== String(alt.endereco_original||'').replace(/\s+/g,' ').trim())
+    ? `<div style="margin-top:2px;color:#ffb066;font-weight:800">Novo: ${_escAttrTxt(efetivo)}</div>` : '';
+  return `<div class="alt-end">✏️ ENDEREÇO NOVO — alterado${quando}${novoLinha}${ant}</div>`;
 }
 
 // ===================== MASTER: EDITAR ENDEREÇO =====================
@@ -10216,6 +10313,11 @@ async function salvarEnderecoMaster(){
     payloadFull.alterado = true;
     payloadFull.endereco_alterado_em = agoraIso;
     if(enderecoOriginal) payloadFull.endereco_original = enderecoOriginal;
+    // Coluna dedicada + backup local — resiste a sync que reescreve só cliente_endereco
+    payloadFull.endereco_corrigido = novo;
+    try{
+      ids.forEach(id=>{ _endCorrSalvar(id, novo, enderecoOriginal || endAnteriorPorId[id] || ''); });
+    }catch(e){}
   }
   // Se alerta receber e forma ainda é Pago, alinha para Dinheiro só se o Master não escolheu Cartão
   try{
@@ -10232,8 +10334,12 @@ async function salvarEnderecoMaster(){
     const s1 = Object.assign({}, payloadBase);
     delete s1.alerta_bebida; delete s1.alerta_receber_valor;
     tentativas.push(s1);
+    // sem endereco_corrigido (coluna pode não existir)
+    const s1b = Object.assign({}, s1);
+    delete s1b.endereco_corrigido;
+    tentativas.push(s1b);
     // sem colunas de "alterado"
-    const s2 = Object.assign({}, s1);
+    const s2 = Object.assign({}, s1b);
     delete s2.alterado; delete s2.endereco_original; delete s2.endereco_alterado_em;
     tentativas.push(s2);
     // só endereço (+ valor/forma se houver)
@@ -10308,6 +10414,8 @@ async function salvarEnderecoMaster(){
           todosPedidos[idx].alterado = true;
           todosPedidos[idx].endereco_alterado_em = agoraIso;
           if(enderecoOriginal) todosPedidos[idx].endereco_original = enderecoOriginal;
+          todosPedidos[idx].endereco_corrigido = novo;
+          try{ _endCorrSalvar(id, novo, enderecoOriginal || ''); }catch(e){}
         }
         try{ todosPedidos[idx]._endereco_editado_master = true; }catch(e){}
       }
@@ -11933,15 +12041,29 @@ function cardGrupoPedidos(item){
   const endEsc = String(end).replace(/'/g,"\\'").replace(/"/g,'&quot;');
   const gidEsc = String(gid).replace(/'/g,"\\'");
 
-  // Lista compacta: nº do pedido + nome do cliente
-  const linhasNomes = membros.map(p=>{
+  // Lista: nº + nome + tempo restante de CADA pedido (ordenado pelo mais urgente)
+  const membrosOrd = (membros||[]).slice().sort((a,b)=>{
+    const sa = String(a.status||'').toLowerCase(), sb = String(b.status||'').toLowerCase();
+    const fa = (sa==='codigo_informado'||sa==='finalizado'||sa==='entregue') ? 1 : 0;
+    const fb = (sb==='codigo_informado'||sb==='finalizado'||sb==='entregue') ? 1 : 0;
+    if(fa !== fb) return fa - fb;
+    const da = parsePrevEntrega(a), db = parsePrevEntrega(b);
+    const ta = da ? da.getTime() : Infinity, tb = db ? db.getTime() : Infinity;
+    if(ta !== tb) return ta - tb;
+    return String(a.numero_pedido||'').localeCompare(String(b.numero_pedido||''),'pt-BR',{numeric:true});
+  });
+  const linhasNomes = membrosOrd.map(p=>{
     const okP = p.status==='codigo_informado';
     const num = String(p.numero_pedido||'—');
     const nome = String(p.cliente_nome||'—');
-    return `<div style="display:flex;align-items:baseline;gap:6px;font-size:11px;line-height:1.35">
-      <span style="font-weight:800;color:#f0c14a;flex-shrink:0">#${num}</span>
-      <span style="color:#e6e8ef;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nome.replace(/</g,'')}</span>
-      <span style="flex-shrink:0;font-size:10px">${okP?'✅':'🟡'}</span>
+    const tempoHtml = (typeof getHtmlTempoEntrega==='function') ? getHtmlTempoEntrega(p) : '';
+    return `<div style="display:flex;flex-direction:column;gap:3px;padding:4px 0;border-bottom:1px dashed #2c3340">
+      <div style="display:flex;align-items:baseline;gap:6px;font-size:11px;line-height:1.35">
+        <span style="font-weight:800;color:#f0c14a;flex-shrink:0">#${num}</span>
+        <span style="color:#e6e8ef;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nome.replace(/</g,'')}</span>
+        <span style="flex-shrink:0;font-size:10px">${okP?'✅':'🟡'}</span>
+      </div>
+      ${tempoHtml}
     </div>`;
   }).join('');
 
