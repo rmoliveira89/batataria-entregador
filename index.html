@@ -871,7 +871,7 @@ body.modo-entregador .btn-entregador-localizador{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 191026.174628</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 191026.214200</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -1113,6 +1113,13 @@ update public.pedidos_entrega_dia set recebido = 'nao' where recebido is null;
 alter table public.pedidos_entrega_dia
   add column if not exists grupo_entrega text;
 create index if not exists idx_pedidos_grupo_entrega on public.pedidos_entrega_dia (grupo_entrega);
+
+-- Endereço alterado manualmente (Master → Editar). Evita sync externo sobrescrever o endereço novo.
+alter table public.pedidos_entrega_dia
+  add column if not exists alterado boolean default false,
+  add column if not exists endereco_original text,
+  add column if not exists endereco_alterado_em timestamptz;
+create index if not exists idx_pedidos_alterado on public.pedidos_entrega_dia (alterado) where alterado is not null;
 
 -- valor_entrega + custo_bloqueado (após enviar custos, pedido fica bloqueado p/ edição/transferência/exclusão)
 alter table public.pedidos_entrega_dia
@@ -10009,7 +10016,7 @@ async function masterCriarPedido(){
 }
 
 // ===================== PEDIDO ALTERADO (endereço novo) =====================
-/** Coluna `alterado` (SIM/NÃO) em pedidos_entrega_dia. */
+/** Coluna `alterado` (boolean) em pedidos_entrega_dia. */
 function _enderecoAlterado(p){
   if(!p) return false;
   const v = p.alterado;
@@ -10176,6 +10183,27 @@ async function salvarEnderecoMaster(){
 
   const selFp = document.getElementById('editFormaPagamento');
   const formaPag = selFp ? String(selFp.value||'Pago').trim() : '';
+  // Endereço anterior de cada pedido (para marcar "alterado" e não perder no sync)
+  const endAnteriorPorId = {};
+  alvos.forEach(m=>{
+    if(m && m.id) endAnteriorPorId[m.id] = String(m.cliente_endereco||'').replace(/\s+/g,' ').trim();
+  });
+  const endMudou = alvos.some(m=>{
+    const ant = endAnteriorPorId[m.id] || '';
+    return ant !== novo;
+  });
+  // Se já tinha endereco_original, preserva; senão grava o endereço que estava antes desta edição
+  let enderecoOriginal = '';
+  try{
+    const comOrig = alvos.find(m=>m && m.endereco_original);
+    if(comOrig && String(comOrig.endereco_original||'').trim()){
+      enderecoOriginal = String(comOrig.endereco_original).trim();
+    } else {
+      enderecoOriginal = endAnteriorPorId[p.id] || (alvos[0] && endAnteriorPorId[alvos[0].id]) || '';
+    }
+  }catch(e){ enderecoOriginal = endAnteriorPorId[p.id] || ''; }
+  const agoraIso = new Date().toISOString();
+
   const payloadFull = {
     cliente_endereco: novo,
     valor: valorNum,
@@ -10183,6 +10211,12 @@ async function salvarEnderecoMaster(){
     alerta_receber_valor: alertaReceberValor || null
   };
   if(formaPag) payloadFull.forma_pagamento = formaPag;
+  // Marca endereço como alterado manualmente (evita sync externo / recarregar voltar ao endereço antigo)
+  if(endMudou){
+    payloadFull.alterado = true;
+    payloadFull.endereco_alterado_em = agoraIso;
+    if(enderecoOriginal) payloadFull.endereco_original = enderecoOriginal;
+  }
   // Se alerta receber e forma ainda é Pago, alinha para Dinheiro só se o Master não escolheu Cartão
   try{
     const fp = (payloadFull.forma_pagamento||'').toString().trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
@@ -10191,30 +10225,73 @@ async function salvarEnderecoMaster(){
     }
   }catch(e){}
 
-  try{
-    let {error} = await client.from('pedidos_entrega_dia').update(payloadFull).in('id', ids);
-    if(error){
-      // fallback sem colunas de alerta (banco ainda sem migration)
-      const msg = (error.message||'') + '';
-      if(/alerta_bebida|alerta_receber|column/i.test(msg)){
-        const payloadMin = { cliente_endereco: novo };
-        if(valorNum !== undefined) payloadMin.valor = valorNum;
-        if(payloadFull.forma_pagamento) payloadMin.forma_pagamento = payloadFull.forma_pagamento;
-        const r2 = await client.from('pedidos_entrega_dia').update(payloadMin).in('id', ids);
-        if(r2.error) throw r2.error;
-        // guarda alertas localmente para não perder na sessão
-        try{
-          const key = 'master_alertas_pedido';
-          const map = JSON.parse(localStorage.getItem(key)||'{}');
-          ids.forEach(id=>{
-            map[id] = { alerta_bebida: alertaBebida ? 'sim' : 'nao', alerta_receber_valor: alertaReceberValor || '' };
-          });
-          localStorage.setItem(key, JSON.stringify(map));
-        }catch(e){}
-        if(st){ st.textContent = '✅ Endereço/valor salvos. ⚠️ Rode o SQL das colunas alerta_bebida e alerta_receber_valor para persistir alertas no banco.'; st.style.color='#f0c14a'; }
-      } else {
+  /** Tenta update com payloads cada vez mais enxutos se o banco ainda não tem algumas colunas. */
+  async function _updateEnderecoComFallback(payloadBase){
+    const tentativas = [payloadBase];
+    // sem alertas
+    const s1 = Object.assign({}, payloadBase);
+    delete s1.alerta_bebida; delete s1.alerta_receber_valor;
+    tentativas.push(s1);
+    // sem colunas de "alterado"
+    const s2 = Object.assign({}, s1);
+    delete s2.alterado; delete s2.endereco_original; delete s2.endereco_alterado_em;
+    tentativas.push(s2);
+    // só endereço (+ valor/forma se houver)
+    const s3 = { cliente_endereco: novo };
+    if(valorNum !== undefined) s3.valor = valorNum;
+    if(payloadBase.forma_pagamento) s3.forma_pagamento = payloadBase.forma_pagamento;
+    tentativas.push(s3);
+
+    let lastErr = null;
+    for(let i=0;i<tentativas.length;i++){
+      const pl = tentativas[i];
+      const {error} = await client.from('pedidos_entrega_dia').update(pl).in('id', ids);
+      if(!error) return { ok:true, payloadUsado: pl, tentativa:i };
+      lastErr = error;
+      const msg = String(error.message||'') + ' ' + String(error.details||'') + ' ' + String(error.hint||'');
+      // só continua fallback se for coluna inexistente / schema cache
+      if(!/column|schema cache|does not exist|could not find/i.test(msg)){
         throw error;
       }
+    }
+    if(lastErr) throw lastErr;
+    return { ok:false };
+  }
+
+  try{
+    const resUp = await _updateEnderecoComFallback(payloadFull);
+    // Confirma no banco se o endereço realmente ficou gravado (evita "salvou" falso)
+    let confirmado = false;
+    try{
+      const {data: checkRows, error: checkErr} = await client.from('pedidos_entrega_dia').select('id,cliente_endereco,alterado,endereco_original,endereco_alterado_em').in('id', ids);
+      if(!checkErr && checkRows && checkRows.length){
+        confirmado = checkRows.every(r => String(r.cliente_endereco||'').replace(/\s+/g,' ').trim() === novo);
+        if(!confirmado){
+          console.warn('salvarEnderecoMaster: UPDATE sem erro mas endereço no banco ainda difere', checkRows);
+        }
+      } else {
+        // se não conseguiu ler de volta, confia no update
+        confirmado = true;
+      }
+    }catch(eCheck){
+      confirmado = true;
+    }
+    if(!confirmado){
+      throw new Error('O endereço não foi gravado no banco (UPDATE pode ter falhado por permissão RLS ou outro processo). Tente de novo.');
+    }
+    // se o banco não tem colunas de alterado, avisa
+    if(endMudou && resUp.payloadUsado && resUp.payloadUsado.alterado == null){
+      if(st){ st.textContent = '✅ Endereço salvo. ⚠️ Rode o SQL das colunas alterado / endereco_original / endereco_alterado_em para marcar "endereço novo".'; st.style.color='#f0c14a'; }
+    } else if(resUp.tentativa > 0 && (payloadFull.alerta_bebida != null) && resUp.payloadUsado && resUp.payloadUsado.alerta_bebida == null){
+      try{
+        const key = 'master_alertas_pedido';
+        const map = JSON.parse(localStorage.getItem(key)||'{}');
+        ids.forEach(id=>{
+          map[id] = { alerta_bebida: alertaBebida ? 'sim' : 'nao', alerta_receber_valor: alertaReceberValor || '' };
+        });
+        localStorage.setItem(key, JSON.stringify(map));
+      }catch(e){}
+      if(st){ st.textContent = '✅ Endereço/valor salvos. ⚠️ Rode o SQL das colunas alerta_bebida e alerta_receber_valor para persistir alertas no banco.'; st.style.color='#f0c14a'; }
     } else {
       if(st){ st.textContent = '✅ Pedido atualizado'; st.style.color='#3dcc8a'; }
     }
@@ -10227,8 +10304,24 @@ async function salvarEnderecoMaster(){
         todosPedidos[idx].alerta_bebida = alertaBebida ? 'sim' : 'nao';
         todosPedidos[idx].alerta_receber_valor = alertaReceberValor || null;
         if(payloadFull.forma_pagamento) todosPedidos[idx].forma_pagamento = payloadFull.forma_pagamento;
+        if(endMudou){
+          todosPedidos[idx].alterado = true;
+          todosPedidos[idx].endereco_alterado_em = agoraIso;
+          if(enderecoOriginal) todosPedidos[idx].endereco_original = enderecoOriginal;
+        }
         try{ todosPedidos[idx]._endereco_editado_master = true; }catch(e){}
       }
+      // também no cache de custo (Master)
+      try{
+        if(typeof _cachePedidosCustoMaster !== 'undefined' && _cachePedidosCustoMaster && _cachePedidosCustoMaster[id]){
+          _cachePedidosCustoMaster[id].cliente_endereco = novo;
+          if(endMudou){
+            _cachePedidosCustoMaster[id].alterado = true;
+            _cachePedidosCustoMaster[id].endereco_alterado_em = agoraIso;
+            if(enderecoOriginal) _cachePedidosCustoMaster[id].endereco_original = enderecoOriginal;
+          }
+        }
+      }catch(e){}
       // endereço mudou → limpa rascunho de custo p/ recalcular taxa pela nova numeração
       try{ if(typeof rascunhoCusto==='object' && rascunhoCusto) delete rascunhoCusto[id]; }catch(e){}
     });
@@ -10236,7 +10329,7 @@ async function salvarEnderecoMaster(){
     setTimeout(()=>{
       fecharModalEditarEndereco();
       try{ carregar(); }catch(e){}
-    }, 600);
+    }, 800);
   }catch(e){
     console.error('salvarEnderecoMaster', e);
     if(st){ st.textContent = '❌ '+(e.message||e); st.style.color='#ff6b6b'; }
