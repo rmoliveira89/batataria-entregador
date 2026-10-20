@@ -871,7 +871,7 @@ body.modo-entregador .btn-entregador-localizador{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 191026.214200</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 191026.224200</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -1535,7 +1535,7 @@ select '06:00','15:59','16:00','05:59','07:00','23:30',5,false where not exists 
 </div>
 
 <!-- MODAL CONFIRMAÇÃO MODO ENTREGADOR - LOCALIZADOR + IFOOD -->
-<div id="modalConfirmEntregador" class="overlay" style="display:none;z-index:250">
+<div id="modalConfirmEntregador" class="overlay" style="display:none;z-index:280">
 <div class="card" style="width:100%;max-width:440px;max-height:90vh;overflow:auto;background:#fff;color:#18181b;border:none;border-radius:24px;padding:0">
 <div style="background:#18181b;color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;border-radius:24px 24px 0 0">
 <div>
@@ -1581,7 +1581,7 @@ select '06:00','15:59','16:00','05:59','07:00','23:30',5,false where not exists 
 
 
 <!-- MODAL CONFIRMAÇÃO MODO AUTOMÁTICO - CÓDIGO 4 DÍGITOS -->
-<div id="modalConfirmAutomatico" class="overlay" style="display:none;z-index:250">
+<div id="modalConfirmAutomatico" class="overlay" style="display:none;z-index:280">
 <div class="card" style="width:100%;max-width:420px;max-height:90vh;overflow:auto">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
   <h3 style="margin:0;color:#f0c14a" id="autoModalTitulo">🔢 Informar código</h3>
@@ -10680,7 +10680,8 @@ function finalizarPedidoMaster(pedidoId){
     alert(msgCustoBloqueado(pedido));
     return;
   }
-  // Fecha o modal do Master (se estiver aberto) para o modal de confirmação ficar visível
+  // Fecha modais por baixo (grupo / master) para o de confirmação não abrir atrás
+  try{ fecharModalDetalheGrupo(); }catch(e){}
   try{ fecharModalMasterPedido(); }catch(e){}
   if(isPedidoExterno(pedido.numero_pedido)){
     return finalizarPedidoExterno(pedidoId);
@@ -12618,6 +12619,7 @@ function _finEntAtualizarUI(focar){ _atualizarUICodigoExistente(_finEntTemExiste
 function _autoAtualizarUI(focar){ _atualizarUICodigoExistente(_autoTemExistente(),'autoErradoWrap','autoCodigoErrado','autoCodigoLabel','autoModalCodigo',focar); }
 
 function abrirConfirmacaoEntregador(pedido){
+  try{ fecharModalDetalheGrupo(); }catch(e){}
   pedidoConfirmAtual = pedido;
   document.getElementById('confNumero').textContent = pedido.numero_pedido;
   document.getElementById('confNome').textContent = pedido.cliente_nome||'';
@@ -14023,6 +14025,7 @@ async function gravarFinalizacaoExternaNoSupabase({pedido, nomeEntregador}){
   }
 }
 async function finalizarPedidoExterno(id, viaModal){
+  try{ if(!viaModal) fecharModalDetalheGrupo(); }catch(e){}
   const pedido = todosPedidos.find(x=>x.id===id);
   if(!pedido){ alert('Pedido não encontrado'); return; }
   const plataforma = getLabelPlataformaExterna(pedido.numero_pedido);
@@ -14519,6 +14522,7 @@ let _confirmAutoBusy = false;
 let _confirmAutoHistoryPushed = false;
 
 function abrirConfirmacaoAutomatico(pedido, opts){
+  try{ fecharModalDetalheGrupo(); }catch(e){}
   opts = opts || {};
   if(!pedido || !pedido.id){ alert('Pedido não encontrado'); return; }
   pedidoConfirmAutoId = pedido.id;
@@ -14724,6 +14728,8 @@ async function confirmarCodigoAutomatico(){
 }
 
 async function informarCodigo(id){
+  // Fecha modal de detalhes do grupo (se aberto) para confirmação não ficar atrás
+  try{ fecharModalDetalheGrupo(); }catch(e){}
   const _pedCheck = todosPedidos.find(x=>x.id===id);
   if(_pedCheck && isPedidoCustoBloqueado(_pedCheck)){
     alert(msgCustoBloqueado(_pedCheck));
