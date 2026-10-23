@@ -888,7 +888,7 @@ body[data-aba-ent="custo"] #custoPendAntBox.pronto{display:block}
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 231026.174849</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 231026.183157</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -1025,6 +1025,18 @@ Pedidos <b>finalizados</b> em <b style="color:#ff6b6b">DINHEIRO</b> que ainda n�
 <button class="btn" style="flex:1;padding:12px" onclick="clienteEditarFechar()">✖️ Cancelar</button>
 <button class="btn primary" id="cliEdSalvar" style="flex:1;padding:12px" onclick="clienteEditarSalvar()">💾 Salvar</button>
 </div>
+</div>
+</div>
+<div id="modalConsumosSemana" class="overlay" style="display:none;z-index:285" onclick="if(event.target===this)fecharModalConsumosSemana()">
+<div class="card" style="width:100%;max-width:440px;max-height:85vh;overflow:auto">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px">
+<div style="min-width:0">
+<h3 id="consSemanaTitulo" style="margin:0;color:#f0c14a">Consumos e reembolsos</h3>
+<div id="consSemanaSub" style="font-size:11px;color:#8b93a7;margin-top:3px"></div>
+</div>
+<button class="btn" onclick="fecharModalConsumosSemana()" style="padding:6px 10px;flex:none">✕</button>
+</div>
+<div id="consSemanaCorpo"></div>
 </div>
 </div>
 <div id="cfg" class="overlay" style="display:none;z-index:200">
@@ -4210,31 +4222,14 @@ function _htmlCardSemanaCusto(info, dados){
 
   const listaCons = (consumos||[]).filter(c=>c.tipo!=='reembolso');
   const listaReemb = (consumos||[]).filter(c=>c.tipo==='reembolso');
-  let htmlCons = '';
-  if(!listaCons.length){
-    htmlCons = '<div style="font-size:11px;color:#5a657a;padding:4px 0">Nenhum consumo</div>';
-  } else {
-    htmlCons = listaCons.map(c=>
-      `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:4px 0;border-bottom:1px solid #20262f"><span style="color:#e6e8ef">${String(c.descricao||'—').replace(/</g,'')}</span><b style="color:#ff6b6b;white-space:nowrap">- ${_fmtMoedaBR(c.valor)}</b></div>`
-    ).join('');
-  }
-  let htmlReemb = '';
-  if(!listaReemb.length){
-    htmlReemb = '<div style="font-size:11px;color:#5a657a;padding:4px 0">Nenhum reembolso</div>';
-  } else {
-    htmlReemb = listaReemb.map(c=>
-      `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:4px 0;border-bottom:1px solid #20262f"><span style="color:#e6e8ef">${String(c.descricao||'—').replace(/</g,'')}</span><b style="color:#3dcc8a;white-space:nowrap">+ ${_fmtMoedaBR(c.valor)}</b></div>`
-    ).join('');
-  }
+  // Lista de consumos/reembolsos da semana → modal "Detalhes" (link dentro do quadro Consumos e Reembolsos)
+  window._fatConsSemanas = window._fatConsSemanas || {};
+  window._fatConsSemanas[seg] = { label, periodo, listaCons, listaReemb, totalConsumo, totalReembolso };
 
   const detalhe = `<details style="margin-top:8px"><summary style="font-size:11px;color:#6ab7ff;cursor:pointer;font-weight:700">Detalhes</summary>
     <div style="margin-top:8px">
       <div style="font-size:10px;color:#8b93a7;font-weight:800;margin-bottom:4px">POR DIA</div>
       ${linhasDia}
-      <div style="font-size:10px;color:#ff6b6b;font-weight:800;margin:10px 0 4px">CONSUMOS (− ${_fmtMoedaBR(totalConsumo)})</div>
-      ${htmlCons}
-      <div style="font-size:10px;color:#3dcc8a;font-weight:800;margin:10px 0 4px">REEMBOLSOS (+ ${_fmtMoedaBR(totalReembolso)})</div>
-      ${htmlReemb}
     </div>
   </details>`;
 
@@ -4267,14 +4262,20 @@ function _htmlCardSemanaCusto(info, dados){
         <div style="font-size:17px;font-weight:900;color:#3dcc8a;margin-top:2px">${_fmtMoedaBR(liquido)}</div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-      <div style="background:#0e1118;border:1px solid #5a2a2a;border-radius:10px;padding:8px;text-align:center">
-        <div style="font-size:9px;color:#8b93a7;font-weight:700">CONSUMOS</div>
-        <div style="font-size:14px;font-weight:900;color:#ff6b6b;margin-top:2px">− ${_fmtMoedaBR(totalConsumo)}</div>
+    <div style="border:1px solid #2c3340;border-radius:12px;padding:8px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:10px;color:#8b93a7;font-weight:800;letter-spacing:.04em">CONSUMOS E REEMBOLSOS</span>
+        <button type="button" onclick="abrirModalConsumosSemana('${seg}')" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;color:#6ab7ff;background:linear-gradient(180deg,#1a2a3a,#142230);border:1px solid #2a4a5a;border-radius:999px;padding:6px 12px;cursor:pointer;box-shadow:0 1px 6px rgba(106,183,255,.15)">🔍 Detalhes <span style="font-size:13px;line-height:1">›</span></button>
       </div>
-      <div style="background:#0e1118;border:1px solid #2a5a3a;border-radius:10px;padding:8px;text-align:center">
-        <div style="font-size:9px;color:#8b93a7;font-weight:700">REEMBOLSOS</div>
-        <div style="font-size:14px;font-weight:900;color:#3dcc8a;margin-top:2px">+ ${_fmtMoedaBR(totalReembolso)}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:#0e1118;border:1px solid #5a2a2a;border-radius:10px;padding:8px;text-align:center">
+          <div style="font-size:9px;color:#8b93a7;font-weight:700">CONSUMOS</div>
+          <div style="font-size:14px;font-weight:900;color:#ff6b6b;margin-top:2px">− ${_fmtMoedaBR(totalConsumo)}</div>
+        </div>
+        <div style="background:#0e1118;border:1px solid #2a5a3a;border-radius:10px;padding:8px;text-align:center">
+          <div style="font-size:9px;color:#8b93a7;font-weight:700">REEMBOLSOS</div>
+          <div style="font-size:14px;font-weight:900;color:#3dcc8a;margin-top:2px">+ ${_fmtMoedaBR(totalReembolso)}</div>
+        </div>
       </div>
     </div>
     <div style="font-size:12px;color:#8b93a7;margin-bottom:8px">🗓️ Pagamento: <b style="color:#f0c14a">${dataPag}</b></div>
@@ -4283,6 +4284,37 @@ function _htmlCardSemanaCusto(info, dados){
     ${detalhe}
     ${aviso}
   </div>`;
+}
+
+function _consEscHtml(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function abrirModalConsumosSemana(seg){
+  const d = (window._fatConsSemanas || {})[seg];
+  const modal = document.getElementById('modalConsumosSemana');
+  if(!d || !modal) return;
+  const dataBR = c => c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit'}) : '';
+  const linhas = (lista, cor, sinal, vazio)=> lista.length
+    ? lista.map(c=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12px;padding:8px 0;border-bottom:1px solid #20262f">
+        <span style="color:#e6e8ef;min-width:0">${_consEscHtml(c.descricao||'—')}${dataBR(c) ? ` <span style="color:#5a657a;font-size:10px">· ${dataBR(c)}</span>` : ''}</span>
+        <b style="color:${cor};white-space:nowrap">${sinal} ${_fmtMoedaBR(c.valor)}</b></div>`).join('')
+    : `<div style="font-size:12px;color:#5a657a;padding:8px 0">${vazio}</div>`;
+  document.getElementById('consSemanaTitulo').textContent = '🍽️ Consumos e reembolsos';
+  document.getElementById('consSemanaSub').textContent = (d.label || '') + (d.periodo ? ' · ' + d.periodo : '');
+  const cab = (titulo, total, cor, bg, borda, sinal)=>
+    `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:${bg};border:1px solid ${borda};border-radius:12px;padding:10px 12px;margin-bottom:2px">
+      <span style="font-size:12px;font-weight:900;color:${cor};letter-spacing:.04em">${titulo}</span>
+      <span style="font-size:20px;font-weight:900;color:${cor};white-space:nowrap">${sinal} ${_fmtMoedaBR(total)}</span>
+    </div>`;
+  document.getElementById('consSemanaCorpo').innerHTML =
+    cab('CONSUMOS', d.totalConsumo, '#ff6b6b', '#2a1414', '#6a2a2a', '−')
+    + linhas(d.listaCons||[], '#ff6b6b', '−', 'Nenhum consumo nesta semana')
+    + `<div style="height:14px"></div>`
+    + cab('REEMBOLSOS', d.totalReembolso, '#3dcc8a', '#0f2a1a', '#2a5a3a', '+')
+    + linhas(d.listaReemb||[], '#3dcc8a', '+', 'Nenhum reembolso nesta semana');
+  modal.style.display = 'flex';
+}
+function fecharModalConsumosSemana(){
+  const m = document.getElementById('modalConsumosSemana');
+  if(m) m.style.display = 'none';
 }
 
 let _exibirSemanaAtualCusto = false; // usuário pediu para ver a semana atual (oculta por padrão enquanto houver semana anterior)
