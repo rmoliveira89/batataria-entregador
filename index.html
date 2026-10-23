@@ -11,6 +11,10 @@
 *{box-sizing:border-box} body{margin:0;background:#0c0e12;color:#e6e8ef;font-family:Inter,system-ui,sans-serif}
 header{position:sticky;top:0;z-index:10;background:#161a22;border-bottom:1px solid #2c3340;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
 .hdr-left{display:flex;align-items:center;gap:10px;min-width:0;flex-wrap:wrap}
+/* Cabeçalho do entregador: sobe suavemente ao rolar para baixo e volta perto do topo */
+header{transition:transform .3s ease,box-shadow .3s ease;will-change:transform}
+header.hdr-oculto{transform:translateY(-100%);box-shadow:none}
+@media (prefers-reduced-motion:reduce){header{transition:none}}
 .hdr-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 @media (max-width:600px){
   header{padding:8px 10px;gap:8px}
@@ -884,7 +888,7 @@ body[data-aba-ent="custo"] #custoPendAntBox.pronto{display:block}
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 221026.221204</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 231026.104625</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -4669,6 +4673,7 @@ function setAbaEntregador(aba){
   const isMasterCheck = !!(usuarioLogado && usuarioLogado.isMaster);
   abaEntregadorAtual = aba || 'rota';
   try{ document.body.setAttribute('data-aba-ent', abaEntregadorAtual); }catch(e){}
+  try{ window.atualizarHeaderScroll && window.atualizarHeaderScroll(); }catch(e){}
   // Master: Em rota é a principal (padrão). Pedidos = visão com filtros; Custo = valores; Faturamento = cálculo.
   const btnR = document.getElementById('btnAbaRota');
   const btnP = document.getElementById('btnAbaPedidos');
@@ -15400,6 +15405,36 @@ window.addEventListener('resize', ajustarAlturaHeader);
 window.addEventListener('load', ajustarAlturaHeader);
 if(window.ResizeObserver){ try{ new ResizeObserver(ajustarAlturaHeader).observe(document.querySelector('header')); }catch(e){} }
 ajustarAlturaHeader();
+
+// ===================== CABEÇALHO QUE SOME AO ROLAR (só entregador) =====================
+// Rolando para baixo (passou de ~120px) → cabeçalho sobe suavemente e libera a tela.
+// Só volta a aparecer quando a rolagem chega perto do topo (< ~60px).
+(function(){
+  const ALTO_OCULTAR = 120, ALTO_MOSTRAR = 60;
+  let oculto = false, ultimoY = 0, pendente = false;
+  function aplicar(){
+    pendente = false;
+    const h = document.querySelector('header');
+    if(!h) return;
+    const ativo = !!(usuarioLogado && !usuarioLogado.isMaster);
+    if(!ativo){
+      if(oculto){ oculto = false; h.classList.remove('hdr-oculto'); }
+      return;
+    }
+    if(document.body.classList.contains('ifood-modal-open')) return;   // modal aberto: não mexe
+    const y = Math.max(0, window.pageYOffset || document.documentElement.scrollTop || 0);
+    if(!oculto && y > ALTO_OCULTAR && y > ultimoY){
+      oculto = true; h.classList.add('hdr-oculto');
+    }else if(oculto && y < ALTO_MOSTRAR){
+      oculto = false; h.classList.remove('hdr-oculto');
+    }
+    ultimoY = y;
+  }
+  function agendar(){ if(!pendente){ pendente = true; requestAnimationFrame(aplicar); } }
+  window.addEventListener('scroll', agendar, { passive:true });
+  window.addEventListener('resize', agendar);
+  window.atualizarHeaderScroll = aplicar;
+})();
 
 
 // ===================== ALERTAS (Master ↔ Entregadores) · tabela chamadas_app =====================
