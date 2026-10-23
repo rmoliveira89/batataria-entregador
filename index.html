@@ -435,6 +435,19 @@ body.modo-entregador .btn-entregador-localizador{
 #entregadorAbas .tab.active{flex:1 1 auto;width:auto;min-width:0;padding:0 12px}
 #entregadorAbas .tab.active .lbl{display:inline;overflow:hidden;text-overflow:ellipsis}
 #viewCustoEntregador{margin:0 0 16px}
+/* Pendências de envio de custos (semana corrente) */
+#custoPendBox{display:none;margin-bottom:10px;padding:10px;border-radius:10px;background:#1c1c12;border:1px solid #5a4a2a}
+body[data-aba-ent="custo"] #custoPendBox.pronto{display:block}
+#custoPendBox.ok{background:#0f1f15;border-color:#2a5a3a}
+#custoPendAntBox{display:none;margin-bottom:10px;padding:10px;border-radius:10px;background:#220f0f;border:1px solid #6a2a2a}
+body[data-aba-ent="custo"] #custoPendAntBox.pronto{display:block}
+.pend-chip.venc{border-color:#6a2a2a;color:#ff8a8a}
+.pend-chip.venc.sel{background:#ff8a8a;color:#0c0e12;border-color:#ff8a8a}
+.pend-sem{font-size:10px;font-weight:800;color:#ff8a8a;margin:8px 0 4px}
+.pend-chip{font-size:11px;padding:7px 10px;border-radius:999px;border:1px solid #5a4a2a;background:#0e1118;color:#f0c14a;font-weight:800;cursor:pointer;line-height:1.2}
+.pend-chip.sel{background:#f0c14a;color:#0c0e12;border-color:#f0c14a}
+.pend-dia{cursor:pointer;padding:8px 10px;border:1px solid #2c3340;border-radius:10px;margin-top:6px;background:#0e1118}
+.pend-dia.sel{border-color:#f0c14a}
 .alt-end{margin-top:4px;padding:4px 6px;border-radius:8px;background:#3a2210;border:1px solid #ff8a3d;color:#ffb066;font-size:10px;font-weight:800;line-height:1.3}
 .alt-end-ant{font-size:9px;color:#8b93a7;text-decoration:line-through;font-weight:600;margin-top:2px;word-break:break-word}
 .pedido-mini.alterado,.custo-item.alterado{border-color:#ff8a3d !important;box-shadow:0 0 0 1px #ff8a3d inset}
@@ -871,7 +884,7 @@ body.modo-entregador .btn-entregador-localizador{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 191026.232900</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 221026.220639</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -2005,6 +2018,8 @@ Remove a finalização e a reserva. O pedido volta para <b style="color:#f0c14a"
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
 <div id="tituloBuscaPedidos" style="font-size:13px;color:#6ab7ff;font-weight:900;letter-spacing:0.02em">🔍 PESQUISAR PEDIDOS</div>
 </div>
+<div id="custoPendBox"></div>
+<div id="custoPendAntBox"></div>
 <div class="input-col">
 <div style="position:relative;width:100%">
 <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px">🔍</span>
@@ -2085,11 +2100,13 @@ Após confirmar, os valores das entregas serão gravados e <b style="color:#ff6b
 <button class="btn primary small" id="btnCustoHoje" onclick="setFiltroCustoEnt('hoje')" style="font-size:11px;padding:8px 12px">Hoje</button>
 <button class="btn small" id="btnCustoOntem" onclick="setFiltroCustoEnt('ontem')" style="font-size:11px;padding:8px 12px">Ontem</button>
 <input type="date" id="inputDataCustoEnt" onchange="setFiltroCustoEnt('data')" style="width:auto;padding:8px 10px;border-radius:10px;border:1px solid #2c3340;background:#0e1118;color:#fff;font-size:12px"/>
-<button class="btn small" style="font-size:11px;padding:8px 12px" onclick="renderAbaCusto()">🔄 Atualizar</button>
+<button class="btn small" style="font-size:11px;padding:8px 12px" onclick="invalidarPendenciasCusto();(usuarioLogado&&usuarioLogado.isMaster)?renderAbaCustoMaster():renderAbaCusto()">🔄 Atualizar</button>
 </div>
 <div id="custoSugerirStatus" style="font-size:11px;color:#8b93a7;margin-bottom:8px;min-height:14px"></div>
 <div style="font-size:11px;color:#8b93a7;line-height:1.35">Escolha o valor de cada entrega. Envie <b style="color:#f0c14a">por turno</b> (Jantar ou Almoço). Após enviar um turno, só aquele fica bloqueado — o outro continua livre. Toque no cabeçalho do turno para mostrar/ocultar.</div>
 </div>
+<div id="custoPendMaster" style="display:none"></div>
+<div id="custoPendAntMaster" style="display:none"></div>
 <div id="listaCustoEntregador"></div>
 <div id="custoEntVazio" style="display:none" class="card"><div style="text-align:center;color:#8b93a7;padding:10px">Nenhum pedido neste dia</div></div>
 <div id="custoEntFooter" style="display:none;margin:12px 12px 20px">
@@ -4323,9 +4340,335 @@ function atualizarUIFiltroCustoEnt(){
   }
 }
 
+
+// ===================== PENDÊNCIAS DE ENVIO DE CUSTOS =====================
+// Regra: para cada dia e cada turno (almoço/jantar), o turno está PENDENTE quando o entregador teve ao menos
+// 1 entrega FINALIZADA naquele turno e o custo daquele turno ainda não foi enviado.
+// Turno sem entrega finalizada = entregador não trabalhou nele → não conta como pendência.
+// Dois quadros: SEMANA CORRENTE (seg → hoje) e SEMANAS ANTERIORES (últimas PEND_SEMANAS_ANTERIORES semanas, em vermelho).
+// Entregador comum vê só as próprias pendências (chips de dia na pesquisa); Master vê semana › dia › entregador › turno.
+const PEND_SEMANAS_ANTERIORES = 4;
+// Quadro de SEMANAS ANTERIORES: só mostra dias a partir desta data (início do controle).
+const PEND_DATA_INICIO = '2026-10-22';
+let _pendCustoCache = { t:0, key:'', dados:null, promessa:null };
+let _pendAntCache = { t:0, key:'', dados:null, promessa:null };
+let _pendMasterAberto = true;
+let _pendAntMasterAberto = true;
+function invalidarPendenciasCusto(){
+  _pendCustoCache = { t:0, key:'', dados:null, promessa:null };
+  _pendAntCache = { t:0, key:'', dados:null, promessa:null };
+}
+
+function _pendEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function _pendAddDias(iso, n){
+  const m = String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const d = new Date(Date.UTC(+m[1], +m[2]-1, +m[3]) + n*86400000);
+  return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
+}
+function _pendDiaCurto(iso){
+  const m = String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(!m) return String(iso||'');
+  const d = new Date(Date.UTC(+m[1], +m[2]-1, +m[3]));
+  return ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][d.getUTCDay()] + ' ' + m[3] + '/' + m[2];
+}
+function _pendDDMM(iso){ const s = String(iso||''); return s.slice(8,10)+'/'+s.slice(5,7); }
+function _pendLabTurno(t){ return t==='almoco' ? '☀️ Almoço' : '🌙 Jantar'; }
+
+async function _pendBuscarTodos(montar){
+  const out = []; const PAG = 1000;
+  for(let ini = 0; ini < 30000; ini += PAG){
+    const r = await montar(ini, ini + PAG - 1);
+    if(r.error) throw r.error;
+    const d = r.data || [];
+    out.push(...d);
+    if(d.length < PAG) break;
+  }
+  return out;
+}
+
+/** Núcleo: pendências de envio de custo no intervalo [ini, fim] (YYYY-MM-DD). */
+async function _pendCalcularIntervalo(client, ini, fim, hoje){
+  if(ini > fim) return [];
+  const isMaster = !!usuarioLogado.isMaster;
+  const nm = s => String(s||'').trim().toLowerCase();
+  const meuK = nm(usuarioLogado.lower || usuarioLogado.nome);
+  if(isMaster && !(cacheEntregadores||[]).length){ try{ await carregarEntregadoresDoBanco(); }catch(e){} }
+
+  // 1) Pedidos do intervalo
+  const pedidos = await _pendBuscarTodos((a,b)=> client.from('pedidos_entrega_dia').select('*')
+    .gte('data', ini).lte('data', fim).order('id',{ascending:true}).range(a,b));
+  // 2) Reservas (nome do entregador que pegou o pedido)
+  const mapaRes = {};
+  try{
+    const rs = await _pendBuscarTodos((a,b)=> client.from('reservas_entregadores').select('pedido_id,entregador_nome,data')
+      .gte('data', ini).lte('data', fim).order('pedido_id',{ascending:true}).range(a,b));
+    rs.forEach(r=>{ if(r.pedido_id) mapaRes[r.pedido_id] = r.entregador_nome || ''; });
+  }catch(e){ console.warn('pendências custo: reservas', e); }
+  // 3) Envios já feitos (calc_entregas)
+  const calcs = await _pendBuscarTodos((a,b)=> client.from('calc_entregas').select('id_entregador,turno,dia')
+    .gte('dia', ini).lte('dia', fim).order('id',{ascending:true}).range(a,b));
+  const enviados = new Set();
+  calcs.forEach(r=>{
+    const t = (String(r.turno||'').toLowerCase() === 'almoco') ? 'almoco' : 'jantar';
+    enviados.add(nm(r.id_entregador) + '|' + String(r.dia||'').slice(0,10) + '|' + t);
+  });
+
+  // 4) Agrupa por entregador › dia › turno
+  const agr = {};
+  (pedidos||[]).forEach(p=>{
+    if(!p || ehCancelado(p)) return;
+    const nome = String(mapaRes[p.id] || (typeof mapaReservas!=='undefined' && mapaReservas[p.id]) || p.entregador_nome || '').trim();
+    if(!nome) return;
+    const k = nm(nome);
+    if(!isMaster && k !== meuK) return;
+    const dia = String(p.data||'').slice(0,10);
+    if(!dia || dia < ini || dia > fim) return;
+    const t = getTurno(p) === 'almoco' ? 'almoco' : 'jantar';
+    const e = agr[k] = agr[k] || { nome, dias:{} };
+    const d = e.dias[dia] = e.dias[dia] || {};
+    const x = d[t] = d[t] || { fin:0, tot:0, bloq:0 };
+    x.tot++;
+    if(p.custo_bloqueado === true || String(p.custo_bloqueado).toLowerCase() === 'true') x.bloq++;
+    if(isPedidoFinalizado(p)) x.fin++;
+  });
+
+  // Hoje: só conta o almoço, e só depois que o jantar começou (o jantar do dia só vence no dia seguinte)
+  const nowMin = getHoraSP()*60 + getMinSP();
+  const jantarIni = parseTimeToMinutes(configHorarios && configHorarios.jantar_inicio);
+  const jIni = (jantarIni == null) ? 16*60 : jantarIni;
+
+  const lista = [];
+  Object.keys(agr).forEach(k=>{
+    const e = agr[k];
+    const cand = new Set([k]);
+    const cad = (cacheEntregadores||[]).find(x => nm(x.nome) === k);
+    if(cad && cad.id != null) cand.add(nm(cad.id));
+    if(!isMaster && usuarioLogado.id != null) cand.add(nm(usuarioLogado.id));
+    Object.keys(e.dias).forEach(dia=>{
+      ['almoco','jantar'].forEach(t=>{
+        const x = e.dias[dia][t];
+        if(!x || x.fin <= 0) return;                       // não trabalhou nesse turno
+        if(dia === hoje){
+          if(t === 'jantar') return;
+          if(nowMin < jIni) return;
+        }
+        const enviou = [...cand].some(id => enviados.has(id + '|' + dia + '|' + t)) || (x.tot > 0 && x.bloq === x.tot);
+        if(!enviou) lista.push({ dia, nome: e.nome, turno: t, qtd: x.fin });
+      });
+    });
+  });
+  lista.sort((a,b)=> a.dia.localeCompare(b.dia) || a.nome.localeCompare(b.nome,'pt-BR') || (a.turno === b.turno ? 0 : (a.turno === 'almoco' ? -1 : 1)));
+  return lista;
+}
+
+/** Cache + deduplicação de chamadas simultâneas. */
+async function _pendComCache(cacheRef, ttl, key, calc){
+  const c = cacheRef.get();
+  if(c.key === key && c.dados && (Date.now() - c.t) < ttl) return c.dados;
+  if(c.key === key && c.promessa) return c.promessa;
+  const promessa = calc();
+  cacheRef.set({ t:0, key, dados:null, promessa });
+  try{
+    const dados = await promessa;
+    cacheRef.set({ t:Date.now(), key, dados, promessa:null });
+    return dados;
+  }catch(e){
+    cacheRef.set({ t:0, key:'', dados:null, promessa:null });
+    throw e;
+  }
+}
+const _pendRefAtual = { get:()=>_pendCustoCache, set:v=>{ _pendCustoCache = v; } };
+const _pendRefAnt = { get:()=>_pendAntCache, set:v=>{ _pendAntCache = v; } };
+
+/** Semana corrente (seg → hoje). */
+async function calcularPendenciasCusto(){
+  const client = getSb();
+  if(!client || !usuarioLogado) return null;
+  const hoje = getHojeSP();
+  const { seg, dom } = _semanaSegDom(hoje);
+  const fim = hoje < dom ? hoje : dom;
+  const key = (usuarioLogado.isMaster?'M':'E') + '|' + String(usuarioLogado.id || usuarioLogado.nome || '') + '|' + seg;
+  return _pendComCache(_pendRefAtual, 20000, key, async()=>{
+    const lista = await _pendCalcularIntervalo(client, seg, fim, hoje);
+    return { seg, dom, fim, lista };
+  });
+}
+
+/** Semanas anteriores (as últimas PEND_SEMANAS_ANTERIORES, até o domingo passado). Cache maior: a consulta é mais pesada. */
+async function calcularPendenciasAnterioresCusto(){
+  const client = getSb();
+  if(!client || !usuarioLogado) return null;
+  const hoje = getHojeSP();
+  const { seg } = _semanaSegDom(hoje);
+  let ini = _pendAddDias(seg, -7 * PEND_SEMANAS_ANTERIORES);
+  if(ini < PEND_DATA_INICIO) ini = PEND_DATA_INICIO;   // semanas anteriores: só dias a partir do início do controle
+  const fim = _pendAddDias(seg, -1);
+  const key = (usuarioLogado.isMaster?'M':'E') + '|' + String(usuarioLogado.id || usuarioLogado.nome || '') + '|' + seg;
+  return _pendComCache(_pendRefAnt, 300000, key, async()=>{
+    const lista = await _pendCalcularIntervalo(client, ini, fim, hoje);
+    return { ini, fim, lista };
+  });
+}
+
+function irParaDiaCustoPend(dia){
+  const inp = document.getElementById('inputDataCustoEnt');
+  if(inp) inp.value = dia;
+  setFiltroCustoEnt('data');
+}
+function alternarPendMaster(){ _pendMasterAberto = !_pendMasterAberto; atualizarPendenciasCustoUI(); }
+function alternarPendAntMaster(){ _pendAntMasterAberto = !_pendAntMasterAberto; atualizarPendenciasCustoUI(); }
+
+async function atualizarPendenciasCustoUI(){
+  if(!usuarioLogado) return;
+  let atual = null, ant = null;
+  try{
+    const r = await Promise.allSettled([calcularPendenciasCusto(), calcularPendenciasAnterioresCusto()]);
+    if(r[0].status === 'fulfilled') atual = r[0].value; else console.warn('pendências de custo (semana)', r[0].reason);
+    if(r[1].status === 'fulfilled') ant = r[1].value; else console.warn('pendências de custo (anteriores)', r[1].reason);
+  }catch(e){ console.warn('pendências de custo', e); }
+  try{ _renderPendenciasCustoUI(atual); }catch(e){ console.warn('render pendências custo', e); }
+  try{ _renderPendenciasAnterioresUI(ant); }catch(e){ console.warn('render pendências anteriores', e); }
+}
+
+function _renderPendenciasCustoUI(dados){
+  const isMaster = !!(usuarioLogado && usuarioLogado.isMaster);
+  const boxE = document.getElementById('custoPendBox');
+  const boxM = document.getElementById('custoPendMaster');
+  if(!dados){
+    if(boxE){ boxE.className = ''; boxE.innerHTML = ''; }
+    if(boxM){ boxM.style.display = 'none'; boxM.innerHTML = ''; }
+    return;
+  }
+  const periodo = _pendDDMM(dados.seg) + ' a ' + _pendDDMM(dados.dom);
+  const selDia = getDataFiltroCustoEnt();
+  const porDia = {};
+  dados.lista.forEach(it=>{ (porDia[it.dia] = porDia[it.dia] || []).push(it); });
+  const dias = Object.keys(porDia).sort();
+
+  if(!isMaster){
+    if(boxM){ boxM.style.display = 'none'; boxM.innerHTML = ''; }
+    if(!boxE) return;
+    if(!dias.length){
+      boxE.className = 'pronto ok';
+      boxE.innerHTML = `<div style="font-size:11px;font-weight:900;color:#3dcc8a">✅ Nenhum envio pendente na semana (${periodo})</div>`;
+      return;
+    }
+    let h = `<div style="font-size:11px;font-weight:900;color:#f0c14a;margin-bottom:4px">⚠️ DIAS COM ENVIO PENDENTE · semana ${periodo}</div>
+      <div style="font-size:10px;color:#8b93a7;margin-bottom:8px;line-height:1.35">Toque no dia para abrir e enviar os custos do turno que falta.</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">`;
+    dias.forEach(dia=>{
+      const turnos = porDia[dia].map(it => _pendLabTurno(it.turno)).join(' · ');
+      h += `<button type="button" class="pend-chip${dia === selDia ? ' sel' : ''}" onclick="irParaDiaCustoPend('${dia}')">${_pendEsc(_pendDiaCurto(dia))} · ${turnos}</button>`;
+    });
+    h += `</div>`;
+    boxE.className = 'pronto';
+    boxE.innerHTML = h;
+    return;
+  }
+
+  if(boxE){ boxE.className = ''; boxE.innerHTML = ''; }
+  if(!boxM) return;
+  boxM.style.display = 'block';
+  const total = dados.lista.length;
+  let h = `<div class="card" style="margin:0 12px 10px;${total ? 'border-color:#5a4a2a' : 'border-color:#2a5a3a'}">
+    <div onclick="alternarPendMaster()" style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;flex-wrap:wrap">
+      <div style="font-size:12px;font-weight:900;color:${total ? '#f0c14a' : '#3dcc8a'}">${total ? '⚠️ ENVIOS PENDENTES DA SEMANA' : '✅ ENVIOS DA SEMANA EM DIA'} <span style="font-size:10px;color:#8b93a7;font-weight:700">· ${periodo}</span></div>
+      <span style="font-size:10px;color:#8b93a7">${total ? (total + ' turno(s) · ' + (_pendMasterAberto ? '👁️ Ocultar' : '🙈 Mostrar')) : ''}</span>
+    </div>`;
+  if(total && _pendMasterAberto){
+    h += `<div style="font-size:10px;color:#8b93a7;margin-top:6px;line-height:1.35">Entregadores com entrega finalizada no turno e custo ainda não enviado. Toque no dia para conferir.</div>`;
+    dias.forEach(dia=>{
+      const porEnt = {};
+      porDia[dia].forEach(it=>{ (porEnt[it.nome] = porEnt[it.nome] || []).push(it); });
+      h += `<div class="pend-dia${dia === selDia ? ' sel' : ''}" onclick="irParaDiaCustoPend('${dia}')">
+        <div style="font-weight:800;color:#f0c14a;font-size:12px">${_pendEsc(_pendDiaCurto(dia))}</div>`;
+      Object.keys(porEnt).sort((a,b)=>a.localeCompare(b,'pt-BR')).forEach(nome=>{
+        const ts = porEnt[nome].map(it => _pendLabTurno(it.turno) + ' (' + it.qtd + ' ent.)').join(' · ');
+        h += `<div style="font-size:11px;color:#e6e8ef;margin-top:4px">🛵 <b>${_pendEsc(nome)}</b> — ${ts}</div>`;
+      });
+      h += `</div>`;
+    });
+  }
+  h += `</div>`;
+  boxM.innerHTML = h;
+}
+
+/** Quadro vermelho: pendências de semanas anteriores (só aparece se houver). */
+function _renderPendenciasAnterioresUI(dados){
+  const isMaster = !!(usuarioLogado && usuarioLogado.isMaster);
+  const boxE = document.getElementById('custoPendAntBox');
+  const boxM = document.getElementById('custoPendAntMaster');
+  const limpar = ()=>{
+    if(boxE){ boxE.className = ''; boxE.innerHTML = ''; }
+    if(boxM){ boxM.style.display = 'none'; boxM.innerHTML = ''; }
+  };
+  if(!dados || !dados.lista.length){ limpar(); return; }
+  const selDia = getDataFiltroCustoEnt();
+
+  // semana (segunda) › dia › itens
+  const porSem = {};
+  dados.lista.forEach(it=>{
+    const s = _semanaSegDom(it.dia);
+    const w = porSem[s.seg] = porSem[s.seg] || { seg:s.seg, dom:s.dom, dias:{} };
+    (w.dias[it.dia] = w.dias[it.dia] || []).push(it);
+  });
+  const sems = Object.keys(porSem).sort().reverse();                // mais recente primeiro
+  const labSem = w => 'Semana ' + _numSemanaISO(w.seg) + ' · ' + _pendDDMM(w.seg) + ' a ' + _pendDDMM(w.dom);
+  const total = dados.lista.length;
+
+  if(!isMaster){
+    if(boxM){ boxM.style.display = 'none'; boxM.innerHTML = ''; }
+    if(!boxE) return;
+    let h = `<div style="font-size:11px;font-weight:900;color:#ff8a8a;margin-bottom:4px">🚨 PENDÊNCIAS DE SEMANAS ANTERIORES · ${total} turno(s)</div>
+      <div style="font-size:10px;color:#8b93a7;line-height:1.35">Toque no dia para abrir e enviar o custo que ficou para trás.</div>`;
+    sems.forEach(sk=>{
+      const w = porSem[sk];
+      h += `<div class="pend-sem">${_pendEsc(labSem(w))}</div><div style="display:flex;gap:6px;flex-wrap:wrap">`;
+      Object.keys(w.dias).sort().forEach(dia=>{
+        const turnos = w.dias[dia].map(it => _pendLabTurno(it.turno)).join(' · ');
+        h += `<button type="button" class="pend-chip venc${dia === selDia ? ' sel' : ''}" onclick="irParaDiaCustoPend('${dia}')">${_pendEsc(_pendDiaCurto(dia))} · ${turnos}</button>`;
+      });
+      h += `</div>`;
+    });
+    boxE.className = 'pronto';
+    boxE.innerHTML = h;
+    return;
+  }
+
+  if(boxE){ boxE.className = ''; boxE.innerHTML = ''; }
+  if(!boxM) return;
+  boxM.style.display = 'block';
+  let h = `<div class="card" style="margin:0 12px 10px;border-color:#6a2a2a">
+    <div onclick="alternarPendAntMaster()" style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;flex-wrap:wrap">
+      <div style="font-size:12px;font-weight:900;color:#ff8a8a">🚨 PENDÊNCIAS DE SEMANAS ANTERIORES <span style="font-size:10px;color:#8b93a7;font-weight:700">· ${_pendDDMM(dados.ini)} a ${_pendDDMM(dados.fim)}</span></div>
+      <span style="font-size:10px;color:#8b93a7">${total} turno(s) · ${_pendAntMasterAberto ? '👁️ Ocultar' : '🙈 Mostrar'}</span>
+    </div>`;
+  if(_pendAntMasterAberto){
+    h += `<div style="font-size:10px;color:#8b93a7;margin-top:6px;line-height:1.35">Custos que ficaram sem envio em semanas já encerradas. Toque no dia para conferir/reabrir.</div>`;
+    sems.forEach(sk=>{
+      const w = porSem[sk];
+      h += `<div class="pend-sem">${_pendEsc(labSem(w))}</div>`;
+      Object.keys(w.dias).sort().forEach(dia=>{
+        const porEnt = {};
+        w.dias[dia].forEach(it=>{ (porEnt[it.nome] = porEnt[it.nome] || []).push(it); });
+        h += `<div class="pend-dia${dia === selDia ? ' sel' : ''}" style="border-color:#4a2222" onclick="irParaDiaCustoPend('${dia}')">
+          <div style="font-weight:800;color:#ff8a8a;font-size:12px">${_pendEsc(_pendDiaCurto(dia))}</div>`;
+        Object.keys(porEnt).sort((a,b)=>a.localeCompare(b,'pt-BR')).forEach(nome=>{
+          const ts = porEnt[nome].map(it => _pendLabTurno(it.turno) + ' (' + it.qtd + ' ent.)').join(' · ');
+          h += `<div style="font-size:11px;color:#e6e8ef;margin-top:4px">🛵 <b>${_pendEsc(nome)}</b> — ${ts}</div>`;
+        });
+        h += `</div>`;
+      });
+    });
+  }
+  h += `</div>`;
+  boxM.innerHTML = h;
+}
+
 function setAbaEntregador(aba){
   const isMasterCheck = !!(usuarioLogado && usuarioLogado.isMaster);
   abaEntregadorAtual = aba || 'rota';
+  try{ document.body.setAttribute('data-aba-ent', abaEntregadorAtual); }catch(e){}
   // Master: Em rota é a principal (padrão). Pedidos = visão com filtros; Custo = valores; Faturamento = cálculo.
   const btnR = document.getElementById('btnAbaRota');
   const btnP = document.getElementById('btnAbaPedidos');
@@ -4956,6 +5299,7 @@ async function executarReabrirCustoDia(){
     setTimeout(()=>{
       fecharModalReabrirCustoDia();
       try{
+        invalidarPendenciasCusto();
         if(usuarioLogado && usuarioLogado.isMaster) renderAbaCustoMaster();
         else renderAbaCusto();
       }catch(e){}
@@ -5246,6 +5590,7 @@ async function renderAbaCustoMaster(){
   const footer = document.getElementById('custoEntFooter');
   if(footer) footer.style.display = 'none';
   if(!listaEl) return;
+  try{ atualizarPendenciasCustoUI(); }catch(e){}   // pendências de envio da semana (Master)
 
   const tit = document.getElementById('tituloAbaCusto');
   if(tit) tit.textContent = '💵 CONFERIR CUSTOS (Master)';
@@ -5421,6 +5766,7 @@ async function renderAbaCusto(){
   const vazioEl = document.getElementById('custoEntVazio');
   const footer = document.getElementById('custoEntFooter');
   if(!listaEl) return;
+  try{ atualizarPendenciasCustoUI(); }catch(e){}   // pendências de envio da semana (filtro na pesquisa)
 
   if(!cacheOpcoesCusto.length){
     await carregarOpcoesCusto();
@@ -6126,6 +6472,7 @@ function _listaEnvioCusto(t){
   return getPedidosAbaCusto().filter(p => getTurno(p) === t);
 }
 function _rerenderCustoAposEnvio(){
+  try{ invalidarPendenciasCusto(); }catch(e){}
   try{
     if(usuarioLogado && usuarioLogado.isMaster) renderAbaCustoMaster(); else renderAbaCusto();
   }catch(e){}
