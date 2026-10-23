@@ -888,7 +888,7 @@ body[data-aba-ent="custo"] #custoPendAntBox.pronto{display:block}
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 231026.104625</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 231026.174849</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -1004,6 +1004,27 @@ Pedidos <b>finalizados</b> em <b style="color:#ff6b6b">DINHEIRO</b> que ainda n�
 <button class="btn primary" style="width:100%" onclick="verificarSenhaCfg()">Abrir</button>
 <button class="btn" style="width:100%;margin-top:8px" onclick="document.getElementById('cfgPass').style.display='none'">Cancelar</button>
 <div id="cfgPassErro" style="color:#ff6b6b;font-size:11px;margin-top:8px;text-align:center"></div>
+</div>
+</div>
+<div id="modalEditarCliente" class="overlay" style="display:none;z-index:285">
+<div class="card" style="width:100%;max-width:440px;max-height:90vh;overflow:auto">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+<h3 style="margin:0;color:#f0c14a">✏️ Editar cliente</h3>
+<button class="btn" onclick="clienteEditarFechar()" style="padding:6px 10px">✕</button>
+</div>
+<label style="font-size:11px;color:#8b93a7">Nome</label>
+<input id="cliEdNome" style="width:100%;margin-bottom:10px" autocomplete="off"/>
+<label style="font-size:11px;color:#8b93a7">Endereço</label>
+<input id="cliEdEnd" style="width:100%;margin-bottom:10px" autocomplete="off"/>
+<label style="font-size:11px;color:#8b93a7">Código de entrega (4 dígitos)</label>
+<input id="cliEdCod" inputmode="numeric" maxlength="4" placeholder="sem código" style="width:100%;margin-bottom:6px;font-size:20px;font-weight:800;letter-spacing:.2em" autocomplete="off" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"/>
+<div style="font-size:10px;color:#8b93a7;line-height:1.4;margin-bottom:10px">Para <b style="color:#ff8a8a">excluir o código</b> use o botão abaixo: o cliente fica sem código e, na próxima entrega, o entregador será solicitado a informar de novo.</div>
+<div id="cliEdStatus" style="font-size:11px;text-align:center;margin-bottom:10px;min-height:16px;color:#8b93a7"></div>
+<button class="btn" id="cliEdExcluir" style="width:100%;padding:12px;margin-bottom:8px;background:#2a1414;border-color:#6a2a2a;color:#ff8a8a" onclick="clienteEditarExcluirCodigo()">🗑️ Excluir código</button>
+<div style="display:flex;gap:8px">
+<button class="btn" style="flex:1;padding:12px" onclick="clienteEditarFechar()">✖️ Cancelar</button>
+<button class="btn primary" id="cliEdSalvar" style="flex:1;padding:12px" onclick="clienteEditarSalvar()">💾 Salvar</button>
+</div>
 </div>
 </div>
 <div id="cfg" class="overlay" style="display:none;z-index:200">
@@ -3333,13 +3354,178 @@ function clientesRender(){
           + '<div style="font-weight:700;font-size:13px;color:#e6e8ef;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+_escAttrTxt(c.nome)+'</div>'
           + '<div style="font-size:11px;color:#8b93a7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📍 '+_escAttrTxt(c.end||'sem endereço registrado')+'</div>'
           + '<div style="font-size:10px;color:#5a657a">atualizado em '+data+'</div>'
-          + '</div>'+codHtml+'</div>';
+          + '</div>'+codHtml
+          + '<button class="btn" style="flex:none;padding:6px 10px" title="Editar cliente" onclick="clienteEditarAbrir('+_cliTodos.indexOf(c)+')">✏️</button></div>';
       }).join('');
     }
   }
   if(info) info.textContent = 'Página ' + _cliPagina + ' de ' + total;
   if(prev) prev.disabled = _cliPagina <= 1;
   if(next) next.disabled = _cliPagina >= total;
+}
+
+
+// ----- Editar cliente (individual) + excluir código -----
+let _cliEditItem = null, _cliEditBusy = false;
+function _cliEdStatus(msg, cor){ const e = document.getElementById('cliEdStatus'); if(e){ e.textContent = msg||''; e.style.color = cor||'#8b93a7'; } }
+function _cliEdBloquear(b){
+  _cliEditBusy = !!b;
+  ['cliEdSalvar','cliEdExcluir'].forEach(id=>{ const e = document.getElementById(id); if(e) e.disabled = !!b; });
+}
+function clienteEditarAbrir(i){
+  const c = _cliTodos[i];
+  if(!c || !usuarioLogado?.isMaster) return;
+  _cliEditItem = c;
+  document.getElementById('cliEdNome').value = c.nome || '';
+  document.getElementById('cliEdEnd').value = c.end || '';
+  document.getElementById('cliEdCod').value = c.cod || '';
+  _cliEdBloquear(false);
+  _cliEdStatus(c.errado ? 'Código atual marcado como errado (cliente sem código).' : '');
+  document.getElementById('modalEditarCliente').style.display = 'flex';
+}
+function clienteEditarFechar(){
+  if(_cliEditBusy) return;
+  document.getElementById('modalEditarCliente').style.display = 'none';
+  _cliEditItem = null;
+}
+
+/** Registros (confirmações e pedidos com código) que pertencem a este cliente (nome + endereço). */
+async function _cliBuscarRegistros(client, item){
+  const alvo = _normNomeCliente(item.nome);
+  const pat = _padraoIlikeNome(item.nome);
+  const temHomonimo = _cliTodos.some(c=> c!==item && _normNomeCliente(c.nome) === alvo);
+  const casa = (r)=>{
+    if(_normNomeCliente(r.cliente_nome) !== alvo) return false;
+    const e = r.cliente_endereco || '';
+    if(!item.end) return !e;
+    if(!e) return !temHomonimo;
+    return _mesmoEnderecoCliente(item.end, e);
+  };
+  let conf;
+  try{
+    conf = await _cliLerTudo(()=> client.from('confirmacoes_entregas').select('id,cliente_nome,cliente_endereco,codigo_cliente,modo').ilike('cliente_nome', pat).order('id'));
+  }catch(e){
+    conf = await _cliLerTudo(()=> client.from('confirmacoes_entregas').select('id,cliente_nome,codigo_cliente,modo').ilike('cliente_nome', pat).order('id'));
+  }
+  const ped = await _cliLerTudo(()=> client.from('pedidos_entrega_dia').select('id,cliente_nome,cliente_endereco,codigo_cliente,status')
+    .ilike('cliente_nome', pat).not('codigo_cliente','is',null).order('id'));
+  return { conf: conf.filter(casa), ped: ped.filter(casa) };
+}
+async function _cliAtualizarLote(client, tabela, ids, campos){
+  for(let i=0; i<ids.length; i+=100){
+    const {error} = await client.from(tabela).update(campos).in('id', ids.slice(i, i+100));
+    if(error) throw error;
+  }
+}
+async function _cliInserirConfirmacao(client, {codigo, modo, nome, end}){
+  const {data: dataSep, hora: horaSep} = getDataHoraSPSeparados();
+  const payload = {
+    numero_pedido: 'EDICAO-MASTER', codigo_cliente: codigo || null, localizador: null,
+    nome_entregador: 'Master', data: dataSep, hora: horaSep, modo,
+    cliente_nome: nome, cliente_endereco: end || null, loja: null
+  };
+  let {error} = await client.from('confirmacoes_entregas').insert(payload);
+  if(error){
+    const {cliente_endereco:_ce, ...semEnd} = payload;   // coluna cliente_endereco pode não existir
+    ({error} = await client.from('confirmacoes_entregas').insert(semEnd));
+  }
+  if(error) throw error;
+}
+/** Pedidos AINDA NÃO finalizados do cliente que já carregam um código: trocam para o novo (ou 0000 = sem código). */
+async function _cliAjustarPedidosAbertos(client, regs, novoCod){
+  const ids = regs.ped.filter(r=> !isPedidoFinalizado(r) && codigoClienteOferecer(r.codigo_cliente)).map(r=>r.id);
+  if(!ids.length) return;
+  await _cliAtualizarLote(client, 'pedidos_entrega_dia', ids, { codigo_cliente: novoCod || '0000' });
+  (todosPedidos||[]).forEach(p=>{ if(ids.includes(p.id)) p.codigo_cliente = novoCod || '0000'; });
+}
+/** Zera o código: marcador "codigo_errado" mais recente → o sistema para de sugerir e o entregador informa de novo. */
+async function _cliCodigoExcluir(client, item, regs){
+  await _cliInserirConfirmacao(client, { codigo:'0000', modo:'codigo_errado', nome:item.nome, end:item.end });
+  await _cliAjustarPedidosAbertos(client, regs, '');
+  item.cod = ''; item.errado = true; item.ts = Date.now();
+}
+async function _cliCodigoDefinir(client, item, regs, cod){
+  await _cliInserirConfirmacao(client, { codigo:cod, modo:'edicao_master', nome:item.nome, end:item.end });
+  await _cliAjustarPedidosAbertos(client, regs, cod);
+  item.cod = cod; item.errado = false; item.ts = Date.now();
+}
+function _cliReordenar(){
+  _cliTodos.sort((a,b)=> a.nome.localeCompare(b.nome,'pt-BR',{sensitivity:'base'}) || (a.end||'').localeCompare(b.end||'','pt-BR'));
+}
+
+async function clienteEditarExcluirCodigo(){
+  if(_cliEditBusy || !_cliEditItem || !usuarioLogado?.isMaster) return;
+  const item = _cliEditItem;
+  if(!item.cod){ _cliEdStatus('Este cliente já está sem código.', '#f0c14a'); return; }
+  if(!confirm('Excluir o código ' + item.cod + ' de "' + item.nome + '"?\n\nNa próxima entrega o entregador precisará informar o código novamente.')) return;
+  const client = getSb();
+  if(!client){ _cliEdStatus('Supabase não configurado', '#ff6b6b'); return; }
+  _cliEdBloquear(true); _cliEdStatus('Excluindo código...', '#f0c14a');
+  try{
+    const regs = await _cliBuscarRegistros(client, item);
+    await _cliCodigoExcluir(client, item, regs);
+    _limparCacheCodigosHist();
+    document.getElementById('cliEdCod').value = '';
+    _cliEdBloquear(false);
+    clienteEditarFechar();
+    clientesAplicarFiltro(false);
+  }catch(e){
+    console.warn('clienteEditarExcluirCodigo', e);
+    _cliEdBloquear(false);
+    _cliEdStatus('❌ ' + (e.message || e), '#ff6b6b');
+  }
+}
+
+async function clienteEditarSalvar(){
+  if(_cliEditBusy || !_cliEditItem || !usuarioLogado?.isMaster) return;
+  const item = _cliEditItem;
+  const limpa = v => String(v||'').replace(/\s+/g,' ').trim();
+  const nome = limpa(document.getElementById('cliEdNome').value);
+  const end = limpa(document.getElementById('cliEdEnd').value);
+  const codIn = String(document.getElementById('cliEdCod').value||'').replace(/\D/g,'');
+  if(!nome){ _cliEdStatus('Informe o nome do cliente.', '#ff6b6b'); return; }
+  if(codIn && (codIn.length !== 4 || codIn === '0000')){ _cliEdStatus('O código deve ter 4 dígitos (diferente de 0000).', '#ff6b6b'); return; }
+  const mudouNome = nome !== item.nome, mudouEnd = end !== (item.end||'');
+  const mudouCod = codIn !== (item.cod||'');
+  if(!mudouNome && !mudouEnd && !mudouCod){ clienteEditarFechar(); return; }
+  const client = getSb();
+  if(!client){ _cliEdStatus('Supabase não configurado', '#ff6b6b'); return; }
+  _cliEdBloquear(true); _cliEdStatus('Salvando...', '#f0c14a');
+  try{
+    const regs = await _cliBuscarRegistros(client, item);
+    if(mudouNome || mudouEnd){
+      const n = regs.conf.length + regs.ped.length;
+      if(n && !confirm('Atualizar nome/endereço em ' + n + ' registro(s) do histórico deste cliente?')){
+        _cliEdBloquear(false); _cliEdStatus(''); return;
+      }
+      const campos = {};
+      if(mudouNome) campos.cliente_nome = nome;
+      if(mudouEnd) campos.cliente_endereco = end || null;
+      const idsConf = regs.conf.map(r=>r.id), idsPed = regs.ped.map(r=>r.id);
+      if(idsPed.length) await _cliAtualizarLote(client, 'pedidos_entrega_dia', idsPed, campos);
+      if(idsConf.length){
+        try{ await _cliAtualizarLote(client, 'confirmacoes_entregas', idsConf, campos); }
+        catch(e){
+          if(!mudouNome) throw e;                           // coluna cliente_endereco ausente: só o nome
+          await _cliAtualizarLote(client, 'confirmacoes_entregas', idsConf, { cliente_nome: nome });
+        }
+      }
+      item.nome = nome; item.end = end;
+    }
+    if(mudouCod){
+      if(codIn) await _cliCodigoDefinir(client, item, regs, codIn);
+      else if(item.cod) await _cliCodigoExcluir(client, item, regs);
+    }
+    _limparCacheCodigosHist();
+    _cliReordenar();
+    _cliEdBloquear(false);
+    clienteEditarFechar();
+    clientesAplicarFiltro(false);
+  }catch(e){
+    console.warn('clienteEditarSalvar', e);
+    _cliEdBloquear(false);
+    _cliEdStatus('❌ ' + (e.message || e), '#ff6b6b');
+  }
 }
 
 // ===================== ENDEREÇOS / VALOR POR RUA (Master) — tabela config_ruas_custo =====================
