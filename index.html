@@ -910,17 +910,17 @@ body[data-aba-ent="custo"] #custoPendAntBox.pronto{display:block}
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
-<div id="hdrEleicao" class="hdr-eleicao" title="Apuração oficial TSE · 2º turno Presidente" aria-label="Apuração TSE">
+<div id="hdrEleicao" class="hdr-eleicao" title="Apuração oficial TSE · toque para atualizar" aria-label="Apuração TSE">
   <div class="he-item lider" id="heCand1">
-    <img id="heFoto1" src="https://resultados.tse.jus.br/oficial/ele2026/6258/fotos/br/280002551544.jpeg" alt="Flávio Bolsonaro" width="22" height="22" loading="eager"/>
-    <span class="he-pct" id="hePct1">50,51%</span>
+    <img id="heFoto1" src="https://resultados.tse.jus.br/oficial/ele2026/6258/fotos/br/280002551544.jpeg" alt="FLAVIO BOLSONARO" width="22" height="22" loading="eager"/>
+    <span class="he-pct" id="hePct1">50,33%</span>
   </div>
   <span class="he-sep">×</span>
   <div class="he-item" id="heCand2">
-    <img id="heFoto2" src="https://resultados.tse.jus.br/oficial/ele2026/6258/fotos/br/280002542548.jpeg" alt="Lula" width="22" height="22" loading="eager"/>
-    <span class="he-pct" id="hePct2">49,49%</span>
+    <img id="heFoto2" src="https://resultados.tse.jus.br/oficial/ele2026/6258/fotos/br/280002542548.jpeg" alt="LULA" width="22" height="22" loading="eager"/>
+    <span class="he-pct" id="hePct2">49,67%</span>
   </div>
-  <span class="he-meta" id="heMeta">24,69%</span>
+  <span class="he-meta" id="heMeta">36,22%</span>
 </div>
 <div class="hdr-actions">
 <button type="button" class="btn" id="btnToggleChuva" onclick="toggleModoChuvaHeader()" style="display:none;font-size:11px;padding:6px 10px;align-items:center;gap:6px;background:#1c1c12;border-color:#5a4a2a;color:#f0c14a" title="Ligar/desligar modo Chuva">
@@ -16350,163 +16350,121 @@ async function reativarCancelado(id){
 })();
 
 // ===================== APURAÇÃO TSE =====================
-// Fonte oficial: resultados.tse.jus.br (ele 6258 · Presidente · BR)
-const TSE_PRES_URL = 'https://resultados.tse.jus.br/oficial/ele2026/6258/dados/br/br-c0001-e006258-u.json';
-const TSE_FOTO_BASE = 'https://resultados.tse.jus.br/oficial/ele2026/6258/fotos/br/';
-const TSE_INTERVALO_MS = 15000;
-let _tseTimer = null;
-let _tseBuscando = false;
+(function(){
+  var URL = 'https://resultados.tse.jus.br/oficial/ele2026/6258/dados/br/br-c0001-e006258-u.json';
+  var FOTO = 'https://resultados.tse.jus.br/oficial/ele2026/6258/fotos/br/';
+  var timer = null;
+  var busy = false;
 
-function _tseFmtPct(pvap){
-  if(pvap == null || pvap === '') return '—';
-  var n = typeof pvap === 'number' ? pvap : parseFloat(String(pvap).replace(',', '.'));
-  if(!isFinite(n)) return '—';
-  return n.toFixed(2).replace('.', ',') + '%';
-}
-function _tseExtrairCandidatos(data){
-  var lista = [];
-  try{
-    var carg = (data && data.carg && data.carg[0]) || null;
-    if(!carg || !carg.agr) return lista;
-    for(var i=0;i<(carg.agr||[]).length;i++){
-      var agr = carg.agr[i];
-      for(var j=0;j<(agr.par||[]).length;j++){
-        var par = agr.par[j];
-        for(var k=0;k<(par.cand||[]).length;k++){
-          var c = par.cand[k];
-          lista.push({
-            nome: c.nmu || c.nm || '',
-            numero: String(c.n || ''),
-            partido: par.sg || '',
-            pct: c.pvap,
-            pctn: parseFloat(String(c.pvapn || c.pvap || '0').replace(',', '.')) || 0,
-            sqcand: String(c.sqcand || ''),
-            votos: parseInt(c.vap, 10) || 0
+  function fmt(pvap){
+    if(pvap == null || pvap === '') return '—';
+    var n = typeof pvap === 'number' ? pvap : parseFloat(String(pvap).replace(',', '.'));
+    if(!isFinite(n)) return '—';
+    return n.toFixed(2).replace('.', ',') + '%';
+  }
+  function extrair(data){
+    var lista = [];
+    try{
+      var carg = data && data.carg && data.carg[0];
+      if(!carg) return lista;
+      (carg.agr||[]).forEach(function(agr){
+        (agr.par||[]).forEach(function(par){
+          (par.cand||[]).forEach(function(c){
+            lista.push({
+              nome: c.nmu || c.nm || '',
+              partido: par.sg || '',
+              pct: c.pvap,
+              pctn: parseFloat(String(c.pvapn || c.pvap || '0').replace(',', '.')) || 0,
+              sqcand: String(c.sqcand || ''),
+              votos: parseInt(c.vap, 10) || 0
+            });
           });
-        }
+        });
+      });
+    }catch(e){}
+    lista.sort(function(a,b){ return b.pctn - a.pctn; });
+    return lista;
+  }
+  function aplicar(cands, meta){
+    if(!cands || cands.length < 2) return;
+    var a = cands[0], b = cands[1];
+    var pct1 = document.getElementById('hePct1');
+    var pct2 = document.getElementById('hePct2');
+    var foto1 = document.getElementById('heFoto1');
+    var foto2 = document.getElementById('heFoto2');
+    var el1 = document.getElementById('heCand1');
+    var el2 = document.getElementById('heCand2');
+    var metaEl = document.getElementById('heMeta');
+    if(pct1) pct1.textContent = fmt(a.pct != null ? a.pct : a.pctn);
+    if(pct2) pct2.textContent = fmt(b.pct != null ? b.pct : b.pctn);
+    if(el1){ el1.classList.add('lider'); el1.title = (a.nome||'') + ' · ' + (a.partido||''); }
+    if(el2){ el2.classList.remove('lider'); el2.title = (b.nome||'') + ' · ' + (b.partido||''); }
+    if(foto1 && a.sqcand){ foto1.src = FOTO + a.sqcand + '.jpeg'; foto1.alt = a.nome||''; }
+    if(foto2 && b.sqcand){ foto2.src = FOTO + b.sqcand + '.jpeg'; foto2.alt = b.nome||''; }
+    if(metaEl){
+      var pst = (meta && meta.pst) ? String(meta.pst) : '';
+      if(pst && pst.indexOf('%') < 0){
+        var pn = parseFloat(pst.replace(',', '.'));
+        pst = isFinite(pn) ? pn.toFixed(2).replace('.', ',') + '%' : pst + '%';
       }
+      metaEl.textContent = pst || 'TSE';
+      metaEl.title = (meta && meta.ht) ? ('Urnas ' + (pst||'—') + ' · ' + (meta.dt||'') + ' ' + meta.ht) : 'TSE';
     }
-  }catch(e){}
-  lista.sort(function(a,b){ return b.pctn - a.pctn; });
-  return lista;
-}
-function _tseAplicarUI(cands, meta){
-  var el1 = document.getElementById('heCand1');
-  var el2 = document.getElementById('heCand2');
-  var pct1 = document.getElementById('hePct1');
-  var pct2 = document.getElementById('hePct2');
-  var foto1 = document.getElementById('heFoto1');
-  var foto2 = document.getElementById('heFoto2');
-  var heMeta = document.getElementById('heMeta');
-  if(!cands || cands.length < 2) return;
-  // cands já vem ordenado por % desc → [0] é o líder
-  var a = cands[0], b = cands[1];
-  if(pct1) pct1.textContent = _tseFmtPct(a.pct != null ? a.pct : a.pctn);
-  if(pct2) pct2.textContent = _tseFmtPct(b.pct != null ? b.pct : b.pctn);
-  if(el1){
-    el1.classList.add('lider');
-    el1.title = (a.nome||'') + ' (' + (a.partido||'') + ') · ' + (a.votos ? a.votos.toLocaleString('pt-BR') + ' votos' : '');
   }
-  if(el2){
-    el2.classList.remove('lider');
-    el2.title = (b.nome||'') + ' (' + (b.partido||'') + ') · ' + (b.votos ? b.votos.toLocaleString('pt-BR') + ' votos' : '');
-  }
-  if(foto1 && a.sqcand){ foto1.src = TSE_FOTO_BASE + a.sqcand + '.jpeg'; foto1.alt = a.nome || ''; }
-  if(foto2 && b.sqcand){ foto2.src = TSE_FOTO_BASE + b.sqcand + '.jpeg'; foto2.alt = b.nome || ''; }
-  if(heMeta){
-    var pst = meta && meta.pst ? String(meta.pst) : '';
-    // normaliza "24,69" ou "24.69" → "24,69%"
-    if(pst && pst.indexOf('%') < 0){
-      var pn = parseFloat(pst.replace(',', '.'));
-      pst = isFinite(pn) ? pn.toFixed(2).replace('.', ',') : pst;
-      pst = pst + '%';
+  async function atualizar(){
+    if(busy) return;
+    busy = true;
+    try{
+      var ctrl = new AbortController();
+      var to = setTimeout(function(){ try{ ctrl.abort(); }catch(e){} }, 10000);
+      var res = await fetch(URL + '?t=' + Date.now(), { cache: 'no-store', signal: ctrl.signal });
+      clearTimeout(to);
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      var data = await res.json();
+      var cands = extrair(data);
+      if(cands.length < 2) throw new Error('sem candidatos');
+      var meta = { pst: (data.s && data.s.pst) || '', ht: data.ht || '', dt: data.dt || '' };
+      aplicar(cands, meta);
+      try{ localStorage.setItem('tse_cache', JSON.stringify({ cands:cands, meta:meta, em:Date.now() })); }catch(e){}
+    }catch(e){
+      console.warn('[TSE]', e && e.message);
+      // tenta cache se fetch falhar (ex.: aberto como arquivo file://)
+      try{
+        var cache = JSON.parse(localStorage.getItem('tse_cache') || 'null');
+        if(cache && cache.cands && cache.cands.length >= 2) aplicar(cache.cands, cache.meta || {});
+      }catch(e2){}
+    }finally{
+      busy = false;
     }
-    heMeta.textContent = pst || 'TSE';
-    heMeta.title = (meta && meta.ht)
-      ? ('Seções apuradas: ' + (pst||'—') + ' · atualizado ' + (meta.dt||'') + ' ' + meta.ht)
-      : 'TSE';
   }
-}
-function _tseParseBody(text){
-  if(!text) return null;
-  try{ return JSON.parse(text); }catch(e){}
-  var a = text.indexOf('{'), b = text.lastIndexOf('}');
-  if(a >= 0 && b > a){ try{ return JSON.parse(text.slice(a, b+1)); }catch(e){} }
-  return null;
-}
-async function _tseFetchData(){
-  // 1) direto
-  try{
-    var ctrl = new AbortController();
-    var t = setTimeout(function(){ try{ ctrl.abort(); }catch(e){} }, 7000);
-    var res = await fetch(TSE_PRES_URL + '?t=' + Date.now(), { cache:'no-store', signal: ctrl.signal });
-    clearTimeout(t);
-    if(res.ok){
-      var data = _tseParseBody(await res.text());
-      if(data && data.carg) return data;
-    }
-  }catch(e){}
-  // 2) fallback CORS (celular)
-  try{
-    var ctrl2 = new AbortController();
-    var t2 = setTimeout(function(){ try{ ctrl2.abort(); }catch(e){} }, 9000);
-    var res2 = await fetch('https://r.jina.ai/' + TSE_PRES_URL + '?t=' + Date.now(), {
-      cache:'no-store', signal: ctrl2.signal
+  function iniciar(){
+    // F5 / abertura: tenta atualizar já
+    atualizar();
+    // a cada 15 segundos
+    if(timer) clearInterval(timer);
+    timer = setInterval(atualizar, 15000);
+    // ao voltar para a aba / focar
+    document.addEventListener('visibilitychange', function(){
+      if(document.visibilityState === 'visible') atualizar();
     });
-    clearTimeout(t2);
-    if(res2.ok){
-      var data2 = _tseParseBody(await res2.text());
-      if(data2 && data2.carg) return data2;
+    window.addEventListener('pageshow', atualizar);
+    window.addEventListener('focus', atualizar);
+    var bar = document.getElementById('hdrEleicao');
+    if(bar){
+      bar.style.cursor = 'pointer';
+      bar.addEventListener('click', atualizar);
     }
-  }catch(e){}
-  return null;
-}
-async function atualizarApuracaoTSE(){
-  if(_tseBuscando) return;
-  _tseBuscando = true;
-  try{
-    var data = await _tseFetchData();
-    if(!data) return;
-    var cands = _tseExtrairCandidatos(data);
-    if(cands.length < 2) return;
-    var meta = {
-      pst: (data.s && (data.s.pst || data.s.pstn)) || '',
-      ht: data.ht || '',
-      dt: data.dt || ''
-    };
-    _tseAplicarUI(cands, meta);
-    try{ localStorage.setItem('tse_cache', JSON.stringify({ cands:cands, meta:meta, em:Date.now() })); }catch(e){}
-  }catch(e){
-    console.warn('TSE apuração', e && e.message);
-  }finally{
-    _tseBuscando = false;
   }
-}
-function iniciarApuracaoTSE(){
-  // cache local
-  try{
-    var cache = JSON.parse(localStorage.getItem('tse_cache') || 'null');
-    if(cache && cache.cands && cache.cands.length >= 2){
-      // só usa cache se for de hoje e tiver < 10 min (evita número velho)
-      var ok = cache.em && (Date.now() - cache.em) < 10*60*1000;
-      if(ok) _tseAplicarUI(cache.cands, cache.meta || {});
-    }
-  }catch(e){}
-  atualizarApuracaoTSE();
-  if(_tseTimer) clearInterval(_tseTimer);
-  _tseTimer = setInterval(atualizarApuracaoTSE, TSE_INTERVALO_MS);
-  function _tseAoFocar(){ atualizarApuracaoTSE(); }
-  document.addEventListener('visibilitychange', function(){
-    if(document.visibilityState === 'visible') _tseAoFocar();
-  });
-  window.addEventListener('pageshow', _tseAoFocar);
-  window.addEventListener('focus', _tseAoFocar);
-  var bar = document.getElementById('hdrEleicao');
-  if(bar){
-    bar.style.cursor = 'pointer';
-    bar.addEventListener('click', function(){ atualizarApuracaoTSE(); });
+  // expõe globalmente (para o init do app chamar se quiser)
+  window.atualizarApuracaoTSE = atualizar;
+  window.iniciarApuracaoTSE = iniciar;
+  // inicia sozinho assim que o script carrega (não depende de login)
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', iniciar);
+  } else {
+    iniciar();
   }
-}
+})();
 // =================== FIM APURAÇÃO TSE ===================
 </script>
 </body>
