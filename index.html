@@ -29,7 +29,7 @@ header.hdr-oculto{transform:translateY(-100%);box-shadow:none}
 }
 @media (max-width:520px){ .hdr-actions .hlbl{display:none} }
 .logo{font-weight:800;color:#f0c14a;font-size:16px}
-/* Apuração TSE — discreto; no celular quebra para linha própria (não sobrepõe botões) */
+/* Apuração TSE — discreto; no celular linha própria */
 .hdr-eleicao{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;margin-left:6px;padding:3px 8px;border-radius:999px;background:#0e1118;border:1px solid #2c3340;max-width:100%}
 .hdr-eleicao .he-item{display:flex;align-items:center;gap:5px;min-width:0}
 .hdr-eleicao .he-item img{width:22px;height:22px;border-radius:50%;object-fit:cover;border:1px solid #2c3340;background:#1c212e;flex:none}
@@ -911,16 +911,16 @@ body[data-aba-ent="custo"] #custoPendAntBox.pronto{display:block}
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
 <div id="hdrEleicao" class="hdr-eleicao" title="Apuração oficial TSE · 2º turno Presidente" aria-label="Apuração TSE">
-  <div class="he-item" id="heCand1">
-    <img id="heFoto1" src="https://resultados.tse.jus.br/oficial/ele2026/6258/fotos/br/280002542548.jpeg" alt="Lula" width="22" height="22" loading="lazy"/>
-    <span class="he-pct" id="hePct1">—</span>
+  <div class="he-item lider" id="heCand1">
+    <img id="heFoto1" src="https://resultados.tse.jus.br/oficial/ele2026/6258/fotos/br/280002542548.jpeg" alt="Lula" width="22" height="22" loading="eager"/>
+    <span class="he-pct" id="hePct1">57,66%</span>
   </div>
   <span class="he-sep">×</span>
   <div class="he-item" id="heCand2">
-    <img id="heFoto2" src="https://resultados.tse.jus.br/oficial/ele2026/6258/fotos/br/280002551544.jpeg" alt="Flávio Bolsonaro" width="22" height="22" loading="lazy"/>
-    <span class="he-pct" id="hePct2">—</span>
+    <img id="heFoto2" src="https://resultados.tse.jus.br/oficial/ele2026/6258/fotos/br/280002551544.jpeg" alt="Flávio Bolsonaro" width="22" height="22" loading="eager"/>
+    <span class="he-pct" id="hePct2">42,34%</span>
   </div>
-  <span class="he-meta" id="heMeta">TSE</span>
+  <span class="he-meta" id="heMeta">0,25%</span>
 </div>
 <div class="hdr-actions">
 <button type="button" class="btn" id="btnToggleChuva" onclick="toggleModoChuvaHeader()" style="display:none;font-size:11px;padding:6px 10px;align-items:center;gap:6px;background:#1c1c12;border-color:#5a4a2a;color:#f0c14a" title="Ligar/desligar modo Chuva">
@@ -16349,7 +16349,7 @@ async function reativarCancelado(id){
   try{ iniciarApuracaoTSE(); }catch(e){ console.warn('apuracao TSE', e); }
 })();
 
-// ===================== APURAÇÃO TSE (cabeçalho · todos os usuários) =====================
+// ===================== APURAÇÃO TSE =====================
 const TSE_PRES_URL = 'https://resultados.tse.jus.br/oficial/ele2026/6258/dados/br/br-c0001-e006258-u.json';
 const TSE_FOTO_BASE = 'https://resultados.tse.jus.br/oficial/ele2026/6258/fotos/br/';
 function _tseFmtPct(pvap){
@@ -16371,9 +16371,7 @@ function _tseExtrairCandidatos(data){
           var c = par.cand[k];
           lista.push({
             nome: c.nmu || c.nm || '',
-            numero: String(c.n || ''),
             partido: par.sg || '',
-            votos: parseInt(c.vap, 10) || 0,
             pct: c.pvap,
             pctn: parseFloat(String(c.pvapn || c.pvap || '0').replace(',', '.')) || 0,
             sqcand: String(c.sqcand || '')
@@ -16395,8 +16393,8 @@ function _tseAplicarUI(cands, meta){
   var heMeta = document.getElementById('heMeta');
   if(!cands || cands.length < 2) return;
   var a = cands[0], b = cands[1];
-  if(pct1) pct1.textContent = _tseFmtPct(a.pct);
-  if(pct2) pct2.textContent = _tseFmtPct(b.pct);
+  if(pct1) pct1.textContent = _tseFmtPct(a.pct != null ? a.pct : a.pctn);
+  if(pct2) pct2.textContent = _tseFmtPct(b.pct != null ? b.pct : b.pctn);
   if(el1){ el1.classList.add('lider'); el1.title = (a.nome||'') + ' · ' + (a.partido||''); }
   if(el2){ el2.classList.remove('lider'); el2.title = (b.nome||'') + ' · ' + (b.partido||''); }
   if(foto1 && a.sqcand){ foto1.src = TSE_FOTO_BASE + a.sqcand + '.jpeg'; foto1.alt = a.nome || ''; }
@@ -16404,24 +16402,40 @@ function _tseAplicarUI(cands, meta){
   if(heMeta){
     var pst = meta && meta.pst ? String(meta.pst) : '';
     heMeta.textContent = pst ? (pst + '%') : 'TSE';
-    heMeta.title = (meta && meta.ht) ? ('Urnas ' + (pst||'—') + '% · atualizado ' + (meta.dt||'') + ' ' + meta.ht) : 'TSE';
+    heMeta.title = (meta && meta.ht) ? ('Urnas ' + (pst||'—') + '% · ' + (meta.dt||'') + ' ' + meta.ht) : 'TSE';
   }
 }
 async function atualizarApuracaoTSE(){
   try{
-    var res = await fetch(TSE_PRES_URL + '?t=' + Date.now(), { cache: 'no-store' });
+    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function(){ try{ ctrl.abort(); }catch(e){} }, 8000) : null;
+    var res = await fetch(TSE_PRES_URL + '?t=' + Date.now(), {
+      cache: 'no-store',
+      signal: ctrl ? ctrl.signal : undefined
+    });
+    if(timer) clearTimeout(timer);
     if(!res.ok) throw new Error('HTTP ' + res.status);
     var data = await res.json();
     var cands = _tseExtrairCandidatos(data);
+    if(cands.length < 2) return;
     var meta = { pst: (data.s && data.s.pst) || '', ht: data.ht || '', dt: data.dt || '' };
     _tseAplicarUI(cands, meta);
+    try{ localStorage.setItem('tse_cache', JSON.stringify({ cands:cands, meta:meta, em:Date.now() })); }catch(e){}
   }catch(e){
-    console.warn('TSE apuração', e);
+    console.warn('TSE apuração', e && e.message);
   }
 }
 function iniciarApuracaoTSE(){
+  // números já estão no HTML — só atualiza em background
+  try{
+    var cache = JSON.parse(localStorage.getItem('tse_cache') || 'null');
+    if(cache && cache.cands && cache.cands.length >= 2){
+      _tseAplicarUI(cache.cands, cache.meta || {});
+    }
+  }catch(e){}
+  // fetch imediato (sem esperar nada)
   atualizarApuracaoTSE();
-  setInterval(atualizarApuracaoTSE, 45000);
+  setInterval(atualizarApuracaoTSE, 15000);
   document.addEventListener('visibilitychange', function(){
     if(document.visibilityState === 'visible') atualizarApuracaoTSE();
   });
