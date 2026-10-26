@@ -29,24 +29,6 @@ header.hdr-oculto{transform:translateY(-100%);box-shadow:none}
 }
 @media (max-width:520px){ .hdr-actions .hlbl{display:none} }
 .logo{font-weight:800;color:#f0c14a;font-size:16px}
-/* Apuração TSE — discreto; no celular linha própria */
-.hdr-eleicao{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;margin-left:6px;padding:3px 8px;border-radius:999px;background:#0e1118;border:1px solid #2c3340;max-width:100%}
-.hdr-eleicao .he-item{display:flex;align-items:center;gap:5px;min-width:0}
-.hdr-eleicao .he-item img{width:22px;height:22px;border-radius:50%;object-fit:cover;border:1px solid #2c3340;background:#1c212e;flex:none}
-.hdr-eleicao .he-item .he-pct{font-size:11px;font-weight:800;color:#e6e8ef;letter-spacing:0.02em;white-space:nowrap}
-.hdr-eleicao .he-item.lider .he-pct{color:#3dcc8a}
-.hdr-eleicao .he-sep{color:#3a4250;font-size:10px;font-weight:700}
-.hdr-eleicao .he-meta{font-size:9px;color:#5a657a;font-weight:700;white-space:nowrap;margin-left:2px}
-@media (max-width:700px){
-  header{flex-wrap:wrap}
-  .hdr-eleicao{
-    order:10;flex-basis:100%;width:100%;margin:6px 0 0;padding:6px 10px;
-    border-radius:10px;justify-content:center;gap:10px;
-  }
-  .hdr-eleicao .he-item img{width:20px;height:20px}
-  .hdr-eleicao .he-item .he-pct{font-size:12px}
-  .hdr-eleicao .he-meta{display:inline;font-size:10px}
-}
 .card{background:#161a22;border:1px solid #2c3340;border-radius:14px;padding:14px;margin:10px 12px}
 .btn{padding:10px 14px;border-radius:10px;border:1px solid #2c3340;background:#1c212e;color:#fff;font-weight:700;cursor:pointer}
 .btn.primary{background:linear-gradient(180deg,#f0c14a,#e8a93c);color:#1a1200;border:none}
@@ -909,18 +891,6 @@ body[data-aba-ent="custo"] #custoPendAntBox.pronto{display:block}
 <span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 231026.183157</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
-</div>
-<div id="hdrEleicao" class="hdr-eleicao" title="Apuração oficial TSE · toque para atualizar" aria-label="Apuração TSE">
-  <div class="he-item lider" id="heCand1">
-    <img id="heFoto1" src="https://resultados.tse.jus.br/oficial/ele2026/6258/fotos/br/280002551544.jpeg" alt="FLAVIO BOLSONARO" width="22" height="22" loading="eager"/>
-    <span class="he-pct" id="hePct1">50,33%</span>
-  </div>
-  <span class="he-sep">×</span>
-  <div class="he-item" id="heCand2">
-    <img id="heFoto2" src="https://resultados.tse.jus.br/oficial/ele2026/6258/fotos/br/280002542548.jpeg" alt="LULA" width="22" height="22" loading="eager"/>
-    <span class="he-pct" id="hePct2">49,67%</span>
-  </div>
-  <span class="he-meta" id="heMeta">36,22%</span>
 </div>
 <div class="hdr-actions">
 <button type="button" class="btn" id="btnToggleChuva" onclick="toggleModoChuvaHeader()" style="display:none;font-size:11px;padding:6px 10px;align-items:center;gap:6px;background:#1c1c12;border-color:#5a4a2a;color:#f0c14a" title="Ligar/desligar modo Chuva">
@@ -16346,126 +16316,7 @@ async function reativarCancelado(id){
   }, 60000);
   iniciarMonitorFilaOffline();
   iniciarWatchdogModo();
-  try{ iniciarApuracaoTSE(); }catch(e){ console.warn('apuracao TSE', e); }
 })();
-
-// ===================== APURAÇÃO TSE =====================
-(function(){
-  var URL = 'https://resultados.tse.jus.br/oficial/ele2026/6258/dados/br/br-c0001-e006258-u.json';
-  var FOTO = 'https://resultados.tse.jus.br/oficial/ele2026/6258/fotos/br/';
-  var timer = null;
-  var busy = false;
-
-  function fmt(pvap){
-    if(pvap == null || pvap === '') return '—';
-    var n = typeof pvap === 'number' ? pvap : parseFloat(String(pvap).replace(',', '.'));
-    if(!isFinite(n)) return '—';
-    return n.toFixed(2).replace('.', ',') + '%';
-  }
-  function extrair(data){
-    var lista = [];
-    try{
-      var carg = data && data.carg && data.carg[0];
-      if(!carg) return lista;
-      (carg.agr||[]).forEach(function(agr){
-        (agr.par||[]).forEach(function(par){
-          (par.cand||[]).forEach(function(c){
-            lista.push({
-              nome: c.nmu || c.nm || '',
-              partido: par.sg || '',
-              pct: c.pvap,
-              pctn: parseFloat(String(c.pvapn || c.pvap || '0').replace(',', '.')) || 0,
-              sqcand: String(c.sqcand || ''),
-              votos: parseInt(c.vap, 10) || 0
-            });
-          });
-        });
-      });
-    }catch(e){}
-    lista.sort(function(a,b){ return b.pctn - a.pctn; });
-    return lista;
-  }
-  function aplicar(cands, meta){
-    if(!cands || cands.length < 2) return;
-    var a = cands[0], b = cands[1];
-    var pct1 = document.getElementById('hePct1');
-    var pct2 = document.getElementById('hePct2');
-    var foto1 = document.getElementById('heFoto1');
-    var foto2 = document.getElementById('heFoto2');
-    var el1 = document.getElementById('heCand1');
-    var el2 = document.getElementById('heCand2');
-    var metaEl = document.getElementById('heMeta');
-    if(pct1) pct1.textContent = fmt(a.pct != null ? a.pct : a.pctn);
-    if(pct2) pct2.textContent = fmt(b.pct != null ? b.pct : b.pctn);
-    if(el1){ el1.classList.add('lider'); el1.title = (a.nome||'') + ' · ' + (a.partido||''); }
-    if(el2){ el2.classList.remove('lider'); el2.title = (b.nome||'') + ' · ' + (b.partido||''); }
-    if(foto1 && a.sqcand){ foto1.src = FOTO + a.sqcand + '.jpeg'; foto1.alt = a.nome||''; }
-    if(foto2 && b.sqcand){ foto2.src = FOTO + b.sqcand + '.jpeg'; foto2.alt = b.nome||''; }
-    if(metaEl){
-      var pst = (meta && meta.pst) ? String(meta.pst) : '';
-      if(pst && pst.indexOf('%') < 0){
-        var pn = parseFloat(pst.replace(',', '.'));
-        pst = isFinite(pn) ? pn.toFixed(2).replace('.', ',') + '%' : pst + '%';
-      }
-      metaEl.textContent = pst || 'TSE';
-      metaEl.title = (meta && meta.ht) ? ('Urnas ' + (pst||'—') + ' · ' + (meta.dt||'') + ' ' + meta.ht) : 'TSE';
-    }
-  }
-  async function atualizar(){
-    if(busy) return;
-    busy = true;
-    try{
-      var ctrl = new AbortController();
-      var to = setTimeout(function(){ try{ ctrl.abort(); }catch(e){} }, 10000);
-      var res = await fetch(URL + '?t=' + Date.now(), { cache: 'no-store', signal: ctrl.signal });
-      clearTimeout(to);
-      if(!res.ok) throw new Error('HTTP ' + res.status);
-      var data = await res.json();
-      var cands = extrair(data);
-      if(cands.length < 2) throw new Error('sem candidatos');
-      var meta = { pst: (data.s && data.s.pst) || '', ht: data.ht || '', dt: data.dt || '' };
-      aplicar(cands, meta);
-      try{ localStorage.setItem('tse_cache', JSON.stringify({ cands:cands, meta:meta, em:Date.now() })); }catch(e){}
-    }catch(e){
-      console.warn('[TSE]', e && e.message);
-      // tenta cache se fetch falhar (ex.: aberto como arquivo file://)
-      try{
-        var cache = JSON.parse(localStorage.getItem('tse_cache') || 'null');
-        if(cache && cache.cands && cache.cands.length >= 2) aplicar(cache.cands, cache.meta || {});
-      }catch(e2){}
-    }finally{
-      busy = false;
-    }
-  }
-  function iniciar(){
-    // F5 / abertura: tenta atualizar já
-    atualizar();
-    // a cada 15 segundos
-    if(timer) clearInterval(timer);
-    timer = setInterval(atualizar, 15000);
-    // ao voltar para a aba / focar
-    document.addEventListener('visibilitychange', function(){
-      if(document.visibilityState === 'visible') atualizar();
-    });
-    window.addEventListener('pageshow', atualizar);
-    window.addEventListener('focus', atualizar);
-    var bar = document.getElementById('hdrEleicao');
-    if(bar){
-      bar.style.cursor = 'pointer';
-      bar.addEventListener('click', atualizar);
-    }
-  }
-  // expõe globalmente (para o init do app chamar se quiser)
-  window.atualizarApuracaoTSE = atualizar;
-  window.iniciarApuracaoTSE = iniciar;
-  // inicia sozinho assim que o script carrega (não depende de login)
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', iniciar);
-  } else {
-    iniciar();
-  }
-})();
-// =================== FIM APURAÇÃO TSE ===================
 </script>
 </body>
 </html>
