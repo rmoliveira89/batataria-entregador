@@ -888,7 +888,7 @@ body[data-aba-ent="custo"] #custoPendAntBox.pronto{display:block}
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 231026.183157</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 291026.114006</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -986,7 +986,14 @@ Pedidos <b>finalizados</b> em <b style="color:#ff6b6b">DINHEIRO</b> que ainda n�
 <button class="btn small" id="relPerHoje" onclick="relSetPeriodo('hoje')">Hoje</button>
 <button class="btn small" id="relPerSemana" onclick="relSetPeriodo('semana')">Semana</button>
 <button class="btn small" id="relPerMes" onclick="relSetPeriodo('mes')">Mês</button>
+<button class="btn small" id="relPerCustom" onclick="relSetPeriodo('custom')">📆 Período</button>
 <select id="relEntregador" onchange="relSetEntregador(this.value)" style="display:none;flex:1;min-width:150px;padding:7px 8px;font-size:12px;border-radius:10px;border:1px solid #2c3340;background:#0e1118;color:#fff"><option value="">👥 Todos os entregadores</option></select>
+</div>
+<div id="relCustomBox" style="display:none;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px;background:#0e1118;border:1px solid #2c3340;border-radius:10px;padding:8px 10px">
+<label style="font-size:10px;color:#8b93a7;font-weight:700;display:flex;flex-direction:column;gap:3px;flex:1;min-width:130px">De
+<input type="date" id="relDe" onchange="relSetDatas()" style="padding:7px 8px;font-size:13px;border-radius:8px;border:1px solid #2c3340;background:#141a24;color:#fff;color-scheme:dark;width:100%;box-sizing:border-box"></label>
+<label style="font-size:10px;color:#8b93a7;font-weight:700;display:flex;flex-direction:column;gap:3px;flex:1;min-width:130px">Até
+<input type="date" id="relAte" onchange="relSetDatas()" style="padding:7px 8px;font-size:13px;border-radius:8px;border:1px solid #2c3340;background:#141a24;color:#fff;color-scheme:dark;width:100%;box-sizing:border-box"></label>
 </div>
 <div id="relStatus" style="font-size:11px;color:#8b93a7;margin-bottom:10px;min-height:14px"></div>
 <div id="relConteudo"></div>
@@ -13713,45 +13720,45 @@ const REL_LISTA = [
     formula:'<b>Total</b> = nº de pedidos finalizados no dia / semana (seg→hoje) / mês.<br><b>Média por dia</b> = total do período ÷ dias com pelo menos 1 entrega.<br><b>Vs. semana anterior</b> = (esta semana seg→hoje) − (semana passada seg→mesmo dia); % = diferença ÷ semana passada.',
     campos:'data, status, entregador_nome',
     formato:'Cartões com números + tabela dia a dia (esta semana × semana passada).',
-    filtros:'Hoje · Semana · Mês (afeta a média) · Entregador (Master). Os totais de dia/semana/mês aparecem sempre.' },
+    filtros:'Hoje · Semana · Mês · Período (De/Até) (afeta a média) · Entregador (Master). Os totais de dia/semana/mês aparecem sempre.' },
   { id:'turno', ico:'🌗', nome:'Almoço × Jantar',
     obj:'Em qual turno você entrega mais e em qual ganha mais.',
     formula:'<b>Quantidade</b> = pedidos finalizados por turno.<br><b>Valor</b> = soma de valor_entrega por turno.<br><b>% do total</b> = valor do turno ÷ valor dos dois turnos.',
     campos:'created_at (horário do pedido; o turno é deduzido pelos horários de almoço/jantar das Configurações), valor_entrega, status, data, entregador_nome',
     formato:'Dois cartões + barras comparando quantidade e valor.',
-    filtros:'Hoje · Semana · Mês · Entregador (Master)' },
+    filtros:'Hoje · Semana · Mês · Período (De/Até) · Entregador (Master)' },
   { id:'ritmo', ico:'⏱️', nome:'Ritmo das rotas',
     obj:'Quanto tempo você leva entre uma entrega e outra e quanto dura uma rota inteira.',
     formula:'<b>Rota</b> = pedidos do mesmo entregador com entregador_added_at a até 10 min do anterior.<br><b>Tempo entre entregas</b> = média das diferenças entre finalizações seguidas na mesma rota (rotas com 2+ entregas).<br><b>Duração da rota</b> = último − primeiro codigo_informado_em da rota.<br><b>Da pegada à última entrega</b> = último codigo_informado_em − primeiro entregador_added_at.<br>Intervalos acima de 2 h e rotas acima de 3 h são ignorados (finalização esquecida).',
     campos:'entregador_added_at, codigo_informado_em, status, data, entregador_nome',
     formato:'Três números + tabela das últimas rotas.',
-    filtros:'Hoje · Semana · Mês · Entregador (Master)' },
+    filtros:'Hoje · Semana · Mês · Período (De/Até) · Entregador (Master)' },
   { id:'ganho', ico:'💰', nome:'Ganho',
     obj:'Quanto você ganhou no período, o valor médio por entrega e em quais faixas de valor estão suas entregas.',
     formula:'<b>Total</b> = soma de valor_entrega dos pedidos finalizados.<br><b>Valor médio</b> = total ÷ nº de entregas com valor lançado (> 0).<br><b>Faixas</b> = cada valor cadastrado em Custo de Entregas (config_custo_entregas): contagem e soma das entregas com aquele valor_entrega; valores fora da lista aparecem em “Outros valores”.',
     campos:'valor_entrega, status, data, entregador_nome; config_custo_entregas.custo (faixas)',
     formato:'Cartões + barras por valor cadastrado.',
-    filtros:'Hoje · Semana · Mês · Entregador (Master)' },
+    filtros:'Hoje · Semana · Mês · Período (De/Até) · Entregador (Master)' },
   { id:'semanal', ico:'📅', nome:'Padrão semanal',
     obj:'Quais dias da semana (seg–dom) têm mais entregas, para você se planejar.',
-    formula:'<b>Entregas por dia da semana</b> = pedidos finalizados agrupados pelo dia da semana de data.<br><b>Média por dia</b> = entregas ÷ nº de datas diferentes daquele dia da semana com entrega.<br>Use Semana ou Mês para ver o padrão (com “Hoje” só aparece o dia de hoje).',
+    formula:'<b>Entregas por dia da semana</b> = pedidos finalizados agrupados pelo dia da semana de data.<br><b>Média por dia</b> = entregas ÷ nº de datas diferentes daquele dia da semana com entrega.<br>Use Semana, Mês ou Período para ver o padrão (com “Hoje” só aparece o dia de hoje).',
     campos:'data, status, entregador_nome',
     formato:'Barras de segunda a domingo + dia mais forte / mais fraco.',
-    filtros:'Hoje · Semana · Mês · Entregador (Master)' },
+    filtros:'Hoje · Semana · Mês · Período (De/Até) · Entregador (Master)' },
   { id:'operacional', ico:'💵', nome:'Operacional (dinheiro e pagamento)',
     obj:'Quanto dinheiro você ainda precisa repassar à loja e como seus clientes pagam.',
     formula:'<b>A repassar</b> = pedidos finalizados em dinheiro/espécie com recebido ≠ sim (de qualquer data); valor = soma de valor.<br><b>Proporção</b> = pedidos finalizados no período por forma de pagamento (pago, cartão, dinheiro) ÷ total.',
     campos:'forma_pagamento, recebido, status, valor (valor do pedido, para o repasse), data, entregador_nome',
     formato:'Cartões + tabela de pendências por dia + barras de proporção.',
-    filtros:'Hoje · Semana · Mês (afeta a proporção) · Entregador (Master). O repasse pendente ignora o período.' },
+    filtros:'Hoje · Semana · Mês · Período (De/Até) (afeta a proporção) · Entregador (Master). O repasse pendente ignora o período.' },
   { id:'rotas', ico:'🛵', nome:'Rotas',
     obj:'Quantos pedidos você leva por saída e quantas saídas são de 1 pedido só.',
     formula:'<b>Média de pedidos por rota</b> = pedidos finalizados ÷ nº de rotas.<br><b>% com 1 pedido</b> = rotas de 1 pedido ÷ total de rotas; <b>% agrupadas</b> = rotas com 2+ pedidos ÷ total.<br>Rota = janela de 10 min em entregador_added_at.',
     campos:'entregador_added_at, status, data, entregador_nome',
     formato:'Cartões + barras por tamanho de rota (1, 2, 3, 4+).',
-    filtros:'Hoje · Semana · Mês · Entregador (Master)' }
+    filtros:'Hoje · Semana · Mês · Período (De/Até) · Entregador (Master)' }
 ];
-let _rel = { periodo:'semana', entregador:'', tela:'menu', rel:'', rows:[], pend:[], custos:[], carregadoEm:0, carregando:false, erro:'' };
+let _rel = { periodo:'semana', de:'', ate:'', entregador:'', tela:'menu', rel:'', rows:[], pend:[], custos:[], carregadoEm:0, carregadoIni:'', carregando:false, recarregar:false, erro:'' };
 
 function atualizarBotaoRelatorio(){
   const b = document.getElementById('btnRelatorio'); if(!b) return;
@@ -13765,10 +13772,17 @@ function _relDow(iso){ return (new Date(iso+'T12:00:00Z').getUTCDay()+6)%7; } //
 function _relIniSemana(iso){ return _relAdd(iso, -_relDow(iso)); }
 function _relIntervalo(periodo, hoje){
   if(periodo==='hoje') return [hoje, hoje];
+  if(periodo==='custom'){
+    let de = _rel.de || (hoje.slice(0,8)+'01'), ate = _rel.ate || hoje;
+    if(ate > hoje) ate = hoje;
+    if(de > ate) de = ate;
+    return [de, ate];
+  }
   if(periodo==='mes') return [hoje.slice(0,8)+'01', hoje];
   return [_relIniSemana(hoje), hoje];
 }
 function _relFmtData(iso){ return iso ? iso.slice(8,10)+'/'+iso.slice(5,7) : ''; }
+function _relFmtDataAno(iso){ return iso ? iso.slice(8,10)+'/'+iso.slice(5,7)+'/'+iso.slice(0,4) : ''; }
 function _relNum(n, d){ return Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:(d==null?1:d)}); }
 function _relMoeda(n){ return 'R$ '+Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function _relPct(a,b){ return b>0 ? _relNum(a/b*100,0)+'%' : '0%'; }
@@ -13871,7 +13885,7 @@ function _relAnalisarRotas(lista){
 
 /* ---------- carga de dados ---------- */
 async function _relCarregar(){
-  if(_rel.carregando) return;
+  if(_rel.carregando){ _rel.recarregar = true; return; }
   const client = getSb();
   if(!client){ _rel.erro = 'Supabase não configurado'; _relRender(); return; }
   _rel.carregando = true; _rel.erro = ''; _relRender();
@@ -13879,7 +13893,9 @@ async function _relCarregar(){
     const hoje = getHojeSP();
     const iniMes = hoje.slice(0,8)+'01';
     const iniAnt = _relAdd(_relIniSemana(hoje), -7);
-    const ini = iniMes < iniAnt ? iniMes : iniAnt;
+    let ini = iniMes < iniAnt ? iniMes : iniAnt;
+    // Período personalizado: amplia a janela de dados até a data inicial escolhida
+    if(_rel.periodo==='custom' && _rel.de && _rel.de < ini) ini = _rel.de;
     const master = !!(usuarioLogado && usuarioLogado.isMaster);
     const nome = nomeEntregadorAtual();
     const rows = await _cliLerTudo(()=>{
@@ -13908,6 +13924,7 @@ async function _relCarregar(){
     try{ _rel.custos = (await carregarOpcoesCusto() || []).map(o=>Number(o.custo)).filter(v=>isFinite(v) && v>0); }
     catch(e){ _rel.custos = []; }
     _rel.carregadoEm = Date.now();
+    _rel.carregadoIni = ini;
     _relPreencherEntregadores();
   }catch(e){
     console.warn('relatorios', e);
@@ -13915,7 +13932,12 @@ async function _relCarregar(){
   }finally{
     _rel.carregando = false;
     _relRender();
+    if(_rel.recarregar){ _rel.recarregar = false; _relGarantirDados(); }
   }
+}
+// Recarrega só se o período personalizado começa antes do que já foi carregado
+function _relGarantirDados(){
+  if(_rel.periodo==='custom' && _rel.de && (!_rel.carregadoIni || _rel.de < _rel.carregadoIni)) _relCarregar();
 }
 function _relPreencherEntregadores(){
   const sel = document.getElementById('relEntregador'); if(!sel) return;
@@ -13953,12 +13975,14 @@ function _relVolume(c){
   const semAnt = cnt(iniAnt, fimAntMesmo), semAntInteira = cnt(iniAnt, _relAdd(iniSem,-1));
   const dias = new Set(c.noPer.map(p=>p.data)).size;
   const media = dias ? c.noPer.length/dias : 0;
-  let html = _relCards([
+  const cardsVol = [];
+  if(_rel.periodo==='custom') cardsVol.push({ t:'📆 Período selecionado', v:c.noPer.length, s:_relFmtDataAno(c.ini)+' a '+_relFmtDataAno(c.fim), cor:'#6ab7ff' });
+  let html = _relCards(cardsVol.concat([
     { t:'Hoje', v:totDia },
     { t:'Esta semana (seg→hoje)', v:totSem, s:_relDelta(totSem, semAnt)+' vs semana passada' },
     { t:'Este mês', v:totMes },
     { t:'Média por dia trabalhado', v:_relNum(media,1), s:c.noPer.length+' entrega(s) em '+dias+' dia(s) · filtro atual' }
-  ]);
+  ]));
   html += _relTitulo('Semana atual × semana passada');
   const linhas = [];
   for(let i=0;i<7;i++){
@@ -14104,7 +14128,7 @@ function _relRender(){
   const box = document.getElementById('relConteudo'); if(!box) return;
   const st = document.getElementById('relStatus');
   const hoje = getHojeSP();
-  [['hoje','relPerHoje'],['semana','relPerSemana'],['mes','relPerMes']].forEach(a=>{
+  [['hoje','relPerHoje'],['semana','relPerSemana'],['mes','relPerMes'],['custom','relPerCustom']].forEach(a=>{
     const b = document.getElementById(a[1]); if(!b) return;
     const on = _rel.periodo===a[0];
     b.style.background = on ? 'linear-gradient(180deg,#f0c14a,#e8a93c)' : '#1c212e';
@@ -14112,7 +14136,17 @@ function _relRender(){
     b.style.border = on ? 'none' : '1px solid #2c3340';
   });
   const par = _relIntervalo(_rel.periodo, hoje);
-  const lbl = _rel.periodo==='hoje' ? ('Hoje · '+_relFmtData(hoje)) : (_rel.periodo==='semana' ? ('Semana · '+_relFmtData(par[0])+' a '+_relFmtData(par[1])) : ('Mês · '+_relFmtData(par[0])+' a '+_relFmtData(par[1])));
+  const cbox = document.getElementById('relCustomBox');
+  if(cbox){
+    cbox.style.display = _rel.periodo==='custom' ? 'flex' : 'none';
+    const iDe = document.getElementById('relDe'), iAte = document.getElementById('relAte');
+    if(iDe){ iDe.value = par[0]; iDe.max = hoje; }
+    if(iAte){ iAte.value = par[1]; iAte.max = hoje; }
+  }
+  const lbl = _rel.periodo==='hoje' ? ('Hoje · '+_relFmtData(hoje))
+    : (_rel.periodo==='semana' ? ('Semana · '+_relFmtData(par[0])+' a '+_relFmtData(par[1]))
+    : (_rel.periodo==='custom' ? ('Período · '+_relFmtDataAno(par[0])+' a '+_relFmtDataAno(par[1])+' ('+(Math.round((new Date(par[1]+'T12:00:00Z')-new Date(par[0]+'T12:00:00Z'))/86400000)+1)+' dia(s))')
+    : ('Mês · '+_relFmtData(par[0])+' a '+_relFmtData(par[1]))));
   if(st){
     if(_rel.carregando){ st.textContent = '⏳ Carregando dados…'; st.style.color = '#8b93a7'; }
     else if(_rel.erro){ st.textContent = _rel.erro; st.style.color = '#ff6b6b'; }
@@ -14161,7 +14195,27 @@ function abrirModalRelatorios(){
   if(velho) _relCarregar();
 }
 function fecharModalRelatorios(){ const m = document.getElementById('modalRelatorios'); if(m) m.style.display = 'none'; }
-function relSetPeriodo(p){ _rel.periodo = p; _relRender(); }
+function relSetPeriodo(p){
+  _rel.periodo = p;
+  if(p==='custom'){
+    const hoje = getHojeSP();
+    if(!_rel.de) _rel.de = hoje.slice(0,8)+'01';
+    if(!_rel.ate) _rel.ate = hoje;
+    _relGarantirDados();
+  }
+  _relRender();
+}
+function relSetDatas(){
+  const hoje = getHojeSP();
+  const iDe = document.getElementById('relDe'), iAte = document.getElementById('relAte');
+  let de = iDe ? iDe.value : '', ate = iAte ? iAte.value : '';
+  if(!de || !ate) return; // campo apagado: aguarda preencher
+  if(ate > hoje) ate = hoje;
+  if(de > ate){ const t = de; de = ate; ate = t; }
+  _rel.de = de; _rel.ate = ate;
+  _relGarantirDados();
+  _relRender();
+}
 function relSetEntregador(v){ _rel.entregador = String(v||''); _relRender(); }
 function relAbrir(id){ _rel.tela = 'rel'; _rel.rel = id; _relRender(); const cd = document.getElementById('relCard'); if(cd) cd.scrollTop = 0; }
 function relVoltar(){ _rel.tela = 'menu'; _rel.rel = ''; _relRender(); }
