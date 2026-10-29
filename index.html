@@ -669,6 +669,155 @@ body[data-aba-ent="custo"] #custoPendAntBox.pronto{display:block}
 .al-chip.done{background:#12261c;color:#3dcc8a}
 
 </style>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<style>
+#viewMapaEntregador{margin:0 0 16px}
+#mapaEntregas{width:100%;height:min(70vh,560px);min-height:320px;border-radius:12px;border:1px solid #2c3340;background:#0e1118;z-index:1}
+.mapa-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 12px 8px}
+.mapa-legenda{font-size:11px;color:#8b93a7;line-height:1.4;margin:0 12px 8px}
+.leaflet-popup-content{font-size:13px;line-height:1.35;margin:10px 12px !important;min-width:160px}
+.leaflet-popup-content b{color:#1a1200}
+.mapa-pin-popup .mp-num{font-weight:900;color:#b45309;font-size:14px}
+.mapa-pin-popup .mp-nome{font-weight:700;margin-top:2px}
+.mapa-pin-popup .mp-end{font-size:11px;color:#555;margin-top:4px}
+.mapa-pin-popup .mp-tempo{margin-top:6px;font-weight:800;font-size:12px}
+.mapa-pin-popup .mp-tempo.ok{color:#15803d}
+.mapa-pin-popup .mp-tempo.warn{color:#b45309}
+.mapa-pin-popup .mp-tempo.late{color:#dc2626}
+/* Mini-card do pedido no mapa */
+.mapa-mini-card{
+  position:relative;
+  width:150px;
+  background:#161a22;
+  border:1.5px solid #2c3340;
+  border-radius:12px;
+  padding:8px 10px 7px;
+  box-shadow:0 4px 16px rgba(0,0,0,.55);
+  color:#e6e8ef;
+  font-family:Inter,system-ui,sans-serif;
+  line-height:1.2;
+  pointer-events:auto;
+  overflow:visible;
+  box-sizing:border-box;
+}
+.mapa-mini-card.mc-ok{border-color:#2a5a3a}
+.mapa-mini-card.mc-warn{border-color:#5a4a2a}
+.mapa-mini-card.mc-late{border-color:#5a2a2a;box-shadow:0 0 0 1px rgba(239,68,68,.35),0 4px 16px rgba(0,0,0,.55)}
+.mapa-mini-card .mc-top{
+  display:flex;align-items:center;justify-content:space-between;gap:6px;
+  min-width:0;
+}
+.mapa-mini-card .mc-num{
+  font-weight:900;font-size:13px;color:#f0c14a;letter-spacing:0.02em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  min-width:0;flex:1;
+}
+.mapa-mini-card .mc-moto{
+  flex:none;
+  font-size:14px;line-height:1;
+  background:#1a2a3a;border:1px solid #2a4a5a;color:#6ab7ff;
+  border-radius:999px;padding:2px 6px;
+  box-shadow:0 1px 4px rgba(0,0,0,.35);
+}
+.mapa-mini-card.mc-em-rota{
+  border-color:#2a4a5a;
+  box-shadow:0 0 0 1px rgba(106,183,255,.25),0 4px 16px rgba(0,0,0,.55);
+}
+.mapa-mini-card.mc-em-rota::after{border-top-color:#2a4a5a}
+.mapa-mini-card.mc-em-rota.mc-late{border-color:#5a2a2a}
+.mapa-mini-card.mc-em-rota.mc-late::after{border-top-color:#5a2a2a}
+.mapa-mini-card.mc-em-rota.mc-warn{border-color:#5a4a2a}
+.mapa-mini-card.mc-em-rota.mc-warn::after{border-top-color:#5a4a2a}
+.mapa-mini-card .mc-ent{
+  font-size:9px;font-weight:800;color:#6ab7ff;margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.mapa-mini-card .mc-nome{
+  font-weight:700;font-size:11px;color:#e6e8ef;margin-top:3px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:100%;
+}
+.mapa-mini-card .mc-tempo{
+  margin-top:6px;font-weight:900;font-size:10px;letter-spacing:0.02em;
+  padding:4px 6px;border-radius:7px;text-align:center;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.mapa-mini-card .mc-tempo.ok{background:#0f1f15;color:#3dcc8a;border:1px solid #2a5a3a}
+.mapa-mini-card .mc-tempo.warn{background:#2a2a1a;color:#f0c14a;border:1px solid #5a4a2a}
+.mapa-mini-card .mc-tempo.late{background:#3a1a1a;color:#ff6b6b;border:1px solid #5a2a2a}
+/* Triângulo colado na borda inferior (fora do conteúdo) */
+.mapa-mini-card::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  bottom:-8px;
+  transform:translateX(-50%);
+  width:0;height:0;
+  border-left:8px solid transparent;
+  border-right:8px solid transparent;
+  border-top:8px solid #2c3340;
+  pointer-events:none;
+  z-index:2;
+}
+.mapa-mini-card.mc-ok::after{border-top-color:#2a5a3a}
+.mapa-mini-card.mc-warn::after{border-top-color:#5a4a2a}
+.mapa-mini-card.mc-late::after{border-top-color:#5a2a2a}
+.leaflet-div-icon.mapa-card-icon{
+  background:transparent !important;border:none !important;
+  overflow:visible !important;
+}
+/* Aba Mapa: remove o cabeçalho do fluxo (sem faixa preta) + abas no topo */
+body.mapa-aba-ativa header{
+  position:fixed !important;
+  top:0;left:0;right:0;
+  transform:translateY(-100%);
+  box-shadow:none;
+  pointer-events:none;
+  /* tira do fluxo para não deixar espaço vazio */
+  height:0 !important;
+  min-height:0 !important;
+  padding:0 !important;
+  margin:0 !important;
+  border:none !important;
+  overflow:hidden !important;
+  opacity:0;
+}
+body.mapa-aba-ativa{
+  /* cabeçalho não ocupa mais altura */
+  padding-top:0 !important;
+}
+body.mapa-aba-ativa #entregadorAbas{
+  position:sticky;
+  top:0;
+  z-index:30;
+  background:#0c0e12;
+  margin:0 !important;
+  padding:8px 12px 8px;
+  border-bottom:1px solid #2c3340;
+  /* cola no topo da viewport */
+  width:100%;
+  box-sizing:border-box;
+}
+body.mapa-aba-ativa .mapa-toolbar{
+  margin-top:8px;
+}
+body.mapa-aba-ativa #mapaEntregas{
+  height:min(84vh,760px);
+  min-height:440px;
+}
+body.mapa-aba-ativa #viewMapaEntregador{
+  margin-top:0;
+}
+body.mapa-aba-ativa #alertaAltaDemanda,
+body.mapa-aba-ativa #barraAgrupamento{
+  display:none !important;
+}
+
+
+</style>
 </head>
 <body>
 
@@ -888,7 +1037,7 @@ body[data-aba-ent="custo"] #custoPendAntBox.pronto{display:block}
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 291026.114006</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 291026.203700</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -1062,6 +1211,7 @@ Pedidos <b>finalizados</b> em <b style="color:#ff6b6b">DINHEIRO</b> que ainda n�
 <button class="tab" id="tabBtnClientes" onclick="trocarAba('clientes')">👤 Clientes</button>
 <button class="tab" id="tabBtnEnderecos" onclick="trocarAba('enderecos')">📍 Endereços</button>
 <button class="tab" id="tabBtnAlertas" onclick="trocarAba('alertas')">📢 Alertas</button>
+<button class="tab" id="tabBtnMapa" onclick="trocarAba('mapa')">🗺️ Mapa</button>
 </div>
 <div id="abaSupabase">
 <label>Supabase URL</label><input id="cfgUrl" style="margin:6px 0 10px"/>
@@ -1078,10 +1228,10 @@ create table if not exists entregadores (
   senha text not null,
   is_master boolean default false,
   ativo boolean default true,
-  abas_visiveis jsonb default '{"rota":true,"pedidos":true,"custo":true,"faturamento":true,"relatorio":true}'::jsonb,
+  abas_visiveis jsonb default '{"rota":true,"pedidos":true,"custo":true,"faturamento":true,"mapa":true,"relatorio":true}'::jsonb,
   created_at timestamp default now()
 );
-alter table entregadores add column if not exists abas_visiveis jsonb default '{"rota":true,"pedidos":true,"custo":true,"faturamento":true,"relatorio":true}'::jsonb;
+alter table entregadores add column if not exists abas_visiveis jsonb default '{"rota":true,"pedidos":true,"custo":true,"faturamento":true,"mapa":true,"relatorio":true}'::jsonb;
 alter table entregadores enable row level security;
 create policy "libera tudo anon entregadores" on entregadores for all using (true) with check (true);
 -- Cadastre usuários apenas pela tela Configurações → Entregadores (Master).
@@ -1455,6 +1605,31 @@ where numero_alto is not null and valor_alto is not null
 <button class="btn" id="endNext" onclick="enderecosPagina(1)">Próxima ›</button>
 </div>
 </div>
+
+<div id="abaMapa" style="display:none">
+  <div style="font-size:12px;color:#8b93a7;margin-bottom:12px;line-height:1.45">
+    Defina a <b style="color:#f0c14a">cidade</b> usada no mapa e no geocoding dos endereços (OpenStreetMap).
+    Isso centraliza o mapa e melhora a precisão dos pins.
+  </div>
+  <label style="font-size:11px;color:#8b93a7;font-weight:700">Cidade</label>
+  <input id="cfgMapaCidade" placeholder="Ex.: Campo Mourão" style="margin:6px 0 10px" autocomplete="off"/>
+  <label style="font-size:11px;color:#8b93a7;font-weight:700">Estado (UF)</label>
+  <input id="cfgMapaUF" placeholder="Ex.: PR" maxlength="2" style="margin:6px 0 10px;text-transform:uppercase" autocomplete="off"/>
+  <label style="font-size:11px;color:#8b93a7;font-weight:700">País</label>
+  <input id="cfgMapaPais" placeholder="Brasil" style="margin:6px 0 14px" autocomplete="off"/>
+  <div style="font-size:11px;color:#8b93a7;margin-bottom:10px">Opcional: coordenadas do centro (se vazio, busca automaticamente).</div>
+  <div style="display:flex;gap:8px;margin-bottom:12px">
+    <div style="flex:1"><label style="font-size:11px;color:#8b93a7">Latitude</label><input id="cfgMapaLat" inputmode="decimal" placeholder="-24.04" style="margin-top:4px"/></div>
+    <div style="flex:1"><label style="font-size:11px;color:#8b93a7">Longitude</label><input id="cfgMapaLng" inputmode="decimal" placeholder="-52.38" style="margin-top:4px"/></div>
+  </div>
+  <button class="btn primary" style="width:100%;margin-bottom:8px" onclick="salvarCfgMapaCidade()">💾 Salvar cidade do mapa</button>
+  <button class="btn" style="width:100%;margin-bottom:8px" onclick="testarGeocodeCidade()">🔍 Testar localização da cidade</button>
+  <div id="cfgMapaStatus" style="font-size:11px;color:#8b93a7;text-align:center;min-height:16px"></div>
+  <div style="margin-top:14px;padding:10px;background:#0e1118;border:1px solid #2c3340;border-radius:8px;font-size:11px;color:#8b93a7;line-height:1.4">
+    Salvo em <b style="color:#f0c14a">app_config</b> (chave <code style="color:#fff">mapa_cidade</code>) e no aparelho.
+    O mapa usa Leaflet + OpenStreetMap (sem chave de API).
+  </div>
+</div>
 <div id="abaAlertas" style="display:none">
 <div style="font-size:11px;color:#8b93a7;margin-bottom:12px;line-height:1.4">
 Cadastre <b style="color:#f0c14a">mensagens prontas</b> para o botão <b style="color:#f0c14a">📢 Alerta</b>. Em <b style="color:#f0c14a">Aparece para</b> escolha quem vai receber o alerta: <b>Entregadores</b> (aparece como atalho na tela do Admin), <b>Admin</b> (aparece como atalho na tela dos entregadores) ou <b>Ambos</b>. Salvo na tabela <b style="color:#f0c14a">alertas_modelos</b>.
@@ -1503,7 +1678,7 @@ Controle quais <b style="color:#f0c14a">abas</b> e o botão <b style="color:#f0c
 <div id="listaFuncoesAbas" style="display:flex;flex-direction:column;gap:10px;max-height:55vh;overflow:auto"></div>
 <div style="margin-top:12px;padding:10px;background:#0e1118;border:1px solid #2c3340;border-radius:8px;font-size:10px;color:#8b93a7">
 <b style="color:#f0c14a">SQL - rode uma vez no Supabase:</b><br/>
-<code style="color:#fff;display:block;margin-top:6px;white-space:pre-wrap">alter table entregadores add column if not exists abas_visiveis jsonb default '{"rota":true,"pedidos":true,"custo":true,"faturamento":true,"relatorio":true}'::jsonb;</code>
+<code style="color:#fff;display:block;margin-top:6px;white-space:pre-wrap">alter table entregadores add column if not exists abas_visiveis jsonb default '{"rota":true,"pedidos":true,"custo":true,"faturamento":true,"mapa":true,"relatorio":true}'::jsonb;</code>
 </div>
 </div>
 <div id="abaHorarios" style="display:none">
@@ -2020,6 +2195,7 @@ Remove a finalização e a reserva. O pedido volta para <b style="color:#f0c14a"
 <button class="tab" id="btnAbaPedidos" onclick="setAbaEntregador('pedidos')" title="Pedidos" aria-label="Pedidos"><span class="ico">📋</span><span class="lbl">Pedidos</span></button>
 <button class="tab" id="btnAbaCusto" onclick="setAbaEntregador('custo')" title="Custo" aria-label="Custo"><span class="ico">💵</span><span class="lbl" id="lblAbaCusto">Custo</span></button>
 <button class="tab" id="btnAbaFaturamento" onclick="setAbaEntregador('faturamento')" title="Faturamento" aria-label="Faturamento"><span class="ico">📊</span><span class="lbl" id="lblAbaFaturamento">Faturamento</span></button>
+<button class="tab" id="btnAbaMapa" onclick="setAbaEntregador('mapa')" title="Mapa das entregas" aria-label="Mapa"><span class="ico">🗺️</span><span class="lbl">Mapa</span></button>
 </div>
 
 <!-- Filtro de dia sempre visível na aba Pedidos (não depende da barra de pesquisa) -->
@@ -2041,6 +2217,24 @@ Remove a finalização e a reserva. O pedido volta para <b style="color:#f0c14a"
 <button class="btn off" id="btnToggleBusca" onclick="toggleBarraBusca()" title="Mostrar/ocultar barra de pesquisa">🔍 Pesquisar</button>
 </div>
 <div id="entregadorTopRow" style="display:none">
+
+<!-- MODAL SCANNER QR PEDIDO (entregador) -->
+<div id="modalScannerQr" class="overlay" style="display:none;z-index:920" role="dialog" aria-modal="true">
+<div class="card" style="width:100%;max-width:420px;margin:0;padding:14px 14px 12px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px">
+    <h3 style="margin:0;color:#6ab7ff;font-size:16px;font-weight:900">📷 Ler QR do pedido</h3>
+    <button type="button" class="btn" onclick="fecharScannerQrPedido()" style="padding:6px 10px">✕</button>
+  </div>
+  <div style="font-size:12px;color:#8b93a7;margin-bottom:10px;line-height:1.4">Aponte a câmera para o QR Code com o <b style="color:#f0c14a">número do pedido</b>. Ao ler, o pedido é adicionado automaticamente.</div>
+  <div id="qrVideoWrap" style="position:relative;width:100%;aspect-ratio:3/4;max-height:55vh;background:#0e1118;border:1px solid #2c3340;border-radius:12px;overflow:hidden">
+    <video id="qrVideo" playsinline muted autoplay style="width:100%;height:100%;object-fit:cover;display:block"></video>
+    <canvas id="qrCanvas" style="display:none"></canvas>
+    <div style="position:absolute;inset:18% 12%;border:2px dashed rgba(106,183,255,.65);border-radius:12px;pointer-events:none"></div>
+  </div>
+  <div id="qrScanStatus" style="font-size:12px;color:#8b93a7;text-align:center;margin:10px 0 6px;min-height:18px">Iniciando câmera…</div>
+  <button type="button" class="btn" style="width:100%;padding:12px" onclick="fecharScannerQrPedido()">Cancelar</button>
+</div>
+</div>
 <div class="card barra-oculta" id="cardAddPedido">
 
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -2049,7 +2243,10 @@ Remove a finalização e a reserva. O pedido volta para <b style="color:#f0c14a"
 </div>
 <div class="input-col">
 <input id="inputPedido" placeholder="# Número ou 6 dígitos WA" inputmode="text" autocomplete="off" onkeydown="if(event.key==='Enter') adicionarPedido()"/>
-<button class="btn primary btn-add-grande" onclick="adicionarPedido()">➕ Adicionar</button>
+<div style="display:flex;gap:8px;width:100%">
+<button class="btn primary btn-add-grande" style="flex:1.2" onclick="adicionarPedido()">➕ Adicionar</button>
+<button class="btn blue btn-add-grande" id="btnQrPedido" style="flex:0.8;background:#1a2a3a;border-color:#2a4a5a;color:#6ab7ff" onclick="abrirScannerQrPedido()" title="Ler QR Code do pedido">📷 QR</button>
+</div>
 </div>
 <div id="addStatus" style="font-size:11px;color:#8b93a7;margin-top:8px"></div>
 <div id="masterAddExtras" style="display:none;margin-top:10px;gap:8px;flex-wrap:wrap">
@@ -2106,6 +2303,19 @@ Remove a finalização e a reserva. O pedido volta para <b style="color:#f0c14a"
 </div><!-- /viewTurnos -->
 <div id="boxCancelados" style="display:none;margin:8px 0"></div>
 <div id="listaVazia" style="display:none;" class="card"><div style="text-align:center;color:#8b93a7;padding:10px">Nenhum pedido</div></div>
+
+<!-- ABA MAPA (entregas em aberto) -->
+<div id="viewMapaEntregador" style="display:none">
+  <div class="mapa-toolbar">
+    <button class="btn primary small" type="button" onclick="renderMapaEntregas(true)">🔄 Atualizar mapa</button>
+    <button class="btn small" type="button" onclick="mapaCentralizarCidade()">📍 Cidade</button>
+    <span id="mapaStatus" style="font-size:11px;color:#8b93a7;flex:1;min-width:140px"></span>
+  </div>
+  <div class="mapa-legenda">Pontos = pedidos <b style="color:#f0c14a">não finalizados</b>. <b style="color:#6ab7ff">🛵</b> = em entrega (com entregador). Sem moto = aguardando. Configure a cidade em ⚙️ › 🗺️ Mapa.</div>
+  <div style="margin:0 12px 12px"><div id="mapaEntregas"></div></div>
+  <div id="mapaListaFalhas" style="margin:0 12px 16px;display:none"></div>
+</div>
+
 
 
 <!-- MODAL CONFIRMAR ENVIO DE CUSTOS -->
@@ -2605,9 +2815,10 @@ const ABAS_ENTREGADOR_KEYS = [
   { key: 'pedidos', label: '📋 Pedidos' },
   { key: 'custo', label: '💵 Custo' },
   { key: 'faturamento', label: '📊 Faturamento' },
+  { key: 'mapa', label: '🗺️ Mapa' },
   { key: 'relatorio', label: '📈 Relatórios' } // botão 📈 no cabeçalho (não é aba da barra)
 ];
-const ABAS_DEFAULT = { rota: true, pedidos: true, custo: true, faturamento: true, relatorio: true };
+const ABAS_DEFAULT = { rota: true, pedidos: true, custo: true, faturamento: true, mapa: true, relatorio: true };
 
 function normalizarAbasVisiveis(raw){
   const out = Object.assign({}, ABAS_DEFAULT);
@@ -2642,7 +2853,8 @@ function aplicarVisibilidadeAbasEntregador(){
     rota: document.getElementById('btnAbaRota'),
     pedidos: document.getElementById('btnAbaPedidos'),
     custo: document.getElementById('btnAbaCusto'),
-    faturamento: document.getElementById('btnAbaFaturamento')
+    faturamento: document.getElementById('btnAbaFaturamento'),
+    mapa: document.getElementById('btnAbaMapa')
   };
   const abas = isMaster ? ABAS_DEFAULT : getAbasVisiveisUsuario();
   Object.keys(map).forEach(k=>{
@@ -3211,11 +3423,12 @@ function abrirCfg(){
   carregarModo();
   try{ carregarCustosEntrega(); }catch(e){}
   try{ carregarHorarios(); }catch(e){}
+  try{ carregarCfgMapaCidadeDoServidor(); }catch(e){}
 }
 function abrirCfgProtegida(){ abrirCfg(); }
 function verificarSenhaCfg(){ /* senha removida - acesso direto para master */ abrirCfg(); }
 function trocarAba(aba){
-  const abas=['supabase','entregadores','modo','custo','horarios','funcoes','clientes','enderecos','alertas'];
+  const abas=['supabase','entregadores','modo','custo','horarios','funcoes','clientes','enderecos','alertas','mapa'];
   abas.forEach(a=>{
     const cap = a.charAt(0).toUpperCase()+a.slice(1);
     const el=document.getElementById('aba'+cap);
@@ -3230,6 +3443,7 @@ function trocarAba(aba){
   if(aba==='clientes'){ carregarClientesCodigos(false); }
   if(aba==='enderecos'){ carregarEnderecosConfig(false); }
   if(aba==='alertas'){ carregarAlertasConfig(); }
+  if(aba==='mapa'){ carregarCfgMapaCidadeUI(); }
 }
 
 // ===================== CLIENTES E CÓDIGOS (Master) =====================
@@ -4898,26 +5112,43 @@ function setAbaEntregador(aba){
   const isMasterCheck = !!(usuarioLogado && usuarioLogado.isMaster);
   abaEntregadorAtual = aba || 'rota';
   try{ document.body.setAttribute('data-aba-ent', abaEntregadorAtual); }catch(e){}
+  try{
+    if(abaEntregadorAtual === 'mapa'){
+      document.body.classList.add('mapa-aba-ativa');
+      try{ document.documentElement.style.setProperty('--hdr-h', '0px'); }catch(e2){}
+    } else {
+      document.body.classList.remove('mapa-aba-ativa');
+      try{ if(typeof ajustarAlturaHeader==='function') ajustarAlturaHeader(); }catch(e2){}
+    }
+  }catch(e){}
   try{ window.atualizarHeaderScroll && window.atualizarHeaderScroll(); }catch(e){}
-  // Master: Em rota é a principal (padrão). Pedidos = visão com filtros; Custo = valores; Faturamento = cálculo.
+  try{
+    if(abaEntregadorAtual === 'mapa' && typeof _mapaLeaflet !== 'undefined' && _mapaLeaflet){
+      setTimeout(function(){ try{ _mapaLeaflet.invalidateSize(); }catch(e){} }, 320);
+    }
+  }catch(e){}
   const btnR = document.getElementById('btnAbaRota');
   const btnP = document.getElementById('btnAbaPedidos');
   const btnC = document.getElementById('btnAbaCusto');
   const btnF = document.getElementById('btnAbaFaturamento');
+  const btnM = document.getElementById('btnAbaMapa');
   if(btnR) btnR.className = 'tab'+(abaEntregadorAtual==='rota'?' active':'');
   if(btnP) btnP.className = 'tab'+(abaEntregadorAtual==='pedidos'?' active':'');
   if(btnC) btnC.className = 'tab'+(abaEntregadorAtual==='custo'?' active':'');
   if(btnF) btnF.className = 'tab'+(abaEntregadorAtual==='faturamento'?' active':'');
+  if(btnM) btnM.className = 'tab'+(abaEntregadorAtual==='mapa'?' active':'');
 
   const isCusto = abaEntregadorAtual === 'custo';
   const isFaturamento = abaEntregadorAtual === 'faturamento';
   const isRota = abaEntregadorAtual === 'rota';
+  const isMapa = abaEntregadorAtual === 'mapa';
 
   const gridStats = document.getElementById('gridStats');
   const viewTurnos = document.getElementById('viewTurnos');
   const listaVazia = document.getElementById('listaVazia');
   const viewCusto = document.getElementById('viewCustoEntregador');
   const viewFat = document.getElementById('viewFaturamentoEntregador');
+  const viewMapa = document.getElementById('viewMapaEntregador');
   const topRow = document.getElementById('entregadorTopRow');
   const toggleBar = document.getElementById('toggleTopBar');
   const cardAdd = document.getElementById('cardAddPedido');
@@ -4925,9 +5156,25 @@ function setAbaEntregador(aba){
   const filtroDia = document.getElementById('filtroDiaPedidos');
   const btnToggleBusca = document.getElementById('btnToggleBusca');
 
+  function _esconderMapa(){ if(viewMapa) viewMapa.style.display = 'none'; }
+
   // MASTER
   if(isMasterCheck){
     if(viewFat) viewFat.style.display = 'none';
+    _esconderMapa();
+    if(isMapa){
+      if(gridStats) gridStats.style.display = 'none';
+      if(viewTurnos) viewTurnos.style.display = 'none';
+      if(listaVazia) listaVazia.style.display = 'none';
+      if(viewCusto) viewCusto.style.display = 'none';
+      if(viewFat) viewFat.style.display = 'none';
+      if(viewMapa) viewMapa.style.display = 'block';
+      if(topRow) topRow.style.display = 'none';
+      if(toggleBar) toggleBar.style.display = 'none';
+      if(filtroDia) filtroDia.style.display = 'none';
+      try{ renderMapaEntregas(false); }catch(e){ console.warn('mapa', e); }
+      return;
+    }
     if(isCusto){
       if(gridStats) gridStats.style.display = 'none';
       if(viewTurnos) viewTurnos.style.display = 'none';
@@ -4939,7 +5186,6 @@ function setAbaEntregador(aba){
       atualizarUIFiltroCustoEnt();
       renderAbaCustoMaster();
     } else if(isFaturamento){
-      // Master: faturamento é por entregador — redireciona para custo (conferência)
       if(gridStats) gridStats.style.display = 'none';
       if(viewTurnos) viewTurnos.style.display = 'none';
       if(listaVazia) listaVazia.style.display = 'none';
@@ -4950,7 +5196,6 @@ function setAbaEntregador(aba){
       if(filtroDia) filtroDia.style.display = 'none';
       try{ renderQuadroFaturamentoSemana(); }catch(e){}
     } else if(isRota){
-      // Em rota: pedidos de HOJE do TURNO ATUAL, só por entregador — SEM adicionar e SEM pesquisa
       if(gridStats) gridStats.style.display = '';
       if(viewTurnos) viewTurnos.style.display = 'block';
       if(viewCusto) viewCusto.style.display = 'none';
@@ -4965,7 +5210,6 @@ function setAbaEntregador(aba){
       if(btnToggleAdd) btnToggleAdd.style.display = 'none';
       try{ carregar(); }catch(e){ try{ render(); }catch(e2){} }
     } else {
-      // Aba Pedidos: visão completa com filtro de dia + pesquisa (comportamento anterior)
       if(gridStats) gridStats.style.display = '';
       if(viewTurnos) viewTurnos.style.display = 'block';
       if(viewCusto) viewCusto.style.display = 'none';
@@ -4980,6 +5224,22 @@ function setAbaEntregador(aba){
   }
 
   // ENTREGADOR
+  if(isMapa){
+    if(gridStats) gridStats.style.display = 'none';
+    if(viewTurnos) viewTurnos.style.display = 'none';
+    if(listaVazia) listaVazia.style.display = 'none';
+    if(viewCusto) viewCusto.style.display = 'none';
+    if(viewFat) viewFat.style.display = 'none';
+    if(viewMapa) viewMapa.style.display = 'block';
+    if(filtroDia) filtroDia.style.display = 'none';
+    if(toggleBar) toggleBar.style.display = 'none';
+    if(topRow) topRow.style.display = 'none';
+    if(cardAdd){ cardAdd.classList.add('barra-oculta'); cardAdd.style.display = 'none'; }
+    if(cardBusca){ cardBusca.classList.add('barra-oculta'); cardBusca.style.display = 'none'; }
+    try{ renderMapaEntregas(false); }catch(e){ console.warn('mapa', e); }
+    return;
+  }
+  _esconderMapa();
   if(isCusto){
     if(gridStats) gridStats.style.display = 'none';
     if(viewTurnos) viewTurnos.style.display = 'none';
@@ -5012,7 +5272,6 @@ function setAbaEntregador(aba){
     if(cardBusca){ cardBusca.classList.add('barra-oculta'); cardBusca.style.display = 'none'; }
     try{ renderQuadroFaturamentoSemana(); }catch(e){ console.warn('faturamento', e); }
   } else {
-    // Entregador: "Em rota" (padrão) = adicionar + pedidos em rota | "Pedidos" = só finalizados
     const naRota = abaEntregadorAtual === 'rota';
     if(gridStats) gridStats.style.display = naRota ? 'none' : '';
     if(viewTurnos) viewTurnos.style.display = 'block';
@@ -5036,6 +5295,7 @@ function setAbaEntregador(aba){
     try{ render(); }catch(e){}
   }
 }
+
 
 function atualizarVisibilidadeAbasEntregador(){
   const bar = document.getElementById('entregadorAbas');
@@ -5136,14 +5396,81 @@ async function carregarRuasTravaCusto(forcar){
     console.warn('carregarRuasTravaCusto', e);   // falhou: sem trava (cards continuam com todas as opções)
   }
 }
+/** Tokens significativos de uma chave de rua (sem tipo nem títulos honoríficos/primeiro nome genérico).
+ *  Permite casar "avenida presidente kennedy" com "avenida john kennedy" pelo núcleo "kennedy". */
+function _tokensRuaNucleo(chave){
+  const STOP = new Set([
+    'rua','avenida','travessa','alameda','rodovia','estrada','praca',
+    'presidente','doutor','dr','dra','sao','santa','santo','padre','general','marechal',
+    'desembargador','senador','deputado','governador','prefeito','dom','visconde','barao',
+    'conde','duque','princesa','imperador','capitao','tenente','coronel','major','sargento',
+    'engenheiro','prof','professor','professora','frei','irma','irmao',
+    'joao','jose','maria','antonio','francisco','pedro','paulo','carlos','luis','luiz',
+    'john','jfk','f','de','da','do','das','dos','e','o','a'
+  ]);
+  return String(chave||'').split(/\s+/).filter(t => t && !STOP.has(t));
+}
+/** Tipo de logradouro normalizado (rua/avenida/…). */
+function _tipoRuaChave(chave){
+  const m = String(chave||'').match(/^(rua|avenida|travessa|alameda|rodovia|estrada|praca)\b/);
+  return m ? m[1] : '';
+}
+/**
+ * Busca entrada no mapa de ruas (chave → {v, faixas, conflito?}).
+ * 1) match exato da chave normalizada
+ * 2) se não achar: match flexível pelo NÚCLEO do nome (última palavra significativa)
+ *    + mesmo tipo de logradouro, desde que o candidato seja ÚNICO (evita ambiguidade).
+ *    Ex.: pedido "Av. Presidente Kennedy" casa com cadastro "avenida john kennedy".
+ * `exigeSemConflito`: se true, ignora entradas marcadas com conflito (usado na trava do card).
+ */
+function _buscarEntradaRuaMapa(mapa, chave, exigeSemConflito){
+  if(!mapa || !chave) return null;
+  const exata = mapa[chave];
+  if(exata){
+    if(exigeSemConflito && exata.conflito) return null;
+    return exata;
+  }
+  const nucleo = _tokensRuaNucleo(chave);
+  if(!nucleo.length) return null;
+  const ultimo = nucleo[nucleo.length - 1];
+  const tipo = _tipoRuaChave(chave);
+  const candidatos = [];
+  for(const k of Object.keys(mapa)){
+    const ent = mapa[k];
+    if(!ent) continue;
+    if(exigeSemConflito && ent.conflito) continue;
+    const t2 = _tipoRuaChave(k);
+    if(tipo && t2 && tipo !== t2) continue;
+    const n2 = _tokensRuaNucleo(k);
+    if(!n2.length) continue;
+    // núcleo do pedido contido no cadastro, ou núcleo do cadastro contido no pedido,
+    // ou mesma última palavra significativa (ex.: kennedy)
+    const set1 = new Set(nucleo), set2 = new Set(n2);
+    const inter = n2.filter(t => set1.has(t));
+    const mesmaUltima = n2[n2.length - 1] === ultimo;
+    const contido = inter.length === Math.min(nucleo.length, n2.length) && inter.length > 0;
+    if(mesmaUltima || contido) candidatos.push(k);
+  }
+  if(candidatos.length === 1) return mapa[candidatos[0]];
+  // Se vários candidatos, só aceita se TODOS tiverem o mesmo valor base + faixas (sem ambiguidade de preço)
+  if(candidatos.length > 1){
+    const vals = candidatos.map(k => {
+      const e = mapa[k];
+      return JSON.stringify({ v: e.v, faixas: e.faixas || [] });
+    });
+    if(vals.every(v => v === vals[0])) return mapa[candidatos[0]];
+  }
+  return null;
+}
 /** Resolve o valor de taxa cadastrado para um endereço completo (nome da rua + número).
  *  Usa valor base; se houver faixas e o endereço tiver número, aplica a faixa correspondente.
- *  Devolve null se a rua não estiver cadastrada ou estiver em conflito (duplicata). */
+ *  Devolve null se a rua não estiver cadastrada ou estiver em conflito (duplicata).
+ *  Aceita variantes de nome (Presidente Kennedy ↔ John Kennedy) quando o match é único. */
 function _resolverValorPorEndereco(end){
   const k = _chaveRuaCusto(end);
   if(!k) return null;
-  const e = _ruasTravaCache.mapa[k];
-  if(!e || e.conflito) return null;
+  const e = _buscarEntradaRuaMapa(_ruasTravaCache.mapa, k, true);
+  if(!e) return null;
   const n = _extrairNumeroCasa(end);
   return _valorPorNumero({ v: e.v, faixas: e.faixas || [] }, n);
 }
@@ -6410,7 +6737,15 @@ async function _sincronizarAmostrasRuas(client, linhas, porChave){
       const k = _normNomeRuaCusto(r.rua);
       if(!k || vistos.has(k) || r.id == null) return;
       vistos.add(k);
-      const novas = porChave[k];
+      // amostras podem ter chegado com chave variante (ex.: presidente kennedy vs john kennedy)
+      let novas = porChave[k];
+      if((!novas || !novas.length) && typeof _buscarEntradaRuaMapa==='function'){
+        // tenta achar chave de porChave que case com esta rua cadastrada
+        for(const pk of Object.keys(porChave||{})){
+          const hit = _buscarEntradaRuaMapa({[k]: {v:1, faixas:[]}}, pk, false);
+          if(hit){ novas = porChave[pk]; break; }
+        }
+      }
       if(!novas || !novas.length) return;
       const {lista, mudou} = _mergeAmostras(r.amostras, novas);
       if(mudou) tarefas.push({ id: r.id, lista });
@@ -6510,7 +6845,8 @@ async function sugerirValoresCusto(){
       for(const m of membros){
         const k = _chaveRuaCusto(m.cliente_endereco);
         if(!k) continue;
-        if(k in cfg){ val = _valorPorNumero(cfg[k], _extrairNumeroCasa(m.cliente_endereco)); fonte = 'cfg'; break; }
+        const entCfg = (typeof _buscarEntradaRuaMapa==='function') ? _buscarEntradaRuaMapa(cfg, k, false) : (cfg[k]||null);
+        if(entCfg){ val = _valorPorNumero(entCfg, _extrairNumeroCasa(m.cliente_endereco)); fonte = 'cfg'; break; }
         if(k in ped){ val = ped[k].v; fonte = 'ped'; break; }
       }
       if(val == null){ semHistorico++; return; }
@@ -6525,7 +6861,12 @@ async function sugerirValoresCusto(){
     //    Ruas já cadastradas só recebem novas "amostras" (nº → valor); valor base e faixas ficam como estão.
     let novas = 0, erroGravar = '';
     if(cfgOk){
-      const novasLinhas = Object.keys(ped).filter(k => !(k in cfg)).map(k => {
+      const novasLinhas = Object.keys(ped).filter(k => {
+        if(k in cfg) return false;
+        // não cria duplicata se já existe variante cadastrada (ex.: john kennedy ↔ presidente kennedy)
+        if(typeof _buscarEntradaRuaMapa==='function' && _buscarEntradaRuaMapa(cfg, k, false)) return false;
+        return true;
+      }).map(k => {
         const linha = { rua: ped[k].nome || k, valor_normal: ped[k].v };
         if(temCols) linha.amostras = _mergeAmostras([], amHist[k] || []).lista;
         return linha;
@@ -8679,6 +9020,7 @@ async function carregar(){
  render();
  try{ if(abaEntregadorAtual==='custo' && usuarioLogado && !usuarioLogado.isMaster) renderAbaCusto(); if(abaEntregadorAtual==='faturamento') renderQuadroFaturamentoSemana(); }catch(e){}
  try{ agendarAtualizacaoDinheiro(); }catch(e){}
+ try{ agendarAtualizarMapaSeAberto({ delay: 500 }); }catch(e){}
 }
 function podeAdicionarData(dataPedido){
   if(usuarioLogado?.isMaster) return true;
@@ -8853,6 +9195,329 @@ async function buscarPedidosPorNumeros(client, numeros){
   }
   return Object.values(mapa);
 }
+
+
+// ===================== QR CODE → ADICIONAR PEDIDO (entregador) =====================
+let _qrStream = null;
+let _qrRaf = null;
+let _qrBusy = false;
+let _qrDetector = null;
+let _qrLastText = '';
+let _qrLastTs = 0;
+
+function extrairNumerosDoQr(texto){
+  const t = String(texto||'').trim();
+  if(!t) return [];
+  // JSON {"pedido":"123"} etc
+  try{
+    if(t.charAt(0)==='{' || t.charAt(0)==='['){
+      const j = JSON.parse(t);
+      if(j && typeof j === 'object'){
+        const cand = j.numero_pedido || j.pedido || j.numero || j.order || j.id || j.code;
+        if(cand) return extrairNumerosDoQr(String(cand));
+        if(Array.isArray(j)) return j.map(x=>String(x)).filter(Boolean);
+      }
+    }
+  }catch(e){}
+  // URL com query ?pedido=123
+  try{
+    if(/^https?:\/\//i.test(t)){
+      const u = new URL(t);
+      const q = u.searchParams.get('pedido') || u.searchParams.get('numero') || u.searchParams.get('order') || u.pathname.split('/').filter(Boolean).pop();
+      if(q) return extrairNumerosDoQr(q);
+    }
+  }catch(e){}
+  // limpa # e separa por espaços/vírgulas
+  const parts = t.replace(/#/g,'').split(/[\s,;|/\n\r]+/).map(x=>x.trim()).filter(Boolean);
+  const out = [];
+  parts.forEach(p=>{
+    if(/^wa\d+$/i.test(p) || /^\d{4,}$/.test(p) || /^[A-Za-z]{0,3}\d{4,}$/.test(p)){
+      if(out.indexOf(p)<0) out.push(p);
+    } else {
+      const dig = p.replace(/\D/g,'');
+      if(dig.length >= 4 && out.indexOf(dig)<0) out.push(dig);
+    }
+  });
+  // se nada, tenta o texto inteiro sem #
+  if(!out.length){
+    const limpo = t.replace(/^#/,'').trim();
+    if(limpo) out.push(limpo);
+  }
+  return out;
+}
+
+function _qrSetStatus(msg, cor){
+  const el = document.getElementById('qrScanStatus');
+  if(el){ el.textContent = msg||''; el.style.color = cor||'#8b93a7'; }
+}
+
+async function abrirScannerQrPedido(){
+  if(!usuarioLogado){
+    try{ mostrarAlerta('Faça login para usar o leitor de QR.', {tipo:'aviso'}); }catch(e){}
+    return;
+  }
+  if(usuarioLogado.isMaster && !usuarioLogado.viaMaster){
+    // Master pode usar se quiser, mas foco é entregador
+  }
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    try{ mostrarAlerta('Este aparelho/navegador não permite acesso à câmera.', {tipo:'erro', titulo:'Câmera', icone:'📷'}); }catch(e){}
+    return;
+  }
+  _qrBusy = false;
+  _qrLastText = '';
+  _qrLastTs = 0;
+  const modal = document.getElementById('modalScannerQr');
+  if(modal) modal.style.display = 'flex';
+  _qrSetStatus('Pedindo permissão da câmera…', '#f0c14a');
+  try{
+    // para stream anterior
+    fecharScannerQrPedido(true);
+    if(modal) modal.style.display = 'flex';
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      }
+    });
+    _qrStream = stream;
+    const video = document.getElementById('qrVideo');
+    if(video){
+      video.srcObject = stream;
+      await video.play().catch(()=>{});
+    }
+    if('BarcodeDetector' in window){
+      try{
+        const formats = ['qr_code'];
+        _qrDetector = new BarcodeDetector({ formats });
+      }catch(e){ _qrDetector = null; }
+    } else {
+      _qrDetector = null;
+    }
+    if(!_qrDetector && typeof jsQR === 'undefined'){
+      _qrSetStatus('Biblioteca de QR não carregou. Verifique a internet.', '#ff6b6b');
+      return;
+    }
+    _qrSetStatus('Aponte para o QR Code…', '#6ab7ff');
+    _qrLoopScan();
+  }catch(e){
+    console.warn('abrirScannerQrPedido', e);
+    _qrSetStatus('Não foi possível abrir a câmera: '+(e.message||e), '#ff6b6b');
+    try{ mostrarAlerta('Permita o acesso à câmera para ler o QR Code.\n\n'+(e.message||e), {tipo:'erro', titulo:'Câmera', icone:'📷'}); }catch(e2){}
+  }
+}
+
+function fecharScannerQrPedido(silent){
+  if(_qrRaf){ try{ cancelAnimationFrame(_qrRaf); }catch(e){} _qrRaf = null; }
+  if(_qrStream){
+    try{ _qrStream.getTracks().forEach(t=>{ try{ t.stop(); }catch(e){} }); }catch(e){}
+    _qrStream = null;
+  }
+  const video = document.getElementById('qrVideo');
+  if(video){
+    try{ video.pause(); }catch(e){}
+    try{ video.srcObject = null; }catch(e){}
+  }
+  _qrDetector = null;
+  _qrBusy = false;
+  if(!silent){
+    const modal = document.getElementById('modalScannerQr');
+    if(modal) modal.style.display = 'none';
+  }
+}
+
+function _qrLoopScan(){
+  const video = document.getElementById('qrVideo');
+  const canvas = document.getElementById('qrCanvas');
+  if(!video || !canvas || !_qrStream) return;
+
+  const tick = async ()=>{
+    if(!_qrStream) return;
+    try{
+      if(video.readyState >= 2 && video.videoWidth){
+        if(_qrDetector){
+          const codes = await _qrDetector.detect(video);
+          if(codes && codes.length){
+            const raw = codes[0].rawValue || codes[0].rawData || '';
+            if(raw) await _qrOnDetect(String(raw));
+          }
+        } else if(typeof jsQR === 'function'){
+          const w = video.videoWidth, h = video.videoHeight;
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          ctx.drawImage(video, 0, 0, w, h);
+          const img = ctx.getImageData(0, 0, w, h);
+          const code = jsQR(img.data, w, h, { inversionAttempts: 'dontInvert' });
+          if(code && code.data) await _qrOnDetect(String(code.data));
+        }
+      }
+    }catch(e){ /* frame skip */ }
+    _qrRaf = requestAnimationFrame(tick);
+  };
+  _qrRaf = requestAnimationFrame(tick);
+}
+
+async function _qrOnDetect(texto){
+  const now = Date.now();
+  if(_qrBusy) return;
+  if(texto === _qrLastText && (now - _qrLastTs) < 2500) return;
+  _qrLastText = texto;
+  _qrLastTs = now;
+  _qrBusy = true;
+  _qrSetStatus('QR lido: '+texto.slice(0,40)+(texto.length>40?'…':''), '#f0c14a');
+
+  const nums = extrairNumerosDoQr(texto);
+  if(!nums.length){
+    _qrBusy = false;
+    _qrSetStatus('QR sem número de pedido válido. Tente de novo.', '#ff6b6b');
+    try{ mostrarAlerta('O QR Code não contém um número de pedido reconhecível.\n\nConteúdo: '+texto.slice(0,80), {tipo:'erro', titulo:'QR inválido', icone:'📷'}); }catch(e){}
+    return;
+  }
+
+  // Processa o primeiro número (QR típico = 1 pedido); se vários, tenta em sequência
+  fecharScannerQrPedido();
+  for(let i=0; i<nums.length; i++){
+    const ok = await adicionarPedidoViaQr(nums[i]);
+    if(ok && nums.length === 1) break;
+    // se vários e um falhou, continua nos próximos
+  }
+  _qrBusy = false;
+}
+
+/**
+ * Adiciona pedido pelo número lido no QR — sem modal de confirmação.
+ * Retorna true se adicionou (ou já estava na lista tratamos como ok informativo).
+ */
+async function adicionarPedidoViaQr(numRaw){
+  numRaw = String(numRaw||'').trim();
+  if(!numRaw){
+    try{ mostrarAlerta('Número do pedido vazio no QR.', {tipo:'erro', titulo:'QR', icone:'📷'}); }catch(e){}
+    return false;
+  }
+  const client = getSb();
+  if(!client){
+    try{ mostrarAlerta('Supabase não configurado.', {tipo:'erro'}); }catch(e){}
+    return false;
+  }
+  if(!ehEntregadorComum()){
+    // Master: usa fluxo normal com confirmação no input
+    try{
+      const inp = document.getElementById('inputPedido');
+      if(inp) inp.value = numRaw;
+      await adicionarPedido();
+    }catch(e){}
+    return false;
+  }
+
+  const st = document.getElementById('addStatus');
+  if(st){ st.textContent = '📷 QR → buscando #'+numRaw+'…'; st.style.color = '#6ab7ff'; }
+
+  try{
+    const numerosBusca = expandirNumerosBuscaPedido(numRaw);
+    let encontradosDB = await buscarPedidosPorNumeros(client, numerosBusca);
+    if(!encontradosDB.length){
+      if(st){ st.textContent = '❌ Pedido #'+numRaw+' não encontrado'; st.style.color = '#ff6b6b'; }
+      await mostrarAlerta('Pedido #'+numRaw+' não encontrado no sistema.', { tipo:'erro', titulo:'Pedido não existe', icone:'🚫' });
+      return false;
+    }
+    let encontrados = encontradosDB.filter(p=> podeAdicionarData(p.data));
+    if(!encontrados.length){
+      const d = encontradosDB[0];
+      await mostrarAlerta('Pedido #'+numRaw+' é do dia '+(d.data||'?')+' e não pode ser adicionado agora.', { tipo:'erro', titulo:'Data/turno', icone:'📅' });
+      return false;
+    }
+    // Preferir não finalizado
+    encontrados = encontrados.slice().sort((a,b)=>{
+      const fa = _ehStatusFinalizado(a.status)?1:0;
+      const fb = _ehStatusFinalizado(b.status)?1:0;
+      return fa - fb;
+    });
+    const pedido = encontrados[0];
+    if(_ehStatusFinalizado(pedido.status) || String(pedido.status||'').toLowerCase()==='cancelado'){
+      await mostrarAlerta('Pedido #'+(pedido.numero_pedido||numRaw)+' já está finalizado/cancelado.', { tipo:'erro', titulo:'Pedido indisponível', icone:'✅' });
+      return false;
+    }
+    if(pedidoForaDoTurnoAtual(pedido)){
+      await mostrarAlerta('Pedido #'+(pedido.numero_pedido||numRaw)+' é de outro turno e não pode ser adicionado agora.', { tipo:'erro', titulo:'Outro turno', icone:'⏰' });
+      try{ abrirModalTurnoBloqueado(pedido); }catch(e){}
+      return false;
+    }
+
+    const reserva = await verificarReserva(pedido.id);
+    if(reserva && reserva.entregador_nome){
+      mapaReservas[pedido.id] = reserva.entregador_nome;
+    }
+
+    // Já com outro
+    if(reserva && reserva.entregador_nome && !ehMesmoEntregador(reserva.entregador_nome)){
+      if(st){ st.textContent = '❌ Já com '+reserva.entregador_nome; st.style.color = '#ff6b6b'; }
+      await mostrarAlerta('O pedido #'+(pedido.numero_pedido||numRaw)+' já está com outro entregador:\n🛵 '+reserva.entregador_nome, {
+        tipo:'erro', titulo:'Pedido indisponível', icone:'🚫'
+      });
+      return false;
+    }
+
+    // Já comigo
+    const chk = (typeof pedidoOuGrupoJaComigo==='function') ? pedidoOuGrupoJaComigo(pedido) : {motivo:''};
+    const jaMeu = (reserva && reserva.entregador_nome && ehMesmoEntregador(reserva.entregador_nome))
+      || (pedidosVisiveisIds||[]).includes(pedido.id)
+      || (chk && chk.motivo==='mesmo');
+    if(jaMeu){
+      if(!(pedidosVisiveisIds||[]).includes(pedido.id)){
+        try{ salvarPedidoVisivel(pedido); }catch(e){ pedidosVisiveisIds.push(pedido.id); }
+      }
+      if(st){ st.textContent = '⚠️ Já está na sua lista'; st.style.color = '#f0c14a'; }
+      try{ render(); }catch(e){}
+      await mostrarAlerta('O pedido #'+(pedido.numero_pedido||numRaw)+' já está na sua lista.', {
+        tipo:'aviso', titulo:'Já adicionado', icone:'🔗'
+      });
+      return false;
+    }
+
+    // Grupo: algum membro com outro entregador?
+    if(pedido.grupo_entrega && typeof pedidoOuGrupoJaComigo==='function'){
+      const gchk = pedidoOuGrupoJaComigo(pedido);
+      if(gchk && gchk.motivo==='outro'){
+        await mostrarAlerta('Um pedido do mesmo grupo já está com outro entregador.', { tipo:'erro', titulo:'Grupo indisponível', icone:'🚫' });
+        return false;
+      }
+    }
+
+    // Reserva automática (sem modal de confirmação)
+    const ok = await criarReserva(pedido);
+    if(!ok){
+      await mostrarAlerta('Não foi possível reservar o pedido #'+(pedido.numero_pedido||numRaw)+'.\nOutro entregador pode ter pegado agora.', {
+        tipo:'erro', titulo:'Falha na reserva', icone:'🚫'
+      });
+      return false;
+    }
+    mapaReservas[pedido.id] = nomeEntregadorAtual();
+    if(pedido.grupo_entrega){
+      try{ await autoReservarGrupo(pedido); }catch(e){ console.warn('qr autoReservarGrupo', e); }
+    }
+    if(!todosPedidos.some(x=>x.id===pedido.id)){
+      todosPedidos.push(pedido);
+      todosPedidos.sort((a,b)=> new Date(a.created_at)-new Date(b.created_at));
+    }
+    try{ salvarPedidoVisivel(pedido); }catch(e){}
+    if(st){
+      st.textContent = '✅ Pedido #'+(pedido.numero_pedido||numRaw)+' adicionado via QR';
+      st.style.color = '#3dcc8a';
+    }
+    try{ render(); }catch(e){}
+    setTimeout(()=>{ try{ carregar(); }catch(e){} }, 400);
+    await mostrarAlerta('Pedido #'+(pedido.numero_pedido||numRaw)+' adicionado à sua lista.', {
+      tipo:'sucesso', titulo:'Pedido adicionado', icone:'✅'
+    });
+    return true;
+  }catch(e){
+    console.error('adicionarPedidoViaQr', e);
+    try{ await mostrarAlerta('Erro ao processar QR: '+(e.message||e), {tipo:'erro', titulo:'Erro', icone:'❌'}); }catch(e2){}
+    return false;
+  }
+}
+// =================== FIM QR CODE ===================
 
 async function adicionarPedido(){
   const numRaw=document.getElementById('inputPedido').value.trim();
@@ -12242,6 +12907,18 @@ function _refreshModalRefri(){
 function render(){
   try{ _cancSeparar(); renderCancelados(); }catch(e){}
   try{ sincronizarFlagsConfirmacaoLocal(todosPedidos); }catch(e){}
+  // Aba Mapa: não monta listas de turnos — atualiza pins se a lista mudou
+  if(typeof abaEntregadorAtual !== 'undefined' && abaEntregadorAtual === 'mapa'){
+    try{
+      const vt = document.getElementById('viewTurnos'); if(vt) vt.style.display = 'none';
+      const vc = document.getElementById('viewCustoEntregador'); if(vc) vc.style.display = 'none';
+      const vf = document.getElementById('viewFaturamentoEntregador'); if(vf) vf.style.display = 'none';
+      const vm = document.getElementById('viewMapaEntregador'); if(vm) vm.style.display = 'block';
+      const gs = document.getElementById('gridStats'); if(gs) gs.style.display = 'none';
+    }catch(e){}
+    try{ agendarAtualizarMapaSeAberto({ delay: 400 }); }catch(e){}
+    return;
+  }
 
   try{ _aplicarAlertasMasterLocais(todosPedidos); }catch(e){}
 
@@ -14571,6 +15248,768 @@ function iniciarMonitorFilaOffline(){
  */
 
 
+
+// ===================== MAPA DAS ENTREGAS EM ABERTO =====================
+const MAPA_CFG_KEY = 'mapa_cidade';
+const MAPA_GEO_CACHE_KEY = 'mapa_geo_cache_v6';
+const MAPA_DEFAULT = { cidade: 'Campo Mourão', uf: 'PR', pais: 'Brasil', lat: -24.046, lng: -52.378 };
+let _mapaLeaflet = null;
+let _mapaLayerGroup = null;
+let _mapaRenderBusy = false;
+let _mapaGeoCache = null;
+
+function _mapaLoadGeoCache(){
+  if(_mapaGeoCache) return _mapaGeoCache;
+  try{ _mapaGeoCache = JSON.parse(localStorage.getItem(MAPA_GEO_CACHE_KEY)||'{}') || {}; }
+  catch(e){ _mapaGeoCache = {}; }
+  return _mapaGeoCache;
+}
+function _mapaSaveGeoCache(){
+  try{ localStorage.setItem(MAPA_GEO_CACHE_KEY, JSON.stringify(_mapaGeoCache||{})); }catch(e){}
+}
+
+function getCfgMapaCidade(){
+  let cfg = Object.assign({}, MAPA_DEFAULT);
+  try{
+    const raw = localStorage.getItem(MAPA_CFG_KEY);
+    if(raw){
+      const o = JSON.parse(raw);
+      if(o && typeof o === 'object'){
+        if(o.cidade) cfg.cidade = String(o.cidade).trim();
+        if(o.uf) cfg.uf = String(o.uf).trim().toUpperCase().slice(0,2);
+        if(o.pais) cfg.pais = String(o.pais).trim() || 'Brasil';
+        if(o.lat != null && o.lat !== '' && isFinite(Number(o.lat))) cfg.lat = Number(o.lat);
+        if(o.lng != null && o.lng !== '' && isFinite(Number(o.lng))) cfg.lng = Number(o.lng);
+      }
+    }
+  }catch(e){}
+  return cfg;
+}
+
+function setCfgMapaCidadeLocal(cfg){
+  try{ localStorage.setItem(MAPA_CFG_KEY, JSON.stringify(cfg)); }catch(e){}
+}
+
+async function carregarCfgMapaCidadeDoServidor(){
+  const client = getSb && getSb();
+  if(!client) return getCfgMapaCidade();
+  try{
+    const {data, error} = await client.from('app_config').select('valor').eq('chave', MAPA_CFG_KEY).maybeSingle();
+    if(!error && data && data.valor){
+      let o = data.valor;
+      if(typeof o === 'string'){ try{ o = JSON.parse(o); }catch(e){ o = null; } }
+      if(o && typeof o === 'object'){
+        const cfg = Object.assign({}, MAPA_DEFAULT, {
+          cidade: o.cidade || MAPA_DEFAULT.cidade,
+          uf: (o.uf||MAPA_DEFAULT.uf||'').toString().toUpperCase().slice(0,2),
+          pais: o.pais || MAPA_DEFAULT.pais,
+          lat: (o.lat!=null && isFinite(Number(o.lat))) ? Number(o.lat) : MAPA_DEFAULT.lat,
+          lng: (o.lng!=null && isFinite(Number(o.lng))) ? Number(o.lng) : MAPA_DEFAULT.lng
+        });
+        setCfgMapaCidadeLocal(cfg);
+        return cfg;
+      }
+    }
+  }catch(e){ console.warn('carregarCfgMapaCidadeDoServidor', e); }
+  return getCfgMapaCidade();
+}
+
+function carregarCfgMapaCidadeUI(){
+  const cfg = getCfgMapaCidade();
+  const set = (id,v)=>{ const el=document.getElementById(id); if(el) el.value = (v==null?'':String(v)); };
+  set('cfgMapaCidade', cfg.cidade);
+  set('cfgMapaUF', cfg.uf);
+  set('cfgMapaPais', cfg.pais);
+  set('cfgMapaLat', cfg.lat);
+  set('cfgMapaLng', cfg.lng);
+  const st = document.getElementById('cfgMapaStatus');
+  if(st){ st.textContent = ''; st.style.color = '#8b93a7'; }
+  try{ carregarCfgMapaCidadeDoServidor().then(c=>{
+    set('cfgMapaCidade', c.cidade); set('cfgMapaUF', c.uf); set('cfgMapaPais', c.pais);
+    set('cfgMapaLat', c.lat); set('cfgMapaLng', c.lng);
+  }); }catch(e){}
+}
+
+async function salvarCfgMapaCidade(){
+  const st = document.getElementById('cfgMapaStatus');
+  const cidade = (document.getElementById('cfgMapaCidade')?.value||'').trim();
+  const uf = (document.getElementById('cfgMapaUF')?.value||'').trim().toUpperCase().slice(0,2);
+  const pais = (document.getElementById('cfgMapaPais')?.value||'Brasil').trim() || 'Brasil';
+  let lat = (document.getElementById('cfgMapaLat')?.value||'').trim();
+  let lng = (document.getElementById('cfgMapaLng')?.value||'').trim();
+  if(!cidade){
+    if(st){ st.textContent = 'Informe a cidade'; st.style.color = '#ff6b6b'; }
+    return;
+  }
+  if(st){ st.textContent = 'Salvando…'; st.style.color = '#f0c14a'; }
+  // Se lat/lng vazios, tenta geocodificar a cidade
+  if(!lat || !lng || !isFinite(Number(lat)) || !isFinite(Number(lng))){
+    try{
+      const g = await geocodeTexto([cidade, uf, pais].filter(Boolean).join(', '), { force: true });
+      if(g){ lat = g.lat; lng = g.lng; }
+    }catch(e){}
+  }
+  const cfg = {
+    cidade, uf, pais,
+    lat: (lat!=='' && isFinite(Number(lat))) ? Number(lat) : MAPA_DEFAULT.lat,
+    lng: (lng!=='' && isFinite(Number(lng))) ? Number(lng) : MAPA_DEFAULT.lng
+  };
+  setCfgMapaCidadeLocal(cfg);
+  const set = (id,v)=>{ const el=document.getElementById(id); if(el) el.value = (v==null?'':String(v)); };
+  set('cfgMapaLat', cfg.lat); set('cfgMapaLng', cfg.lng);
+  const client = getSb && getSb();
+  if(client){
+    try{
+      const {error} = await client.from('app_config').upsert({
+        chave: MAPA_CFG_KEY,
+        valor: JSON.stringify(cfg),
+        atualizado_em: new Date().toISOString()
+      }, { onConflict: 'chave' });
+      if(error) throw error;
+      if(st){ st.textContent = '✅ Cidade salva (servidor + aparelho)'; st.style.color = '#3dcc8a'; }
+    }catch(e){
+      if(st){ st.textContent = '✅ Salvo no aparelho (servidor: '+(e.message||e)+')'; st.style.color = '#f0c14a'; }
+    }
+  } else if(st){ st.textContent = '✅ Salvo no aparelho'; st.style.color = '#3dcc8a'; }
+  try{ if(abaEntregadorAtual==='mapa') renderMapaEntregas(true); }catch(e){}
+}
+
+async function testarGeocodeCidade(){
+  const st = document.getElementById('cfgMapaStatus');
+  const cidade = (document.getElementById('cfgMapaCidade')?.value||'').trim() || getCfgMapaCidade().cidade;
+  const uf = (document.getElementById('cfgMapaUF')?.value||'').trim().toUpperCase() || getCfgMapaCidade().uf;
+  const pais = (document.getElementById('cfgMapaPais')?.value||'').trim() || 'Brasil';
+  if(st){ st.textContent = 'Buscando localização…'; st.style.color = '#f0c14a'; }
+  try{
+    const g = await geocodeTexto([cidade, uf, pais].filter(Boolean).join(', '), { force: true });
+    if(!g){ if(st){ st.textContent = 'Não encontrado. Ajuste cidade/UF.'; st.style.color = '#ff6b6b'; } return; }
+    const elLat = document.getElementById('cfgMapaLat');
+    const elLng = document.getElementById('cfgMapaLng');
+    if(elLat) elLat.value = g.lat;
+    if(elLng) elLng.value = g.lng;
+    if(st){ st.textContent = '✅ Encontrado: '+g.lat.toFixed(5)+', '+g.lng.toFixed(5)+(g.display?', '+g.display:''); st.style.color = '#3dcc8a'; }
+  }catch(e){
+    if(st){ st.textContent = 'Erro: '+(e.message||e); st.style.color = '#ff6b6b'; }
+  }
+}
+
+function _mapaSleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+function _mapaNormTxt(s){
+  try{ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+  catch(e){ return String(s||'').toLowerCase(); }
+}
+
+/** Tokens significativos do nome da rua (ignora Rua/Av/de/da/do e palavras curtas). */
+function _mapaTokensRua(query){
+  const stop = {
+    rua:1, r:1, avenida:1, av:1, travessa:1, alameda:1, rodovia:1, estrada:1,
+    de:1, da:1, do:1, das:1, dos:1, e:1, the:1, street:1, st:1,
+    brasil:1, brazil:1, parana:1, pr:1, centro:1, jardim:1, vila:1, bairro:1
+  };
+  const n = _mapaNormTxt(query).replace(/[^a-z0-9\s]/g,' ');
+  const parts = n.split(/\s+/).filter(Boolean);
+  const out = [];
+  for(const p of parts){
+    if(p.length < 3) continue;
+    if(stop[p]) continue;
+    if(/^\d+$/.test(p)) continue; // número do imóvel não conta como token de rua
+    if(out.indexOf(p) < 0) out.push(p);
+  }
+  return out;
+}
+
+/** Candidato é bom o bastante? Exige tokens da rua no endereço retornado. */
+function _mapaMatchOk(query, addressDisplay, score){
+  const addr = _mapaNormTxt(addressDisplay||'');
+  if(!addr) return false;
+  const tokens = _mapaTokensRua(query);
+  if(!tokens.length){
+    // sem tokens de rua (só cidade?) → só aceita se score alto e não for só localidade genérica
+    return (Number(score)||0) >= 95;
+  }
+  let hits = 0;
+  for(const t of tokens){
+    if(addr.indexOf(t) >= 0) hits++;
+  }
+  // Precisa a maioria dos tokens (ou pelo menos 2 se houver 3+)
+  const need = tokens.length <= 2 ? tokens.length : Math.ceil(tokens.length * 0.6);
+  if(hits < need) return false;
+  // Score mínimo
+  if((Number(score)||0) < 75) return false;
+  // Rejeita match só de cidade (sem logradouro aparente) quando query tem rua
+  const soCidade = /^(campo mourao|mourao|parana|brasil)/.test(addr) ||
+    (!/\d/.test(addr) && !/rua|avenida|av\.|travessa|alameda|rodovia|estrada/.test(addr) && hits < tokens.length);
+  // se tem hits de tokens de rua, ok mesmo sem a palavra "rua"
+  if(hits >= need) return true;
+  return !soCidade;
+}
+
+async function geocodeTexto(q, opts){
+  opts = opts || {};
+  const query = String(q||'').trim();
+  if(!query) return null;
+  const cache = _mapaLoadGeoCache();
+  const key = query.toLowerCase();
+  if(!opts.force && cache[key] && Object.prototype.hasOwnProperty.call(cache[key], 'lat')){
+    if(cache[key].lat == null) return null;
+    return cache[key];
+  }
+  if(typeof fetch !== 'function') return null;
+
+  const cfg = (typeof getCfgMapaCidade==='function') ? getCfgMapaCidade() : null;
+  let out = null;
+
+  // --- Provider A: ArcGIS World Geocoder ---
+  async function viaArcgis(){
+    const params = new URLSearchParams({
+      f: 'json',
+      SingleLine: query,
+      maxLocations: '8',
+      countryCode: 'BRA',
+      sourceCountry: 'BRA',
+      outFields: 'Match_addr,Addr_type,City,Region,StName,AddNum'
+    });
+    if(cfg && isFinite(cfg.lat) && isFinite(cfg.lng)){
+      params.set('location', cfg.lng + ',' + cfg.lat);
+    }
+    const url = 'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?' + params.toString();
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('arcgis '+res.status);
+    const data = await res.json();
+    const cands = (data && data.candidates) || [];
+    if(!cands.length) return null;
+
+    // Ordena: melhor score + match de tokens + preferência pela cidade configurada
+    const cid = cfg && cfg.cidade ? _mapaNormTxt(cfg.cidade) : '';
+    const ranked = cands.slice().map(c=>{
+      const addr = c.address || '';
+      const sc = Number(c.score)||0;
+      const tokensOk = _mapaMatchOk(query, addr, sc);
+      let bonus = 0;
+      if(tokensOk) bonus += 50;
+      if(cid && _mapaNormTxt(addr).indexOf(cid) >= 0) bonus += 15;
+      const t = (c.attributes && c.attributes.Addr_type) || '';
+      if(/PointAddress|StreetAddress|Subaddress/i.test(t)) bonus += 20;
+      else if(/StreetName/i.test(t)) bonus += 8;
+      else if(/Locality|Postal|Admin/i.test(t)) bonus -= 30;
+      return { c, sc, tokensOk, rank: sc + bonus };
+    }).sort((a,b)=> b.rank - a.rank);
+
+    // Só aceita candidato com tokens da rua
+    const best = ranked.find(x => x.tokensOk && x.c.location);
+    if(!best) return null;
+    const hit = best.c;
+    const lat = Number(hit.location.y);
+    const lng = Number(hit.location.x);
+    if(!isFinite(lat) || !isFinite(lng)) return null;
+    return {
+      lat, lng,
+      display: hit.address || query,
+      score: hit.score,
+      ts: Date.now(),
+      src: 'arcgis',
+      addrType: (hit.attributes && hit.attributes.Addr_type) || ''
+    };
+  }
+
+  // --- Provider B: Nominatim OSM ---
+  async function viaNominatim(){
+    // Expande R. → Rua na query
+    const q2 = query.replace(/\bR\.\s*/gi, 'Rua ').replace(/\bAv\.\s*/gi, 'Avenida ');
+    let url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&addressdetails=1&countrycodes=br&q=' + encodeURIComponent(q2);
+    if(cfg && isFinite(cfg.lat) && isFinite(cfg.lng)){
+      const d = 0.35;
+      url += '&viewbox=' + encodeURIComponent([cfg.lng-d, cfg.lat+d, cfg.lng+d, cfg.lat-d].join(',')) + '&bounded=1';
+    }
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('nominatim '+res.status);
+    const data = await res.json();
+    if(!data || !data.length) return null;
+    for(const hit of data){
+      const disp = hit.display_name || '';
+      if(!_mapaMatchOk(q2, disp, 90)) continue;
+      // Prefer road/residential
+      const cls = String(hit.class||'');
+      const typ = String(hit.type||'');
+      if(/boundary|administrative|city|town|state|county/i.test(cls+' '+typ) && !_mapaTokensRua(q2).some(t => _mapaNormTxt(disp).includes(t))) continue;
+      return {
+        lat: Number(hit.lat),
+        lng: Number(hit.lon),
+        display: disp,
+        ts: Date.now(),
+        src: 'nominatim'
+      };
+    }
+    return null;
+  }
+
+  // --- Provider C: Photon ---
+  async function viaPhoton(){
+    const q2 = query.replace(/\bR\.\s*/gi, 'Rua ').replace(/\bAv\.\s*/gi, 'Avenida ');
+    let url = 'https://photon.komoot.io/api/?limit=5&lang=pt&q=' + encodeURIComponent(q2);
+    if(cfg && isFinite(cfg.lat) && isFinite(cfg.lng)){
+      url += '&lat=' + encodeURIComponent(cfg.lat) + '&lon=' + encodeURIComponent(cfg.lng);
+    }
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('photon '+res.status);
+    const data = await res.json();
+    const feats = (data && data.features) || [];
+    for(const hit of feats){
+      const p = hit.properties || {};
+      const disp = [p.name, p.street, p.housenumber, p.city, p.state].filter(Boolean).join(', ') || p.name || '';
+      if(!_mapaMatchOk(q2, disp + ' ' + (p.street||'') + ' ' + (p.name||''), 85)) continue;
+      const coords = hit.geometry && hit.geometry.coordinates;
+      if(!coords) continue;
+      const [lng, lat] = coords;
+      if(!isFinite(lat) || !isFinite(lng)) continue;
+      return {
+        lat: Number(lat), lng: Number(lng),
+        display: disp,
+        ts: Date.now(),
+        src: 'photon'
+      };
+    }
+    return null;
+  }
+
+  const providers = [viaArcgis, viaNominatim, viaPhoton];
+  const errors = [];
+  for(const fn of providers){
+    try{
+      out = await fn();
+      if(out && isFinite(out.lat) && isFinite(out.lng)) break;
+      out = null;
+    }catch(e){
+      errors.push(String(e && e.message || e));
+      out = null;
+    }
+  }
+
+  if(!out){
+    cache[key] = { lat: null, lng: null, miss: true, ts: Date.now(), errors: errors.slice(0,3) };
+    _mapaSaveGeoCache();
+    return null;
+  }
+  cache[key] = out;
+  _mapaSaveGeoCache();
+  return out;
+}
+
+function simplificarEnderecoParaGeocode(endereco, cidadeCfg){
+  if(!endereco) return '';
+  let e = String(endereco).trim();
+  if(!e || /^sem\s*endere/i.test(e)) return '';
+
+  // Normaliza separadores
+  e = e.replace(/\s*[|•]\s*/g, ' - ');
+  const partes = e.split(/\s*[-–—]\s*/).map(p=>p.trim()).filter(Boolean);
+
+  // Detecta cidade: config > última parte que parece cidade
+  let cidade = (cidadeCfg || '').trim();
+  const isComp = (s)=>{
+    const t = String(s||'').trim();
+    if(!t) return true;
+    if(/^(casa|apto|ap|apartamento|fundos|frente|portao|portão|bloco|sala|loja|kit|kitnet|sobrado|barracao|barracão|guarita|condominio|condomínio|edificio|edifício|predio|prédio|salao|salão|galpao|galpão)\b/i.test(t)) return true;
+    if(/^\d+$/.test(t) || t.length <= 2) return true;
+    // bairros comuns genéricos (não usar como cidade se já temos cidadeCfg)
+    return false;
+  };
+  const isBairro = (s)=>/^(centro|jardim|jd\.?|vila|vl\.?|bairro|conjunto|cj\.?|residencial|parque|pq\.?|distrito|setor|zona|núcleo|nucleo|loteamento|chácara|chacara)\b/i.test(String(s||'').trim());
+
+  if(!cidade && partes.length >= 2){
+    for(let i = partes.length - 1; i >= 1; i--){
+      const p = partes[i];
+      if(isComp(p) || isBairro(p)) continue;
+      if(p.length >= 4){ cidade = p; break; }
+    }
+  }
+  // Remove UF grudada na cidade "Campo Mourão PR" / "Campo Mourao-PR"
+  if(cidade){
+    cidade = cidade.replace(/[,\s\-–—]*\b[A-Z]{2}\b\s*$/i, '').trim();
+  }
+
+  // Trecho da rua: primeira parte (antes dos " - ")
+  let principal = partes[0] || e;
+  // Se a 1ª parte não tem número e a 2ª é só número, junta
+  if(partes.length >= 2 && !/\d/.test(principal) && /^\d+[A-Za-z]?$/.test(partes[1])){
+    principal = principal + ', ' + partes[1];
+  }
+
+  let rua = principal;
+  let numero = '';
+  let m = principal.match(/^(.+?),\s*(\d+[A-Za-z]?)\b/);
+  if(m){
+    rua = m[1].trim();
+    numero = m[2];
+  } else {
+    m = principal.match(/^(.+?)\s+(\d+[A-Za-z]?)\s*$/);
+    if(m){
+      rua = m[1].trim();
+      numero = m[2];
+    }
+  }
+
+  // Remove tipo de logradouro: Avenida, Av., Rua, R., Travessa, Alameda, Rodovia...
+  rua = rua.replace(/^(avenida|av\.?|rua|r\.?|travessa|trav\.?|tr\.?|alameda|al\.?|rodovia|rod\.?|estrada|est\.?|praça|praca|pç\.?|largo|viela|beko|beco|passagem)\s+/i, '');
+  // Remove vírgulas sobrando e trechos após segunda vírgula (complemento no mesmo campo)
+  rua = rua.replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+
+  if(!rua) return '';
+
+  // Monta: "Nome da Rua, 1234, Cidade"
+  let out = rua;
+  if(numero) out += ', ' + numero;
+  if(cidade) out += ', ' + cidade;
+  return out.trim();
+}
+
+function _montarQueryEnderecoPedido(p){
+  const cfg = getCfgMapaCidade();
+  let end = '';
+  try{ end = (typeof enderecoEfetivo==='function' ? enderecoEfetivo(p) : (p.cliente_endereco||'')) || ''; }catch(e){ end = p.cliente_endereco||''; }
+  end = String(end||'').trim();
+  if(!end || /^sem\s*endere/i.test(end)) return '';
+
+  const cidade = (cfg && cfg.cidade) ? cfg.cidade : '';
+  const limpo = simplificarEnderecoParaGeocode(end, cidade);
+  if(!limpo) return '';
+
+  // Garante cidade da config no final se ainda não estiver
+  let q = limpo;
+  if(cidade && !q.toLowerCase().includes(cidade.toLowerCase())){
+    q += ', ' + cidade;
+  }
+  // UF ajuda o Nominatim
+  if(cfg && cfg.uf && !new RegExp('\\b'+cfg.uf+'\\b','i').test(q)){
+    q += ', ' + cfg.uf;
+  }
+  q += ', Brasil';
+  return q.replace(/\s+/g, ' ').trim();
+}
+
+/** Tenta geocode com query principal e, se falhar, variantes mais curtas. */
+async function geocodePedidoEndereco(p, force){
+  const cfg = getCfgMapaCidade();
+  let end = '';
+  try{ end = (typeof enderecoEfetivo==='function' ? enderecoEfetivo(p) : (p.cliente_endereco||'')) || ''; }catch(e){ end = p.cliente_endereco||''; }
+  end = String(end||'').trim();
+  if(!end || /^sem\s*endere/i.test(end)) return { g: null, query: '', motivo: 'sem endereço' };
+
+  const cidade = (cfg && cfg.cidade) || 'Campo Mourão';
+  const uf = (cfg && cfg.uf) || 'PR';
+
+  // Partes: "R. Ivandina..., 1012 - Jardim Panambi - Campo Mourao"
+  const partes = end.split(/\s*[-–—]\s*/).map(x=>x.trim()).filter(Boolean);
+  let principal = partes[0] || end;
+  let bairro = '';
+  // bairro costuma ser a 2ª parte se não for a cidade
+  if(partes.length >= 2){
+    const cand = partes[1];
+    const cn = _mapaNormTxt(cand);
+    const cid = _mapaNormTxt(cidade);
+    if(cn && cn !== cid && !/^\d+$/.test(cand) && cand.length > 2){
+      bairro = cand;
+    }
+  }
+  if(partes.length >= 2 && !/\d/.test(principal) && /^\d+[A-Za-z]?$/.test(partes[1])){
+    principal = principal + ', ' + partes[1];
+  }
+
+  let rua = principal, numero = '';
+  let m = principal.match(/^(.+?),\s*(\d+[A-Za-z]?)\b/);
+  if(m){ rua = m[1].trim(); numero = m[2]; }
+  else {
+    m = principal.match(/^(.+?)\s+(\d+[A-Za-z]?)\s*$/);
+    if(m){ rua = m[1].trim(); numero = m[2]; }
+  }
+  rua = rua.replace(/\s+/g,' ').trim();
+  // Expande abreviações
+  const ruaFull = rua
+    .replace(/^R\.\s*/i, 'Rua ')
+    .replace(/^Av\.\s*/i, 'Avenida ')
+    .replace(/^Tv\.\s*/i, 'Travessa ')
+    .replace(/^Tr\.\s*/i, 'Travessa ');
+  const ruaSem = ruaFull.replace(/^(avenida|av\.?|rua|r\.?|travessa|trav\.?|tr\.?|alameda|al\.?|rodovia|rod\.?|estrada|est\.?|praça|praca|pç\.?|largo|viela|beco|passagem)\s+/i,'').trim();
+
+  const variants = [];
+  const add = (s)=>{
+    const t = String(s||'').replace(/\s+/g,' ').trim();
+    if(!t) return;
+    const low = t.toLowerCase();
+    if(variants.some(v=>v.toLowerCase()===low)) return;
+    variants.push(t);
+  };
+
+  // Mais específicas primeiro (com número + bairro + cidade)
+  if(ruaFull && numero){
+    if(bairro) add(ruaFull + ', ' + numero + ', ' + bairro + ', ' + cidade + ', ' + uf + ', Brasil');
+    add(ruaFull + ', ' + numero + ', ' + cidade + ', ' + uf + ', Brasil');
+    add(ruaFull + ' ' + numero + ', ' + cidade + ', ' + uf + ', Brasil');
+    if(ruaSem && ruaSem !== ruaFull){
+      if(bairro) add(ruaSem + ', ' + numero + ', ' + bairro + ', ' + cidade + ', ' + uf);
+      add(ruaSem + ' ' + numero + ', ' + cidade + ', ' + uf + ', Brasil');
+    }
+  }
+  if(ruaFull){
+    if(bairro) add(ruaFull + ', ' + bairro + ', ' + cidade + ', ' + uf + ', Brasil');
+    add(ruaFull + ', ' + cidade + ', ' + uf + ', Brasil');
+  }
+  // Original simplificado
+  add(principal.replace(/^R\.\s*/i,'Rua ').replace(/^Av\.\s*/i,'Avenida ') + ', ' + cidade + ', ' + uf + ', Brasil');
+
+  if(!variants.length) return { g: null, query: end, motivo: 'endereço inválido' };
+
+  const tentadas = [];
+  for(const q of variants){
+    tentadas.push(q);
+    try{
+      const g = await geocodeTexto(q, { force: !!force });
+      await _mapaSleep(350);
+      if(g && g.lat != null) return { g, query: q };
+    }catch(e){
+      console.warn('geocode variant', q, e);
+      await _mapaSleep(350);
+    }
+  }
+  return {
+    g: null,
+    query: tentadas[0]||end,
+    motivo: 'rua não encontrada na base de mapas (evitado pin incorreto)'
+  };
+}
+
+function _pedidoNaoFinalizado(p){
+  if(!p) return false;
+  if(typeof ehCancelado === 'function' && ehCancelado(p)) return false;
+  const st = String(p.status||'').trim().toLowerCase();
+  if(st === 'codigo_informado' || st === 'finalizado' || st === 'entregue' || st === 'cancelado') return false;
+  return true;
+}
+
+function _textoTempoMapa(p){
+  if(!p) return { txt: 'sem previsão', cls: 'ok' };
+  const st = String(p.status||'').trim().toLowerCase();
+  if(st === 'codigo_informado' || st === 'finalizado' || st === 'entregue'){
+    return { txt: 'Finalizado', cls: 'ok' };
+  }
+  let deadline = null;
+  try{ deadline = parsePrevEntrega(p); }catch(e){}
+  if(!deadline) return { txt: 'sem previsão', cls: 'ok' };
+  const diff = deadline.getTime() - Date.now();
+  const absMin = Math.max(1, Math.floor(Math.abs(diff)/60000));
+  const h = Math.floor(absMin/60), m = absMin%60;
+  const fmt = h>0 ? (h+'h '+String(m).padStart(2,'0')+'min') : (m+' min');
+  if(diff <= 0) return { txt: 'ATRASADO · '+fmt, cls: 'late' };
+  if(absMin <= 15) return { txt: 'restam '+fmt, cls: 'warn' };
+  return { txt: 'restam '+fmt, cls: 'ok' };
+}
+
+function _pedidosParaMapa(){
+  const lista = Array.isArray(todosPedidos) ? todosPedidos : [];
+  let out = lista.filter(_pedidoNaoFinalizado);
+  // Entregador: só os dele (reserva ou nome)
+  try{
+    if(usuarioLogado && !usuarioLogado.isMaster){
+      out = out.filter(p=>{
+        try{
+          const n = (typeof getNomeReserva==='function' ? getNomeReserva(p) : '') || p.entregador_nome || '';
+          return typeof ehMesmoEntregador==='function' ? ehMesmoEntregador(n) : true;
+        }catch(e){ return true; }
+      });
+    }
+  }catch(e){}
+  // Ordena por prazo (mais urgentes primeiro)
+  out.sort((a,b)=>{
+    let da=Infinity, db=Infinity;
+    try{ const x=parsePrevEntrega(a); if(x) da=x.getTime(); }catch(e){}
+    try{ const x=parsePrevEntrega(b); if(x) db=x.getTime(); }catch(e){}
+    return da-db;
+  });
+  return out;
+}
+
+function _garantirMapaLeaflet(){
+  if(typeof L === 'undefined'){
+    throw new Error('Leaflet não carregou. Verifique a internet.');
+  }
+  const el = document.getElementById('mapaEntregas');
+  if(!el) throw new Error('Container do mapa não encontrado');
+  if(_mapaLeaflet){
+    try{ _mapaLeaflet.invalidateSize(); }catch(e){}
+    return _mapaLeaflet;
+  }
+  const cfg = getCfgMapaCidade();
+  _mapaLeaflet = L.map(el, { zoomControl: true, attributionControl: true }).setView([cfg.lat, cfg.lng], 13);
+  // Esri World Street Map — sem API key (uso leve no app)
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19,
+    attribution: 'Tiles &copy; Esri'
+  }).addTo(_mapaLeaflet);
+  _mapaLayerGroup = L.layerGroup().addTo(_mapaLeaflet);
+  setTimeout(()=>{ try{ _mapaLeaflet.invalidateSize(); }catch(e){} }, 200);
+  return _mapaLeaflet;
+}
+
+function mapaCentralizarCidade(){
+  try{
+    const map = _garantirMapaLeaflet();
+    const cfg = getCfgMapaCidade();
+    map.setView([cfg.lat, cfg.lng], 13);
+  }catch(e){ console.warn(e); }
+}
+
+function _mapaSetStatus(txt, cor){
+  const st = document.getElementById('mapaStatus');
+  if(st){ st.textContent = txt||''; st.style.color = cor||'#8b93a7'; }
+}
+
+
+/** Atualização automática do mapa quando a lista de pedidos muda. */
+let _mapaDebounceTimer = null;
+let _mapaFingerprint = '';
+
+function _mapaFingerprintPedidos(){
+  try{
+    const list = (typeof _pedidosParaMapa === 'function') ? _pedidosParaMapa() : [];
+    return list.map(p => {
+      let end = '';
+      try{ end = (typeof enderecoEfetivo==='function' ? enderecoEfetivo(p) : p.cliente_endereco) || ''; }catch(e){ end = p.cliente_endereco||''; }
+      let ent = '';
+      try{ ent = (typeof getNomeReserva==='function' ? getNomeReserva(p) : '') || p.entregador_nome || ''; }catch(e){ ent = p.entregador_nome||''; }
+      return String(p.id)+':'+String(p.status||'')+':'+String(end)+':'+String(ent||'');
+    }).sort().join('|');
+  }catch(e){ return String(Date.now()); }
+}
+
+/** Agenda refresh do mapa se a aba Mapa estiver aberta (debounce). */
+function agendarAtualizarMapaSeAberto(opts){
+  opts = opts || {};
+  try{
+    if(typeof abaEntregadorAtual === 'undefined' || abaEntregadorAtual !== 'mapa') return;
+    if(!usuarioLogado) return;
+  }catch(e){ return; }
+  if(_mapaDebounceTimer) clearTimeout(_mapaDebounceTimer);
+  const delay = opts.delay != null ? opts.delay : 700;
+  _mapaDebounceTimer = setTimeout(function(){
+    _mapaDebounceTimer = null;
+    try{
+      if(abaEntregadorAtual !== 'mapa') return;
+      const fp = _mapaFingerprintPedidos();
+      if(!opts.force && fp === _mapaFingerprint && _mapaLeaflet){
+        // lista igual — só garante tamanho do mapa
+        try{ _mapaLeaflet.invalidateSize(); }catch(e){}
+        return;
+      }
+      _mapaFingerprint = fp;
+      renderMapaEntregas(!!opts.forceGeo);
+    }catch(e){ console.warn('agendarAtualizarMapaSeAberto', e); }
+  }, delay);
+}
+
+async function renderMapaEntregas(forcarGeo){
+  if(_mapaRenderBusy) return;
+  _mapaRenderBusy = true;
+  const falhasEl = document.getElementById('mapaListaFalhas');
+  if(falhasEl){ falhasEl.style.display = 'none'; falhasEl.innerHTML = ''; }
+  try{
+    if(forcarGeo){
+      try{ _mapaGeoCache = {}; localStorage.removeItem(MAPA_GEO_CACHE_KEY); }catch(e){}
+    }
+    await carregarCfgMapaCidadeDoServidor();
+    const map = _garantirMapaLeaflet();
+    if(_mapaLayerGroup) _mapaLayerGroup.clearLayers();
+    const pedidos = _pedidosParaMapa();
+    if(!pedidos.length){
+      _mapaSetStatus('Nenhuma entrega em aberto', '#8b93a7');
+      mapaCentralizarCidade();
+      return;
+    }
+    _mapaSetStatus('Geocodificando '+pedidos.length+' endereço(s)…', '#f0c14a');
+    const bounds = [];
+    const falhas = [];
+    let ok = 0;
+    for(let i=0; i<pedidos.length; i++){
+      const p = pedidos[i];
+      let g = null;
+      let qUsada = '';
+      try{
+        const r = await geocodePedidoEndereco(p, !!forcarGeo);
+        g = r.g;
+        qUsada = r.query || '';
+        if(!g){ falhas.push({p, motivo: (r.motivo||'não localizado') + (qUsada ? ' ('+qUsada+')' : '')}); continue; }
+      }catch(e){
+        falhas.push({p, motivo: String(e.message||e)});
+        continue;
+      }
+      if(!g || g.lat==null || g.lng==null){ falhas.push({p, motivo:'não localizado'}); continue; }
+      ok++;
+      const tempo = _textoTempoMapa(p);
+      const num = String(p.numero_pedido||'—');
+      const nome = String(p.cliente_nome||'Cliente');
+      let end = '';
+      try{ end = (typeof enderecoEfetivo==='function' ? enderecoEfetivo(p) : p.cliente_endereco)||''; }catch(e){ end = p.cliente_endereco||''; }
+      const esc = (s)=> String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      let nomeEnt = '';
+      try{ nomeEnt = (typeof getNomeReserva==='function' ? getNomeReserva(p) : '') || p.entregador_nome || ''; }catch(e){ nomeEnt = p.entregador_nome||''; }
+      nomeEnt = String(nomeEnt||'').trim();
+      const emRota = !!nomeEnt;
+      const clsCard = (tempo.cls==='late' ? 'mc-late' : (tempo.cls==='warn' ? 'mc-warn' : 'mc-ok')) + (emRota ? ' mc-em-rota' : '');
+      const tempoIcon = tempo.cls==='late' ? '🔴' : (tempo.cls==='warn' ? '⚠️' : '⏱');
+      const cardHtml =
+        '<div class="mapa-mini-card '+clsCard+'" title="'+(emRota ? ('Em entrega · '+esc(nomeEnt)) : 'Aguardando entregador')+'">'+
+          '<div class="mc-top">'+
+            '<div class="mc-num">#'+esc(num)+'</div>'+
+            (emRota ? '<span class="mc-moto" title="Em entrega: '+esc(nomeEnt)+'">🛵</span>' : '')+
+          '</div>'+
+          '<div class="mc-nome">'+esc(nome)+'</div>'+
+          (emRota ? '<div class="mc-ent">🛵 '+esc(nomeEnt)+'</div>' : '')+
+          '<div class="mc-tempo '+esc(tempo.cls)+'">'+tempoIcon+' '+esc(tempo.txt)+'</div>'+
+        '</div>';
+      const icon = L.divIcon({
+        className: 'mapa-card-icon',
+        html: cardHtml,
+        iconSize: [150, emRota ? 88 : 72],
+        iconAnchor: [75, emRota ? 96 : 80]
+      });
+      const popup = '<div class="mapa-pin-popup">'+
+        '<div class="mp-num">#'+esc(num)+'</div>'+
+        '<div class="mp-nome">'+esc(nome)+'</div>'+
+        '<div class="mp-end">📍 '+esc(end||'')+'</div>'+
+        '<div style="margin-top:6px;font-weight:800;font-size:12px;color:'+(emRota?'#1d4ed8':'#a16207')+'">'+(emRota ? ('🛵 Em entrega · '+esc(nomeEnt)) : '⏳ Aguardando entregador')+'</div>'+
+        '<div class="mp-tempo '+esc(tempo.cls)+'">⏱ '+esc(tempo.txt)+'</div>'+
+        '</div>';
+      const marker = L.marker([g.lat, g.lng], { icon, riseOnHover: true }).bindPopup(popup);
+      _mapaLayerGroup.addLayer(marker);
+      bounds.push([g.lat, g.lng]);
+      _mapaSetStatus('Pins: '+ok+'/'+pedidos.length+(falhas.length?' · '+falhas.length+' pendente(s)':''), '#8b93a7');
+    }
+    if(bounds.length){
+      try{ map.fitBounds(bounds, { padding: [36, 36], maxZoom: 15 }); }catch(e){ mapaCentralizarCidade(); }
+    } else {
+      mapaCentralizarCidade();
+    }
+    try{ _mapaFingerprint = _mapaFingerprintPedidos(); }catch(e){}
+    _mapaSetStatus(ok+' ponto(s) no mapa'+(falhas.length?' · '+falhas.length+' sem localização':''), ok? '#3dcc8a':'#f0c14a');
+    if(falhas.length && falhasEl){
+      falhasEl.style.display = 'block';
+      falhasEl.innerHTML = '<div class="card" style="margin:0"><div style="font-size:12px;font-weight:800;color:#f0c14a;margin-bottom:6px">Não localizados</div>'+
+        falhas.slice(0,12).map(f=>{
+          const p=f.p;
+          return '<div style="font-size:11px;color:#8b93a7;padding:4px 0;border-bottom:1px solid #2c3340">#'+
+            String(p.numero_pedido||'')+' · '+String(p.cliente_nome||'')+' — '+String(f.motivo||'')+'</div>';
+        }).join('')+'</div>';
+    }
+  }catch(e){
+    console.error('renderMapaEntregas', e);
+    _mapaSetStatus('Erro: '+(e.message||e), '#ff6b6b');
+  }finally{
+    _mapaRenderBusy = false;
+    try{ if(_mapaLeaflet) setTimeout(()=>_mapaLeaflet.invalidateSize(), 150); }catch(e){}
+  }
+}
+// =================== FIM MAPA ===================
+
 // ===================== LIGAR CLIENTE =====================
 let _ligarPedidoAtual = null;
 let _ligarIfoodUri = '';
@@ -15688,6 +17127,12 @@ ajustarAlturaHeader();
     pendente = false;
     const h = document.querySelector('header');
     if(!h) return;
+    // Aba Mapa: cabeçalho sempre oculto (CSS body.mapa-aba-ativa); não força show
+    if(document.body.classList.contains('mapa-aba-ativa')){
+      oculto = true;
+      h.classList.add('hdr-oculto');
+      return;
+    }
     const ativo = !!(usuarioLogado && !usuarioLogado.isMaster);
     if(!ativo){
       if(oculto){ oculto = false; h.classList.remove('hdr-oculto'); }
@@ -16356,7 +17801,11 @@ async function reativarCancelado(id){
       if(!usuarioLogado) return;
       if(typeof abaEntregadorAtual !== 'undefined' && (abaEntregadorAtual === 'custo' || abaEntregadorAtual === 'faturamento') && !usuarioLogado.isMaster) return;
       if(document.getElementById('loginScreen')?.style.display !== 'none' && document.getElementById('loginScreen')?.style.display !== '') return;
-      // só re-render se houver pedido pendente com previsão
+      if(typeof abaEntregadorAtual !== 'undefined' && abaEntregadorAtual === 'mapa'){
+        // Atualiza só o texto de tempo nos popups já abertos; pins permanecem
+        try{ /* mapa: re-render leve opcional */ }catch(e){}
+        return;
+      }
       const precisa = (todosPedidos||[]).some(p => p && p.status !== 'codigo_informado');
       if(precisa) render();
     }catch(e){}
@@ -16368,6 +17817,14 @@ async function reativarCancelado(id){
       try{ carregar(); }catch(e){ console.warn('auto-refresh master', e); }
     }
   }, 60000);
+  // Aba Mapa aberta: se a lista de abertos mudou, redesenha os pins (fallback além do Realtime)
+  setInterval(()=>{
+    try{
+      if(!usuarioLogado) return;
+      if(typeof abaEntregadorAtual === 'undefined' || abaEntregadorAtual !== 'mapa') return;
+      agendarAtualizarMapaSeAberto({ delay: 200 });
+    }catch(e){}
+  }, 25000);
   iniciarMonitorFilaOffline();
   iniciarWatchdogModo();
 })();
