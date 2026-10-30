@@ -812,6 +812,36 @@ body.mapa-aba-ativa #viewMapaEntregador{
   margin-top:0;
 }
 body.mapa-aba-ativa #alertaAltaDemanda,
+
+.mapa-dot{width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.6);cursor:pointer;transition:transform .15s}
+.mapa-dot:hover{transform:scale(1.4)}
+.mapa-dot.finalizado{border-color:#fff;width:14px;height:14px;opacity:.95}
+.mapa-dot.aberto{width:18px;height:18px;box-shadow:0 2px 6px rgba(0,0,0,.7)}
+.mapa-pop-card{background:#fff;border-radius:12px;padding:8px 10px;min-width:210px;max-width:260px;box-shadow:0 6px 18px rgba(0,0,0,.35);font-family:Inter,system-ui,sans-serif}
+.mapa-pop-card .mpc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.mapa-pop-card .mpc-num{font-weight:900;font-size:14px;color:#0c0e12}
+.mapa-pop-card .mpc-status{font-weight:800;font-size:12px;margin-left:6px}
+.mapa-pop-card .mpc-status.fin{color:#b45309}
+.mapa-pop-card .mpc-status.aber{color:#0c0e12}
+.mapa-pop-card .mpc-close{border:none;background:transparent;font-size:16px;cursor:pointer;color:#8b93a7;line-height:1}
+.mapa-pop-card .mpc-ent{font-size:13px;font-weight:700;color:#0c0e12;display:flex;align-items:center;gap:4px;margin:2px 0}
+.mapa-pop-card .mpc-end{font-size:11px;color:#4a5568;line-height:1.3;max-width:230px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mapa-pop-card .btn-ver{width:100%;margin-top:8px;padding:8px 10px;border-radius:999px;border:none;background:linear-gradient(180deg,#f0c14a,#e8a93c);color:#1a1200;font-weight:900;font-size:12px;cursor:pointer}
+#mapaLegendaCores{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 12px;padding:8px 10px;background:#161a22;border:1px solid #2c3340;border-radius:10px}
+#mapaLegendaCores .leg-item{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#e6e8ef;background:#0e1118;border:1px solid #2c3340;border-radius:999px;padding:4px 8px}
+#mapaLegendaCores .leg-dot{width:12px;height:12px;border-radius:50%;border:2px solid #fff;display:inline-block;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.leaflet-popup-content-wrapper{padding:0;background:transparent;box-shadow:none}
+.leaflet-popup-content{margin:0;line-height:1}
+.leaflet-popup-tip{background:#fff}
+
+.mapa-mini-card.finalizado{background:#161a22;border:1px solid #2a5a3a;color:#3dcc8a;border-radius:10px;padding:6px 8px;min-width:92px;max-width:130px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.mapa-mini-card.finalizado .mc-num{font-weight:900;color:#3dcc8a;font-size:12px}
+.mapa-mini-card.finalizado .mc-ent{font-size:10px;color:#6ab7ff;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px}
+.mapa-mini-card.finalizado:hover{border-color:#3dcc8a;transform:translateY(-1px)}
+#mapaListaFinalizados .fin-card{padding:8px 10px;background:#0e1118;border:1px solid #2a5a3a;border-radius:10px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:6px}
+#mapaListaFinalizados .fin-card b{color:#3dcc8a}
+#mapaListaFinalizados .fin-card .ent{color:#6ab7ff;font-size:11px;font-weight:800}
+
 body.mapa-aba-ativa #barraAgrupamento{
   display:none !important;
 }
@@ -1037,7 +1067,7 @@ body.mapa-aba-ativa #barraAgrupamento{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 291026.203700</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 291026.204600</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -2225,7 +2255,7 @@ Remove a finalização e a reserva. O pedido volta para <b style="color:#f0c14a"
     <h3 style="margin:0;color:#6ab7ff;font-size:16px;font-weight:900">📷 Ler QR do pedido</h3>
     <button type="button" class="btn" onclick="fecharScannerQrPedido()" style="padding:6px 10px">✕</button>
   </div>
-  <div style="font-size:12px;color:#8b93a7;margin-bottom:10px;line-height:1.4">Aponte a câmera para o QR Code com o <b style="color:#f0c14a">número do pedido</b>. Ao ler, o pedido é adicionado automaticamente.</div>
+  <div style="font-size:12px;color:#8b93a7;margin-bottom:10px;line-height:1.4">Quando o celular pedir, toque em <b style="color:#3dcc8a">Permitir</b> a câmera. Aponte para o QR com o <b style="color:#f0c14a">número do pedido</b> — ao ler, adiciona na hora.</div>
   <div id="qrVideoWrap" style="position:relative;width:100%;aspect-ratio:3/4;max-height:55vh;background:#0e1118;border:1px solid #2c3340;border-radius:12px;overflow:hidden">
     <video id="qrVideo" playsinline muted autoplay style="width:100%;height:100%;object-fit:cover;display:block"></video>
     <canvas id="qrCanvas" style="display:none"></canvas>
@@ -2304,16 +2334,48 @@ Remove a finalização e a reserva. O pedido volta para <b style="color:#f0c14a"
 <div id="boxCancelados" style="display:none;margin:8px 0"></div>
 <div id="listaVazia" style="display:none;" class="card"><div style="text-align:center;color:#8b93a7;padding:10px">Nenhum pedido</div></div>
 
-<!-- ABA MAPA (entregas em aberto) -->
+<!-- ABA MAPA (entregas em aberto + finalizados) -->
 <div id="viewMapaEntregador" style="display:none">
-  <div class="mapa-toolbar">
-    <button class="btn primary small" type="button" onclick="renderMapaEntregas(true)">🔄 Atualizar mapa</button>
-    <button class="btn small" type="button" onclick="mapaCentralizarCidade()">📍 Cidade</button>
-    <span id="mapaStatus" style="font-size:11px;color:#8b93a7;flex:1;min-width:140px"></span>
+  <div class="card" id="mapaFiltrosCard" style="margin:8px 12px;padding:10px 12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;cursor:pointer;user-select:none" onclick="toggleQuadroMapa()">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="font-size:13px;font-weight:900;color:#f0c14a">🗺️ MAPA DE ENTREGAS</div>
+        <span id="mapaQuadroToggleIcon" style="font-size:11px;color:#8b93a7;background:#0e1118;border:1px solid #2c3340;padding:2px 6px;border-radius:999px">🔽 Ocultar</span>
+      </div>
+      <span id="mapaStatus" style="font-size:11px;color:#8b93a7;flex:1;min-width:120px;text-align:right"></span>
+    </div>
+    <div id="mapaFiltrosConteudo">
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+      <button class="btn primary small" id="btnMapaHoje" onclick="setFiltroMapa('hoje')" style="font-size:11px;padding:8px 12px">Hoje</button>
+      <button class="btn small" id="btnMapaOntem" onclick="setFiltroMapa('ontem')" style="font-size:11px;padding:8px 12px">Ontem</button>
+      <input type="date" id="inputDataMapa" onchange="setFiltroMapa('data')" style="width:auto;padding:8px 10px;border-radius:10px;border:1px solid #2c3340;background:#0e1118;color:#fff;font-size:12px"/>
+      <span id="mapaDiaInfo" style="font-size:10px;color:#8b93a7"></span>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <button class="btn small" id="btnMapaToggleFinalizados" onclick="toggleMapaFinalizados()" style="font-size:11px;padding:8px 12px;background:#1a2a3a;border-color:#2a4a5a;color:#6ab7ff">✅ Mostrar finalizados</button>
+      <button class="btn primary small" type="button" onclick="renderMapaEntregas(true)" style="font-size:11px;padding:8px 12px">🔄 Atualizar mapa</button>
+      <button class="btn small" type="button" onclick="mapaCentralizarCidade()" style="font-size:11px;padding:8px 12px">📍 Cidade</button>
+      <span id="mapaContagem" style="font-size:11px;color:#8b93a7;margin-left:auto"></span>
+    </div>
   </div>
-  <div class="mapa-legenda">Pontos = pedidos <b style="color:#f0c14a">não finalizados</b>. <b style="color:#6ab7ff">🛵</b> = em entrega (com entregador). Sem moto = aguardando. Configure a cidade em ⚙️ › 🗺️ Mapa.</div>
+  </div>
+  <div id="mapaLegendaCores" style="display:none"></div>
+  <div class="mapa-legenda" id="mapaLegenda">Pontos coloridos = <b style="color:#f0c14a">entregador</b> (legenda acima). Toque/clique no ponto → card. <span id="mapaLegendaFinal" style="display:none"><b style="color:#3dcc8a">✅</b> = finalizados.</span></div>
+  <div style="display:none" id="oldLeg">Pontos = pedidos <b style="color:#f0c14a">não finalizados</b>. <b style="color:#6ab7ff">🛵</b> = em entrega. <span id="mapaLegendaFinal" style="display:none"><b style="color:#3dcc8a">✅</b> = finalizados (só nº + entregador, clique para detalhes).</span></div>
   <div style="margin:0 12px 12px"><div id="mapaEntregas"></div></div>
+  <div id="mapaListaFinalizados" style="margin:0 12px 12px;display:none"></div>
   <div id="mapaListaFalhas" style="margin:0 12px 16px;display:none"></div>
+</div>
+
+<!-- MODAL DETALHE FINALIZADO MAPA -->
+<div id="modalDetalheFinalizadoMapa" class="overlay" style="display:none;z-index:350" onclick="if(event.target===this) fecharDetalheFinalizadoMapa()">
+<div class="card" style="width:100%;max-width:440px;max-height:90vh;overflow:auto;margin:0">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <h3 style="margin:0;color:#3dcc8a;font-size:16px" id="detFinalMapaTitulo">✅ Pedido finalizado</h3>
+    <button class="btn" onclick="fecharDetalheFinalizadoMapa()" style="padding:6px 10px">✕</button>
+  </div>
+  <div id="detFinalMapaInfo"></div>
+</div>
 </div>
 
 
@@ -9251,60 +9313,108 @@ function _qrSetStatus(msg, cor){
   if(el){ el.textContent = msg||''; el.style.color = cor||'#8b93a7'; }
 }
 
+async function _qrPedirCamera(){
+  // Tenta várias combinações — Android costuma pedir permissão na 1ª chamada
+  const tentativas = [
+    { audio:false, video: { facingMode: { ideal: 'environment' } } },
+    { audio:false, video: { facingMode: 'environment' } },
+    { audio:false, video: { facingMode: 'user' } },
+    { audio:false, video: true }
+  ];
+  let ultimoErro = null;
+  for(const constraints of tentativas){
+    try{
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      return stream;
+    }catch(e){
+      ultimoErro = e;
+      // se o usuário negou, não adianta tentar de novo
+      const name = String(e && (e.name||e.message)||'');
+      if(/NotAllowed|PermissionDenied|Permission dismissed/i.test(name)) throw e;
+    }
+  }
+  throw ultimoErro || new Error('Câmera indisponível');
+}
+
 async function abrirScannerQrPedido(){
   if(!usuarioLogado){
     try{ mostrarAlerta('Faça login para usar o leitor de QR.', {tipo:'aviso'}); }catch(e){}
     return;
   }
-  if(usuarioLogado.isMaster && !usuarioLogado.viaMaster){
-    // Master pode usar se quiser, mas foco é entregador
-  }
-  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-    try{ mostrarAlerta('Este aparelho/navegador não permite acesso à câmera.', {tipo:'erro', titulo:'Câmera', icone:'📷'}); }catch(e){}
+  // getUserMedia exige contexto seguro (HTTPS ou localhost). file:// no celular costuma bloquear.
+  const isSecure = (typeof window.isSecureContext === 'boolean') ? window.isSecureContext : (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+  const isFile = location.protocol === 'file:';
+  if(!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function'){
+    let msg = 'Este navegador não libera a câmera para sites/arquivos abertos assim.';
+    if(isFile){
+      msg = 'No celular, a câmera não funciona abrindo o arquivo direto (file://).\n\n'+
+        'Opções:\n'+
+        '1) Hospede o app em HTTPS (recomendado)\n'+
+        '2) Use um app tipo “Web Server” local no celular e abra via http://\n'+
+        '3) No Chrome desktop, file:// às vezes funciona; no Android quase sempre bloqueia.';
+    }
+    try{ mostrarAlerta(msg, {tipo:'erro', titulo:'Câmera bloqueada', icone:'📷'}); }catch(e){}
     return;
   }
+  if(isFile && !isSecure){
+    // Ainda tenta — alguns WebViews liberam — mas avisa
+    _qrSetStatus('Arquivo local: a câmera pode ser bloqueada pelo sistema…', '#f0c14a');
+  }
+
   _qrBusy = false;
   _qrLastText = '';
   _qrLastTs = 0;
   const modal = document.getElementById('modalScannerQr');
   if(modal) modal.style.display = 'flex';
-  _qrSetStatus('Pedindo permissão da câmera…', '#f0c14a');
+  _qrSetStatus('Toque em “Permitir” quando o celular pedir a câmera…', '#f0c14a');
   try{
-    // para stream anterior
     fecharScannerQrPedido(true);
     if(modal) modal.style.display = 'flex';
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: {
-        facingMode: { ideal: 'environment' },
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
-      }
-    });
+
+    const stream = await _qrPedirCamera();
     _qrStream = stream;
     const video = document.getElementById('qrVideo');
     if(video){
+      video.setAttribute('playsinline', 'true');
+      video.setAttribute('webkit-playsinline', 'true');
+      video.muted = true;
       video.srcObject = stream;
-      await video.play().catch(()=>{});
+      try{ await video.play(); }catch(e){ /* autoplay policy */ }
     }
     if('BarcodeDetector' in window){
-      try{
-        const formats = ['qr_code'];
-        _qrDetector = new BarcodeDetector({ formats });
-      }catch(e){ _qrDetector = null; }
+      try{ _qrDetector = new BarcodeDetector({ formats: ['qr_code'] }); }
+      catch(e){ _qrDetector = null; }
     } else {
       _qrDetector = null;
     }
-    if(!_qrDetector && typeof jsQR === 'undefined'){
+    if(!_qrDetector && typeof jsQR !== 'function'){
       _qrSetStatus('Biblioteca de QR não carregou. Verifique a internet.', '#ff6b6b');
       return;
     }
-    _qrSetStatus('Aponte para o QR Code…', '#6ab7ff');
+    _qrSetStatus('Câmera ok — aponte para o QR Code…', '#3dcc8a');
     _qrLoopScan();
   }catch(e){
     console.warn('abrirScannerQrPedido', e);
-    _qrSetStatus('Não foi possível abrir a câmera: '+(e.message||e), '#ff6b6b');
-    try{ mostrarAlerta('Permita o acesso à câmera para ler o QR Code.\n\n'+(e.message||e), {tipo:'erro', titulo:'Câmera', icone:'📷'}); }catch(e2){}
+    const name = String(e && e.name || '');
+    const msgRaw = String(e && e.message || e || '');
+    let msg = 'Não foi possível abrir a câmera.';
+    if(/NotAllowed|PermissionDenied|Permission dismissed/i.test(name+' '+msgRaw)){
+      msg = 'Permissão da câmera negada.\n\n'+
+        'No celular:\n'+
+        '• Ajuste → Apps → Chrome (ou o navegador) → Permissões → Câmera → Permitir\n'+
+        '• Depois abra de novo o app e toque em 📷 QR\n\n'+
+        'Se o arquivo estiver em Downloads (file://), o Android pode bloquear a câmera mesmo com permissão. Nesse caso use o app em HTTPS.';
+    } else if(/NotFound|DevicesNotFound|Overconstrained/i.test(name+' '+msgRaw)){
+      msg = 'Nenhuma câmera foi encontrada neste aparelho.';
+    } else if(/NotReadable|TrackStart|AbortError/i.test(name+' '+msgRaw)){
+      msg = 'A câmera está em uso por outro app. Feche o outro app e tente de novo.';
+    } else if(isFile){
+      msg = 'Câmera bloqueada neste modo (arquivo local).\n\nNo Android, abra o app por um link HTTPS ou por um servidor local — abrir o HTML direto da pasta Downloads costuma impedir a câmera.\n\nDetalhe: '+msgRaw;
+    } else {
+      msg = 'Falha ao abrir a câmera:\n'+msgRaw;
+    }
+    _qrSetStatus('Câmera: '+(name||'erro'), '#ff6b6b');
+    try{ await mostrarAlerta(msg, {tipo:'erro', titulo:'Permissão da câmera', icone:'📷'}); }catch(e2){}
   }
 }
 
@@ -15805,10 +15915,174 @@ function _textoTempoMapa(p){
   return { txt: 'restam '+fmt, cls: 'ok' };
 }
 
+
+// ============== MAPA - FILTROS E FINALIZADOS (NOVO) ==============
+let _mapaMostrarFinalizados = false;
+let _mapaFiltro = 'hoje';
+let _mapaDataSel = null;
+
+
+const _mapaPalette = ['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#f97316','#84cc16','#6366f1','#e11d48','#0ea5e9'];
+let _mapaCoresEntregadores = {};
+let _mapaCorIdx = 0;
+function getCorEntregador(nome){
+  const n = String(nome||'— sem entregador —').trim() || '— sem entregador —';
+  if(_mapaCoresEntregadores[n]) return _mapaCoresEntregadores[n];
+  const cor = _mapaPalette[_mapaCorIdx % _mapaPalette.length];
+  _mapaCoresEntregadores[n]=cor;
+  _mapaCorIdx++;
+  return cor;
+}
+function resetCoresMapa(){ _mapaCoresEntregadores={}; _mapaCorIdx=0; }
+function getHojeSPMapa(){ try{ return typeof getHojeSP==='function'?getHojeSP(): new Date().toISOString().slice(0,10);}catch(e){ return new Date().toISOString().slice(0,10);} }
+function getOntemSPMapa(){ try{ return typeof getOntemSP==='function'?getOntemSP(): (()=>{ const d=new Date(); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10);})(); }catch(e){ const d=new Date(); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10);} }
+
+function getDataFiltroMapa(){
+  if(_mapaFiltro==='ontem') return getOntemSPMapa();
+  if(_mapaFiltro==='data' && _mapaDataSel) return _mapaDataSel;
+  return getHojeSPMapa();
+}
+function setFiltroMapa(t){
+  _mapaFiltro=t;
+  if(t==='data'){
+    const v=document.getElementById('inputDataMapa')?.value;
+    _mapaDataSel = v || getHojeSPMapa();
+  } else {
+    _mapaDataSel=null;
+  }
+  atualizarUIFiltroMapa();
+  try{ renderMapaEntregas(false); }catch(e){ console.warn(e); }
+}
+function atualizarUIFiltroMapa(){
+  const btnH=document.getElementById('btnMapaHoje');
+  const btnO=document.getElementById('btnMapaOntem');
+  const inp=document.getElementById('inputDataMapa');
+  const info=document.getElementById('mapaDiaInfo');
+  const alvo=getDataFiltroMapa();
+  if(btnH) btnH.className='btn small'+(_mapaFiltro==='hoje'?' primary':'');
+  if(btnO) btnO.className='btn small'+(_mapaFiltro==='ontem'?' primary':'');
+  if(inp){
+    inp.value=alvo;
+    inp.style.borderColor=_mapaFiltro==='data'?'#f0c14a':'#2c3340';
+  }
+  if(info){
+    if(_mapaFiltro==='hoje') info.textContent='📅 Hoje · '+ (typeof formatarDataBR==='function'?formatarDataBR(alvo):alvo);
+    else if(_mapaFiltro==='ontem') info.textContent='📅 Ontem · '+ (typeof formatarDataBR==='function'?formatarDataBR(alvo):alvo);
+    else info.textContent='📅 '+ (typeof formatarDataBR==='function'?formatarDataBR(alvo):alvo);
+  }
+  const btnF=document.getElementById('btnMapaToggleFinalizados');
+  if(btnF){
+    if(_mapaMostrarFinalizados){
+      btnF.className='btn small primary';
+      btnF.textContent='🙈 Ocultar finalizados';
+      btnF.style.background='';
+    } else {
+      btnF.className='btn small';
+      btnF.style.background='#1a2a3a';
+      btnF.style.borderColor='#2a4a5a';
+      btnF.style.color='#6ab7ff';
+      btnF.textContent='✅ Mostrar finalizados';
+    }
+  }
+  const legF=document.getElementById('mapaLegendaFinal');
+  if(legF) legF.style.display=_mapaMostrarFinalizados?'inline':'none';
+}
+function atualizarLegendaCoresMapa(){
+  try{
+    const cont=document.getElementById('mapaLegendaCores');
+    if(!cont) return;
+    const entries=Object.entries(_mapaCoresEntregadores);
+    if(!entries.length){ cont.style.display='none'; cont.innerHTML=''; return; }
+    cont.style.display='flex';
+    cont.innerHTML=entries.map(([nome,cor])=> '<div class="leg-item"><span class="leg-dot" style="background:'+cor+'"></span><span>'+String(nome).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span></div>').join('');
+  }catch(e){}
+}
+
+let _mapaQuadroAberto = true;
+try{
+  const v = localStorage.getItem('mapa_quadro_aberto');
+  if(v!==null) _mapaQuadroAberto = v==='1';
+}catch(e){}
+function aplicarQuadroMapa(){
+  const conteudo=document.getElementById('mapaFiltrosConteudo');
+  const icon=document.getElementById('mapaQuadroToggleIcon');
+  if(!conteudo) return;
+  if(_mapaQuadroAberto){
+    conteudo.style.display='block';
+    if(icon) icon.textContent='🔽 Ocultar';
+  } else {
+    conteudo.style.display='none';
+    if(icon) icon.textContent='▶️ Mostrar';
+  }
+}
+function toggleQuadroMapa(){
+  _mapaQuadroAberto=!_mapaQuadroAberto;
+  try{ localStorage.setItem('mapa_quadro_aberto', _mapaQuadroAberto?'1':'0'); }catch(e){}
+  aplicarQuadroMapa();
+  try{ if(_mapaLeaflet) setTimeout(()=>_mapaLeaflet.invalidateSize(), 180); }catch(e){}
+}
+
+function toggleMapaFinalizados(){
+  _mapaMostrarFinalizados=!_mapaMostrarFinalizados;
+  atualizarUIFiltroMapa();
+  try{ renderMapaEntregas(false); }catch(e){}
+}
+
+function abrirDetalheFinalizadoMapa(id){
+  try{
+    const p=(todosPedidos||[]).find(x=>x && String(x.id)===String(id));
+    if(!p){ alert('Pedido não encontrado'); return; }
+    const esc=s=> String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    let nomeEnt=''; try{ nomeEnt=(typeof getNomeReserva==='function'?getNomeReserva(p):'')||p.entregador_nome||''; }catch(e){ nomeEnt=p.entregador_nome||''; }
+    let end=''; try{ end=(typeof enderecoEfetivo==='function'?enderecoEfetivo(p):p.cliente_endereco)||''; }catch(e){ end=p.cliente_endereco||''; }
+    let horaFin=''; try{ if(p.codigo_informado_em){ const d=new Date(p.codigo_informado_em); horaFin=d.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}); } }catch(e){}
+    const infoEl=document.getElementById('detFinalMapaInfo');
+    const titEl=document.getElementById('detFinalMapaTitulo');
+    if(titEl) titEl.textContent='✅ #'+esc(p.numero_pedido||'')+' finalizado';
+    if(infoEl){
+      infoEl.innerHTML=
+        '<div style="background:#0e1118;border:1px solid #2c3340;border-radius:10px;padding:12px;font-size:12px;line-height:1.5;color:#e6e8ef">'+
+        '<div><b style="color:#f0c14a">Pedido:</b> #'+esc(p.numero_pedido||'')+'</div>'+
+        '<div><b style="color:#6ab7ff">Entregador:</b> '+esc(nomeEnt||'—')+'</div>'+
+        '<div><b>Cliente:</b> '+esc(p.cliente_nome||'—')+'</div>'+
+        '<div><b>Endereço:</b> '+esc(end||'')+'</div>'+
+        '<div><b>Loja:</b> '+esc(p.loja||'')+'</div>'+
+        '<div><b>Valor:</b> '+(p.valor!=null?('R$ '+esc(p.valor)):'—')+'</div>'+
+        '<div><b>Código:</b> '+esc(p.codigo_cliente||'')+'</div>'+
+        '<div><b>Finalizado em:</b> '+esc(horaFin||p.codigo_informado_em||'—')+'</div>'+
+        '<div><b>Data:</b> '+esc(p.data||'')+' · <b>Turno:</b> '+esc((typeof getTurno==='function'?getTurno(p):p.turno)||'')+'</div>'+
+        (p.forma_pagamento?'<div><b>Pagamento:</b> '+esc(p.forma_pagamento)+'</div>':'')+
+        '</div>'+
+        '<div style="margin-top:10px;display:flex;gap:8px"><button class="btn" style="flex:1" onclick="fecharDetalheFinalizadoMapa()">Fechar</button></div>';
+    }
+    const modal=document.getElementById('modalDetalheFinalizadoMapa');
+    if(modal) modal.style.display='flex';
+  }catch(e){ console.error(e); }
+}
+function fecharDetalheFinalizadoMapa(){
+  const m=document.getElementById('modalDetalheFinalizadoMapa');
+  if(m) m.style.display='none';
+}
+
+// Ajusta _pedidosParaMapa para respeitar filtro e permissão
+
 function _pedidosParaMapa(){
   const lista = Array.isArray(todosPedidos) ? todosPedidos : [];
-  let out = lista.filter(_pedidoNaoFinalizado);
-  // Entregador: só os dele (reserva ou nome)
+  const alvo = (typeof getDataFiltroMapa==='function'?getDataFiltroMapa():null) || (typeof getHojeSP==='function'?getHojeSP(): new Date().toISOString().slice(0,10));
+  let out = lista.filter(p=>{
+    if(!p) return false;
+    if((p.data||'') !== alvo) return false;
+    if(typeof ehCancelado==='function' && ehCancelado(p)) return false;
+    if(!_mapaMostrarFinalizados){
+      return _pedidoNaoFinalizado(p);
+    } else {
+      // mostra abertos + finalizados (não cancelados)
+      const st = String(p.status||'').trim().toLowerCase();
+      if(st==='cancelado') return false;
+      return true;
+    }
+  });
+  // Entregador: só os dele (reserva ou nome) - tanto abertos quanto finalizados do dia
   try{
     if(usuarioLogado && !usuarioLogado.isMaster){
       out = out.filter(p=>{
@@ -15910,6 +16184,9 @@ function agendarAtualizarMapaSeAberto(opts){
 async function renderMapaEntregas(forcarGeo){
   if(_mapaRenderBusy) return;
   _mapaRenderBusy = true;
+  try{ if(typeof atualizarUIFiltroMapa==='function') atualizarUIFiltroMapa(); }catch(e){}
+  try{ resetCoresMapa(); aplicarQuadroMapa(); }catch(e){}
+  try{ const pedidosPre=_pedidosParaMapa(); pedidosPre.forEach(p=>{ let ne=''; try{ ne=(typeof getNomeReserva==='function'?getNomeReserva(p):'')||p.entregador_nome||'';}catch(e){ ne=p.entregador_nome||'';} getCorEntregador(ne); }); atualizarLegendaCoresMapa(); }catch(e){}
   const falhasEl = document.getElementById('mapaListaFalhas');
   if(falhasEl){ falhasEl.style.display = 'none'; falhasEl.innerHTML = ''; }
   try{
@@ -15949,35 +16226,29 @@ async function renderMapaEntregas(forcarGeo){
       const nome = String(p.cliente_nome||'Cliente');
       let end = '';
       try{ end = (typeof enderecoEfetivo==='function' ? enderecoEfetivo(p) : p.cliente_endereco)||''; }catch(e){ end = p.cliente_endereco||''; }
-      const esc = (s)=> String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      const esc = (s)=> String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
       let nomeEnt = '';
       try{ nomeEnt = (typeof getNomeReserva==='function' ? getNomeReserva(p) : '') || p.entregador_nome || ''; }catch(e){ nomeEnt = p.entregador_nome||''; }
-      nomeEnt = String(nomeEnt||'').trim();
-      const emRota = !!nomeEnt;
-      const clsCard = (tempo.cls==='late' ? 'mc-late' : (tempo.cls==='warn' ? 'mc-warn' : 'mc-ok')) + (emRota ? ' mc-em-rota' : '');
-      const tempoIcon = tempo.cls==='late' ? '🔴' : (tempo.cls==='warn' ? '⚠️' : '⏱');
-      const cardHtml =
-        '<div class="mapa-mini-card '+clsCard+'" title="'+(emRota ? ('Em entrega · '+esc(nomeEnt)) : 'Aguardando entregador')+'">'+
-          '<div class="mc-top">'+
-            '<div class="mc-num">#'+esc(num)+'</div>'+
-            (emRota ? '<span class="mc-moto" title="Em entrega: '+esc(nomeEnt)+'">🛵</span>' : '')+
-          '</div>'+
-          '<div class="mc-nome">'+esc(nome)+'</div>'+
-          (emRota ? '<div class="mc-ent">🛵 '+esc(nomeEnt)+'</div>' : '')+
-          '<div class="mc-tempo '+esc(tempo.cls)+'">'+tempoIcon+' '+esc(tempo.txt)+'</div>'+
-        '</div>';
+      nomeEnt = String(nomeEnt||'— sem entregador —').trim() || '— sem entregador —';
+      const corEnt = getCorEntregador(nomeEnt);
+      const isFin = (typeof isPedidoFinalizado==='function' ? isPedidoFinalizado(p) : (String(p.status||'').toLowerCase()==='codigo_informado' || String(p.status||'').toLowerCase()==='finalizado' || String(p.status||'').toLowerCase()==='entregue'));
+      const statusTxt = isFin ? 'Finalizado' : 'Em aberto';
+      const statusIcon = isFin ? '✅' : '🟡';
+      // Dot icon
+      const dotClass = isFin ? 'mapa-dot finalizado' : 'mapa-dot aberto';
+      const cardHtml = '<div class="'+dotClass+'" style="background:'+corEnt+'" title="#'+esc(num)+' · '+esc(nomeEnt)+'"></div>';
       const icon = L.divIcon({
-        className: 'mapa-card-icon',
+        className: 'mapa-dot-icon',
         html: cardHtml,
-        iconSize: [150, emRota ? 88 : 72],
-        iconAnchor: [75, emRota ? 96 : 80]
+        iconSize: [18, 18],
+        iconAnchor: [9, 9]
       });
-      const popup = '<div class="mapa-pin-popup">'+
-        '<div class="mp-num">#'+esc(num)+'</div>'+
-        '<div class="mp-nome">'+esc(nome)+'</div>'+
-        '<div class="mp-end">📍 '+esc(end||'')+'</div>'+
-        '<div style="margin-top:6px;font-weight:800;font-size:12px;color:'+(emRota?'#1d4ed8':'#a16207')+'">'+(emRota ? ('🛵 Em entrega · '+esc(nomeEnt)) : '⏳ Aguardando entregador')+'</div>'+
-        '<div class="mp-tempo '+esc(tempo.cls)+'">⏱ '+esc(tempo.txt)+'</div>'+
+      // Popup like screenshot
+      const popup = '<div class="mapa-pop-card">'+
+        '<div class="mpc-top"><div><span class="mpc-num">#'+esc(num)+'</span> <span class="mpc-status '+(isFin?'fin':'aber')+'">'+statusIcon+' '+esc(statusTxt)+'</span></div><button class="mpc-close" onclick="try{var m=_mapaLeaflet; if(m) m.closePopup();}catch(e){}">✕</button></div>'+
+        '<div class="mpc-ent">🛵 '+esc(nomeEnt)+'</div>'+
+        '<div class="mpc-end">📍 '+esc(end||'')+'</div>'+
+        '<button class="btn-ver" onclick="abrirDetalheFinalizadoMapa(\''+esc(p.id)+'\'); try{ _mapaLeaflet.closePopup(); }catch(e){}">👁️ Ver detalhes</button>'+
         '</div>';
       const marker = L.marker([g.lat, g.lng], { icon, riseOnHover: true }).bindPopup(popup);
       _mapaLayerGroup.addLayer(marker);
@@ -15990,6 +16261,25 @@ async function renderMapaEntregas(forcarGeo){
       mapaCentralizarCidade();
     }
     try{ _mapaFingerprint = _mapaFingerprintPedidos(); }catch(e){}
+    // Lista compacta de finalizados abaixo do mapa
+    try{
+      const listaFinEl=document.getElementById('mapaListaFinalizados');
+      const contEl=document.getElementById('mapaContagem');
+      if(listaFinEl){
+        const pedidosAll=_pedidosParaMapa();
+        const fin=pedidosAll.filter(p=> (typeof isPedidoFinalizado==='function'?isPedidoFinalizado(p):false));
+        const abertos=pedidosAll.filter(p=> !(typeof isPedidoFinalizado==='function'?isPedidoFinalizado(p):false));
+        if(contEl) contEl.textContent = abertos.length+' aberto(s) · '+fin.length+' finalizado(s)';
+        if(_mapaMostrarFinalizados && fin.length){
+          const esc=s=> String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+          listaFinEl.style.display='block';
+          listaFinEl.innerHTML='<div class="card" style="margin:0"><div style="font-size:12px;font-weight:900;color:#3dcc8a;margin-bottom:8px">✅ Finalizados do dia ('+fin.length+') — só nº + entregador, clique para detalhes</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+fin.map(p=>{let ne=''; try{ ne=(typeof getNomeReserva==='function'?getNomeReserva(p):'')||p.entregador_nome||'';}catch(e){ ne=p.entregador_nome||'';} return '<div class=\"fin-card\" onclick=\"abrirDetalheFinalizadoMapa(\''+esc(p.id)+'\')\"><span><b>#'+esc(p.numero_pedido||'')+'</b></span><span class=\"ent\">🛵 '+esc(ne||'—')+'</span></div>';}).join('')+'</div></div>';
+        } else {
+          listaFinEl.style.display='none';
+          listaFinEl.innerHTML='';
+        }
+      }
+    }catch(e){ console.warn('lista finalizados mapa', e); }
     _mapaSetStatus(ok+' ponto(s) no mapa'+(falhas.length?' · '+falhas.length+' sem localização':''), ok? '#3dcc8a':'#f0c14a');
     if(falhas.length && falhasEl){
       falhasEl.style.display = 'block';
