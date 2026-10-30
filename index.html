@@ -16200,7 +16200,54 @@ async function renderMapaEntregas(forcarGeo){
     await carregarCfgMapaCidadeDoServidor();
     const map = _garantirMapaLeaflet();
     if(_mapaLayerGroup) _mapaLayerGroup.clearLayers();
-    const pedidos = _pedidosParaMapa();
+    // Busca pedidos do dia do mapa direto do Supabase (independente do filtro principal)
+    let pedidos = [];
+    try{
+      const client = (typeof getSb==='function'?getSb():null);
+      const alvoMapa = (typeof getDataFiltroMapa==='function'?getDataFiltroMapa():null) || (typeof getHojeSP==='function'?getHojeSP(): new Date().toISOString().slice(0,10));
+      if(client){
+        // Tenta buscar do banco a data do mapa
+        const {data: dbPedidos, error} = await client.from('pedidos_entrega_dia').select('*').eq('data', alvoMapa).order('created_at',{ascending:true});
+        if(!error && Array.isArray(dbPedidos) && dbPedidos.length){
+          // Se for entregador, filtra só os dele
+          let filtrados = dbPedidos;
+          try{
+            if(usuarioLogado && !usuarioLogado.isMaster){
+              // Carrega reservas dessa data para saber quem é dono
+              let reservasMapa = {};
+              try{
+                const {data: res} = await client.from('reservas_entregadores').select('pedido_id,entregador_nome').eq('data', alvoMapa);
+                (res||[]).forEach(r=>{ if(r.pedido_id) reservasMapa[r.pedido_id]=r.entregador_nome||''; });
+              }catch(e){}
+              filtrados = dbPedidos.filter(p=>{
+                const nomeRes = reservasMapa[p.id] || p.entregador_nome || '';
+                try{ return typeof ehMesmoEntregador==='function' ? ehMesmoEntregador(nomeRes) : true; }catch(e){ return true; }
+              });
+            }
+          }catch(e){}
+          // Aplica filtro finalizados/abertos
+          if(!_mapaMostrarFinalizados){
+            filtrados = filtrados.filter(p=>{ try{ return (typeof _pedidoNaoFinalizado==='function'?_pedidoNaoFinalizado(p):true) && !(typeof ehCancelado==='function'?ehCancelado(p):false); }catch(e){ return true; } });
+          } else {
+            filtrados = filtrados.filter(p=>{ try{ return !(typeof ehCancelado==='function'?ehCancelado(p):false); }catch(e){ return true; } });
+          }
+          pedidos = filtrados;
+          // Também atualiza todosPedidos cache para legenda? mantém
+          // Se não veio nada do banco, cai no fallback local
+          if(!pedidos.length){
+            pedidos = _pedidosParaMapa();
+          }
+        } else {
+          pedidos = _pedidosParaMapa();
+        }
+      } else {
+        pedidos = _pedidosParaMapa();
+      }
+    }catch(e){
+      console.warn('fallback _pedidosParaMapa mapa', e);
+      pedidos = _pedidosParaMapa();
+    }
+
     if(!pedidos.length){
       _mapaSetStatus('Nenhuma entrega em aberto', '#8b93a7');
       mapaCentralizarCidade();
