@@ -817,7 +817,19 @@ body.mapa-aba-ativa #viewMapaEntregador{
 }
 body.mapa-aba-ativa #alertaAltaDemanda,
 
-.mapa-dot{width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.6);cursor:pointer;transition:transform .15s}
+
+.mapa-dot-wrap{position:relative;display:inline-block}
+.mapa-dot{width:24px;height:24px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.7);cursor:pointer;transition:transform .15s;box-sizing:border-box;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:11px;line-height:1;text-shadow:0 1px 2px rgba(0,0,0,.6);font-family:Inter,system-ui,sans-serif}
+.mapa-dot:hover{transform:scale(1.25)}
+.mapa-dot.sem-entregador{background:#22c55e;border-color:#fff;width:24px;height:24px;font-size:11px}
+.mapa-dot.ativo{border-color:#fff;width:26px;height:26px;font-size:12px}
+.mapa-dot.finalizado{background:#ef4444;width:28px;height:28px;border-width:3.5px;font-size:12px}
+.mapa-time{position:absolute;left:20px;top:-6px;background:rgba(12,14,18,.92);color:#fff;font-size:9px;font-weight:800;padding:2px 5px;border-radius:6px;border:1px solid rgba(255,255,255,.15);white-space:nowrap;line-height:1;box-shadow:0 1px 4px rgba(0,0,0,.5);pointer-events:none}
+.mapa-time.urgente{background:#ef4444;color:#fff;border-color:#fff}
+.mapa-time.atencao{background:#f59e0b;color:#111}
+.mapa-time.ok{background:rgba(12,14,18,.85)}
+
+.old-mapa-dot{width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.6);cursor:pointer;transition:transform .15s}
 .mapa-dot:hover{transform:scale(1.4)}
 .mapa-dot.finalizado{border-color:#fff;width:14px;height:14px;opacity:.95}
 .mapa-dot.aberto{width:18px;height:18px;box-shadow:0 2px 6px rgba(0,0,0,.7)}
@@ -15926,14 +15938,24 @@ let _mapaFiltro = 'hoje';
 let _mapaDataSel = null;
 
 
-const _mapaPalette = ['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#f97316','#84cc16','#6366f1','#e11d48','#0ea5e9'];
+const _mapaPaletteEntregadores = ['#3b82f6','#111827','#8b5cf6','#f97316','#6b7280','#06b6d4','#ec4899','#0ea5e9','#6366f1','#84cc16'];
+const _mapaCorSemEntregador = '#22c55e';
+const _mapaCorFinalizadoCentro = '#ef4444';
+
 let _mapaCoresEntregadores = {};
 let _mapaCorIdx = 0;
 function getCorEntregador(nome){
-  const n = String(nome||'— sem entregador —').trim() || '— sem entregador —';
-  if(_mapaCoresEntregadores[n]) return _mapaCoresEntregadores[n];
-  const cor = _mapaPalette[_mapaCorIdx % _mapaPalette.length];
-  _mapaCoresEntregadores[n]=cor;
+  const n = String(nome||'').trim().toLowerCase();
+  if(!n || n==='— sem entregador —' || n==='sem entregador' || n==='—' || n==='null' || n==='undefined') return _mapaCorSemEntregador;
+  // normaliza nome para busca case-insensitive
+  const key = String(nome||'').trim();
+  if(_mapaCoresEntregadores[key]) return _mapaCoresEntregadores[key];
+  // tenta achar por nome lowercase já mapeado
+  for(const k in _mapaCoresEntregadores){
+    if(String(k).toLowerCase()===n){ return _mapaCoresEntregadores[k]; }
+  }
+  const cor = _mapaPaletteEntregadores[_mapaCorIdx % _mapaPaletteEntregadores.length];
+  _mapaCoresEntregadores[key]=cor;
   _mapaCorIdx++;
   return cor;
 }
@@ -15998,7 +16020,20 @@ function atualizarLegendaCoresMapa(){
     const entries=Object.entries(_mapaCoresEntregadores);
     if(!entries.length){ cont.style.display='none'; cont.innerHTML=''; return; }
     cont.style.display='flex';
-    cont.innerHTML=entries.map(([nome,cor])=> '<div class="leg-item"><span class="leg-dot" style="background:'+cor+'"></span><span>'+String(nome).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span></div>').join('');
+    // Ordena: sem entregador por último
+    const semEnt = entries.filter(([n,c])=> c===_mapaCorSemEntregador || String(n).toLowerCase().includes('sem entregador'));
+    const comEnt = entries.filter(([n,c])=> c!==_mapaCorSemEntregador && !String(n).toLowerCase().includes('sem entregador'));
+    const all = [...comEnt, ...semEnt];
+    // Adiciona item fixo para finalizado
+    let html = all.map(([nome,cor])=> {
+      const isSem = cor===_mapaCorSemEntregador || String(nome).toLowerCase().includes('sem entregador');
+      const dotBg = isSem ? _mapaCorSemEntregador : cor;
+      const border = '#fff';
+      return '<div class="leg-item"><span class="leg-dot" style="background:'+dotBg+';border-color:'+border+'"></span><span>'+String(nome).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span></div>';
+    }).join('');
+    html += '<div class="leg-item" style="opacity:.9"><span class="leg-dot" style="background:'+_mapaCorFinalizadoCentro+';border-color:#22c55e;border-width:3px"></span><span>Finalizado (borda = entregador)</span></div>';
+    cont.innerHTML = html;
+
   }catch(e){}
 }
 
@@ -16282,25 +16317,73 @@ async function renderMapaEntregas(forcarGeo){
       try{ nomeEnt = (typeof getNomeReserva==='function' ? getNomeReserva(p) : '') || p.entregador_nome || ''; }catch(e){ nomeEnt = p.entregador_nome||''; }
       nomeEnt = String(nomeEnt||'— sem entregador —').trim() || '— sem entregador —';
       const corEnt = getCorEntregador(nomeEnt);
+      const isSemEnt = (!nomeEnt || nomeEnt==='— sem entregador —' || corEnt===_mapaCorSemEntregador);
       const isFin = (typeof isPedidoFinalizado==='function' ? isPedidoFinalizado(p) : (String(p.status||'').toLowerCase()==='codigo_informado' || String(p.status||'').toLowerCase()==='finalizado' || String(p.status||'').toLowerCase()==='entregue'));
       const statusTxt = isFin ? 'Finalizado' : 'Em aberto';
       const statusIcon = isFin ? '✅' : '🟡';
-      // Dot icon
-      const dotClass = isFin ? 'mapa-dot finalizado' : 'mapa-dot aberto';
-      const cardHtml = '<div class="'+dotClass+'" style="background:'+corEnt+'" title="#'+esc(num)+' · '+esc(nomeEnt)+'"></div>';
+      // Tempo restante - usa objeto {txt, cls} de _textoTempoMapa
+      let tempoTxt = '';
+      let tempoClass = 'ok';
+      try{
+        const tObj = (typeof _textoTempoMapa==='function'?_textoTempoMapa(p):null);
+        if(tObj && tObj.txt){
+          if(tObj.txt.toLowerCase().includes('finalizado') || tObj.txt.toLowerCase().includes('sem previsão')) {
+            tempoTxt = '';
+          } else {
+            // extrai apenas o tempo curto: "restam 25 min" -> "25m" , "ATRASADO · 10 min" -> "ATRASADO 10m"
+            let raw = String(tObj.txt||'').replace('restam','').replace('·','').trim();
+            // encurta: "25 min" -> "25m", "1h 30min" -> "1h30"
+            raw = raw.replace(' min','m').replace('min','m').replace('  ',' ').trim();
+            tempoTxt = raw.slice(0,12);
+            tempoClass = tObj.cls==='late' ? 'urgente' : (tObj.cls==='warn' ? 'atencao' : 'ok');
+            if(!tempoTxt) tempoTxt = tObj.cls==='late' ? 'ATRASADO' : '';
+          }
+        }
+      }catch(e){}
+      // Monta dot com regras de cor
+      let dotStyle = '';
+      let dotClass = '';
+      let timeBadge = '';
+      if(isFin){
+        // Centro vermelho, borda cor do entregador (ou verde se sem)
+        const borda = isSemEnt ? _mapaCorSemEntregador : corEnt;
+        dotClass = 'mapa-dot finalizado';
+        dotStyle = 'background:'+_mapaCorFinalizadoCentro+';border-color:'+borda+';';
+      } else if(isSemEnt){
+        dotClass = 'mapa-dot sem-entregador';
+        dotStyle = 'background:'+_mapaCorSemEntregador+';border-color:#fff;';
+      } else {
+        dotClass = 'mapa-dot ativo';
+        dotStyle = 'background:'+corEnt+';border-color:#fff;';
+      }
+      if(!isFin && tempoTxt){
+        timeBadge = '<div class="mapa-time '+tempoClass+'">'+tempoTxt.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</div>';
+      }
+      // Primeira letra discreta
+      let letra = '';
+      try{
+        if(isSemEnt){
+          letra = '?';
+        } else {
+          const clean = String(nomeEnt||'').trim();
+          letra = clean.charAt(0).toUpperCase() || '?';
+        }
+      }catch(e){ letra='?'; }
+      const cardHtml = '<div class="mapa-dot-wrap"><div class="'+dotClass+'" style="'+dotStyle+'" title="#'+esc(num)+' · '+esc(nomeEnt)+'">'+esc(letra)+'</div>'+timeBadge+'</div>';
       const icon = L.divIcon({
         className: 'mapa-dot-icon',
         html: cardHtml,
-        iconSize: [18, 18],
-        iconAnchor: [9, 9]
+        iconSize: isFin ? [30,30] : [105,30],
+        iconAnchor: isFin ? [14,14] : [12,13]
       });
-      // Popup like screenshot
+      // Popup
       const popup = '<div class="mapa-pop-card">'+
         '<div class="mpc-top"><div><span class="mpc-num">#'+esc(num)+'</span> <span class="mpc-status '+(isFin?'fin':'aber')+'">'+statusIcon+' '+esc(statusTxt)+'</span></div><button class="mpc-close" onclick="try{var m=_mapaLeaflet; if(m) m.closePopup();}catch(e){}">✕</button></div>'+
-        '<div class="mpc-ent">🛵 '+esc(nomeEnt)+'</div>'+
+        '<div class="mpc-ent" style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+(isFin?_mapaCorFinalizadoCentro:corEnt)+';border:2px solid '+(isFin?corEnt:'#fff')+'"></span> '+esc(nomeEnt)+'</div>'+
         '<div class="mpc-end">📍 '+esc(end||'')+'</div>'+
         '<button class="btn-ver" onclick="abrirDetalheFinalizadoMapa(\''+esc(p.id)+'\'); try{ _mapaLeaflet.closePopup(); }catch(e){}">👁️ Ver detalhes</button>'+
         '</div>';
+
       const marker = L.marker([g.lat, g.lng], { icon, riseOnHover: true }).bindPopup(popup);
       _mapaLayerGroup.addLayer(marker);
       bounds.push([g.lat, g.lng]);
