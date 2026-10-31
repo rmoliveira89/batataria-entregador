@@ -844,6 +844,24 @@ body.mapa-aba-ativa #alertaAltaDemanda,
 .mapa-pop-card .mpc-end{font-size:11px;color:#4a5568;line-height:1.3;max-width:230px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mapa-pop-card .btn-ver{width:100%;margin-top:8px;padding:8px 10px;border-radius:999px;border:none;background:linear-gradient(180deg,#f0c14a,#e8a93c);color:#1a1200;font-weight:900;font-size:12px;cursor:pointer}
 #mapaLegendaCores{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 12px;padding:8px 10px;background:#161a22;border:1px solid #2c3340;border-radius:10px}
+
+#mapaListaRotasDia .mrd-wrap{background:#161a22;border:1px solid #2c3340;border-radius:12px;padding:10px 12px}
+#mapaListaRotasDia .mrd-tit{font-size:12px;font-weight:900;color:#f0c14a;margin-bottom:8px}
+#mapaListaRotasDia .mrd-turno{font-size:11px;font-weight:900;color:#e6e8ef;margin:10px 0 6px;padding:4px 0;border-bottom:1px solid #2c3340}
+#mapaListaRotasDia .mrd-ent{font-size:11px;font-weight:800;margin:8px 0 4px}
+#mapaListaRotasDia .mrd-card{
+  background:#0e1118;border:1px solid #2c3340;border-radius:10px;padding:8px 10px;margin:4px 0;
+  cursor:pointer;transition:border-color .15s,background .15s
+}
+#mapaListaRotasDia .mrd-card:hover,#mapaListaRotasDia .mrd-card.ativa{border-color:#f0c14a;background:#1a1e28}
+#mapaListaRotasDia .mrd-card .mrd-top{display:flex;justify-content:space-between;gap:8px;align-items:center}
+#mapaListaRotasDia .mrd-card .mrd-meta{font-size:10px;color:#8b93a7}
+#mapaListaRotasDia .mrd-card .mrd-nums{font-size:11px;color:#c8ced9;margin-top:4px;line-height:1.35}
+#mapaListaRotasDia .mrd-card .mrd-hint{font-size:10px;color:#f0c14a;font-weight:700;margin-top:4px}
+#mapaListaRotasDia .mrd-badge{font-size:9px;font-weight:900;padding:2px 6px;border-radius:999px}
+#mapaListaRotasDia .mrd-badge.aberta{background:#1a2a3a;color:#6ab7ff;border:1px solid #2a4a5a}
+#mapaListaRotasDia .mrd-badge.feita{background:#0f1f15;color:#3dcc8a;border:1px solid #2a5a3a}
+
 #mapaLegendaCores .leg-item{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#e6e8ef;background:#0e1118;border:1px solid #2c3340;border-radius:999px;padding:4px 8px}
 #mapaLegendaCores .leg-dot{width:12px;height:12px;border-radius:50%;border:2px solid #fff;display:inline-block;box-shadow:0 1px 3px rgba(0,0,0,.4)}
 .leaflet-popup-content-wrapper{padding:0;background:transparent;box-shadow:none}
@@ -1083,7 +1101,7 @@ body.mapa-aba-ativa #barraAgrupamento{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 291026.204600</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 301026.225100</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -2271,14 +2289,14 @@ Remove a finalização e a reserva. O pedido volta para <b style="color:#f0c14a"
     <h3 style="margin:0;color:#6ab7ff;font-size:16px;font-weight:900">📷 Ler QR do pedido</h3>
     <button type="button" class="btn" onclick="fecharScannerQrPedido()" style="padding:6px 10px">✕</button>
   </div>
-  <div style="font-size:12px;color:#8b93a7;margin-bottom:10px;line-height:1.4">Quando o celular pedir, toque em <b style="color:#3dcc8a">Permitir</b> a câmera. Aponte para o QR com o <b style="color:#f0c14a">número do pedido</b> — ao ler, adiciona na hora.</div>
+  <div style="font-size:12px;color:#8b93a7;margin-bottom:10px;line-height:1.4">Quando o celular pedir, toque em <b style="color:#3dcc8a">Permitir</b>. Aponte para o QR — ao ler, <b style="color:#3dcc8a">adiciona na lista</b> e a câmera segue para o <b style="color:#f0c14a">próximo</b>. Toque em <b>Encerrar câmera</b> para voltar aos pedidos.</div>
   <div id="qrVideoWrap" style="position:relative;width:100%;aspect-ratio:3/4;max-height:55vh;background:#0e1118;border:1px solid #2c3340;border-radius:12px;overflow:hidden">
     <video id="qrVideo" playsinline muted autoplay style="width:100%;height:100%;object-fit:cover;display:block"></video>
     <canvas id="qrCanvas" style="display:none"></canvas>
     <div style="position:absolute;inset:18% 12%;border:2px dashed rgba(106,183,255,.65);border-radius:12px;pointer-events:none"></div>
   </div>
   <div id="qrScanStatus" style="font-size:12px;color:#8b93a7;text-align:center;margin:10px 0 6px;min-height:18px">Iniciando câmera…</div>
-  <button type="button" class="btn" style="width:100%;padding:12px" onclick="fecharScannerQrPedido()">Cancelar</button>
+  <button type="button" class="btn primary" style="width:100%;padding:12px;font-weight:900" onclick="fecharScannerQrPedido()">✅ Encerrar câmera</button>
 </div>
 </div>
 <div class="card barra-oculta" id="cardAddPedido">
@@ -2375,8 +2393,12 @@ Remove a finalização e a reserva. O pedido volta para <b style="color:#f0c14a"
     </div>
   </div>
   </div>
+  <div id="mapaListaRotasDiaWrap" style="margin:0 12px 10px">
+    <button type="button" class="btn small" id="btnMapaToggleListaRotas" onclick="toggleListaRotasDiaMapa()" style="font-size:11px;padding:8px 12px;width:100%;background:#1a1e28;border-color:#2c3340;color:#f0c14a;font-weight:800">📋 Rotas finalizadas do dia · mostrar</button>
+    <div id="mapaListaRotasDia" style="display:none;margin-top:8px"></div>
+  </div>
   <div id="mapaLegendaCores" style="display:none"></div>
-  <div class="mapa-legenda" id="mapaLegenda">Pontos coloridos = <b style="color:#f0c14a">entregador</b> (legenda acima). Toque/clique no ponto → card. <span id="mapaLegendaFinal" style="display:none"><b style="color:#3dcc8a">✅</b> = finalizados.</span></div>
+  <div class="mapa-legenda" id="mapaLegenda">Trajeto OSM automático nas finalizadas de rotas em andamento. Lista de rotas finalizadas fica oculta (botão para mostrar). Pontos somem só quando a rota inteira acabar. <span id="mapaLegendaFinal" style="display:none"><b style="color:#3dcc8a">✅</b> = todos finalizados do dia.</span></div>
   <div style="display:none" id="oldLeg">Pontos = pedidos <b style="color:#f0c14a">não finalizados</b>. <b style="color:#6ab7ff">🛵</b> = em entrega. <span id="mapaLegendaFinal" style="display:none"><b style="color:#3dcc8a">✅</b> = finalizados (só nº + entregador, clique para detalhes).</span></div>
   <div style="margin:0 12px 12px"><div id="mapaEntregas"></div></div>
   <div id="mapaListaFinalizados" style="margin:0 12px 12px;display:none"></div>
@@ -9487,7 +9509,7 @@ function _qrLoopScan(){
 async function _qrOnDetect(texto){
   const now = Date.now();
   if(_qrBusy) return;
-  if(texto === _qrLastText && (now - _qrLastTs) < 2500) return;
+  if(texto === _qrLastText && (now - _qrLastTs) < 2800) return;
   _qrLastText = texto;
   _qrLastTs = now;
   _qrBusy = true;
@@ -9495,39 +9517,56 @@ async function _qrOnDetect(texto){
 
   const nums = extrairNumerosDoQr(texto);
   if(!nums.length){
-    _qrBusy = false;
-    _qrSetStatus('QR sem número de pedido válido. Tente de novo.', '#ff6b6b');
-    try{ mostrarAlerta('O QR Code não contém um número de pedido reconhecível.\n\nConteúdo: '+texto.slice(0,80), {tipo:'erro', titulo:'QR inválido', icone:'📷'}); }catch(e){}
+    _qrSetStatus('QR sem número válido — tente de novo', '#ff6b6b');
+    try{ if(typeof _alToast==='function') _alToast('📷 QR sem número de pedido'); }catch(e){}
+    setTimeout(()=>{ _qrBusy = false; }, 900);
     return;
   }
 
-  // Processa o primeiro número (QR típico = 1 pedido); se vários, tenta em sequência
-  fecharScannerQrPedido();
+  // Câmera permanece aberta: adiciona e libera para o próximo QR
+  let algumOk = false;
   for(let i=0; i<nums.length; i++){
-    const ok = await adicionarPedidoViaQr(nums[i]);
-    if(ok && nums.length === 1) break;
-    // se vários e um falhou, continua nos próximos
+    const ok = await adicionarPedidoViaQr(nums[i], { continuo: true });
+    if(ok){ algumOk = true; if(nums.length === 1) break; }
   }
-  _qrBusy = false;
+  if(algumOk){
+    _qrSetStatus('✅ Adicionado! Aponte para o próximo QR…', '#3dcc8a');
+  }
+  setTimeout(()=>{ _qrBusy = false; }, algumOk ? 1600 : 1000);
 }
 
-/**
- * Adiciona pedido pelo número lido no QR — sem modal de confirmação.
- * Retorna true se adicionou (ou já estava na lista tratamos como ok informativo).
- */
-async function adicionarPedidoViaQr(numRaw){
+async function adicionarPedidoViaQr(numRaw, opts){
+  opts = opts || {};
+  const continuo = !!opts.continuo;
+
+  async function feedback(msg, tipo){
+    const cor = tipo==='sucesso' ? '#3dcc8a' : (tipo==='aviso' ? '#f0c14a' : '#ff6b6b');
+    try{ _qrSetStatus(msg, cor); }catch(e){}
+    if(continuo){
+      try{ if(typeof _alToast==='function') _alToast(msg); }catch(e){}
+      return;
+    }
+    try{
+      await mostrarAlerta(msg, {
+        tipo: tipo==='sucesso' ? 'sucesso' : (tipo==='aviso' ? 'aviso' : 'erro'),
+        titulo: tipo==='sucesso' ? 'Pedido adicionado' : (tipo==='aviso' ? 'Atenção' : 'QR'),
+        icone: tipo==='sucesso' ? '✅' : (tipo==='aviso' ? '⚠️' : '📷')
+      });
+    }catch(e){}
+  }
+
   numRaw = String(numRaw||'').trim();
   if(!numRaw){
-    try{ mostrarAlerta('Número do pedido vazio no QR.', {tipo:'erro', titulo:'QR', icone:'📷'}); }catch(e){}
+    await feedback('Número do pedido vazio no QR.', 'erro');
     return false;
   }
   const client = getSb();
   if(!client){
-    try{ mostrarAlerta('Supabase não configurado.', {tipo:'erro'}); }catch(e){}
+    await feedback('Supabase não configurado.', 'erro');
     return false;
   }
   if(!ehEntregadorComum()){
-    // Master: usa fluxo normal com confirmação no input
+    // Master: preenche o input e usa o fluxo normal
     try{
       const inp = document.getElementById('inputPedido');
       if(inp) inp.value = numRaw;
@@ -9544,16 +9583,15 @@ async function adicionarPedidoViaQr(numRaw){
     let encontradosDB = await buscarPedidosPorNumeros(client, numerosBusca);
     if(!encontradosDB.length){
       if(st){ st.textContent = '❌ Pedido #'+numRaw+' não encontrado'; st.style.color = '#ff6b6b'; }
-      await mostrarAlerta('Pedido #'+numRaw+' não encontrado no sistema.', { tipo:'erro', titulo:'Pedido não existe', icone:'🚫' });
+      await feedback('Pedido #'+numRaw+' não encontrado no sistema.', 'erro');
       return false;
     }
     let encontrados = encontradosDB.filter(p=> podeAdicionarData(p.data));
     if(!encontrados.length){
       const d = encontradosDB[0];
-      await mostrarAlerta('Pedido #'+numRaw+' é do dia '+(d.data||'?')+' e não pode ser adicionado agora.', { tipo:'erro', titulo:'Data/turno', icone:'📅' });
+      await feedback('Pedido #'+numRaw+' é do dia '+(d.data||'?')+' e não pode ser adicionado agora.', 'erro');
       return false;
     }
-    // Preferir não finalizado
     encontrados = encontrados.slice().sort((a,b)=>{
       const fa = _ehStatusFinalizado(a.status)?1:0;
       const fb = _ehStatusFinalizado(b.status)?1:0;
@@ -9561,12 +9599,12 @@ async function adicionarPedidoViaQr(numRaw){
     });
     const pedido = encontrados[0];
     if(_ehStatusFinalizado(pedido.status) || String(pedido.status||'').toLowerCase()==='cancelado'){
-      await mostrarAlerta('Pedido #'+(pedido.numero_pedido||numRaw)+' já está finalizado/cancelado.', { tipo:'erro', titulo:'Pedido indisponível', icone:'✅' });
+      await feedback('Pedido #'+(pedido.numero_pedido||numRaw)+' já está finalizado/cancelado.', 'erro');
       return false;
     }
     if(pedidoForaDoTurnoAtual(pedido)){
-      await mostrarAlerta('Pedido #'+(pedido.numero_pedido||numRaw)+' é de outro turno e não pode ser adicionado agora.', { tipo:'erro', titulo:'Outro turno', icone:'⏰' });
-      try{ abrirModalTurnoBloqueado(pedido); }catch(e){}
+      await feedback('Pedido #'+(pedido.numero_pedido||numRaw)+' é de outro turno.', 'erro');
+      if(!continuo){ try{ abrirModalTurnoBloqueado(pedido); }catch(e){} }
       return false;
     }
 
@@ -9574,48 +9612,36 @@ async function adicionarPedidoViaQr(numRaw){
     if(reserva && reserva.entregador_nome){
       mapaReservas[pedido.id] = reserva.entregador_nome;
     }
-
-    // Já com outro
     if(reserva && reserva.entregador_nome && !ehMesmoEntregador(reserva.entregador_nome)){
-      if(st){ st.textContent = '❌ Já com '+reserva.entregador_nome; st.style.color = '#ff6b6b'; }
-      await mostrarAlerta('O pedido #'+(pedido.numero_pedido||numRaw)+' já está com outro entregador:\n🛵 '+reserva.entregador_nome, {
-        tipo:'erro', titulo:'Pedido indisponível', icone:'🚫'
-      });
+      await feedback('#'+(pedido.numero_pedido||numRaw)+' já está com 🛵 '+reserva.entregador_nome, 'erro');
       return false;
     }
 
-    // Já comigo
-    const chk = (typeof pedidoOuGrupoJaComigo==='function') ? pedidoOuGrupoJaComigo(pedido) : {motivo:''};
+    const chk = typeof pedidoOuGrupoJaComigo==='function' ? pedidoOuGrupoJaComigo(pedido) : {motivo:''};
     const jaMeu = (reserva && reserva.entregador_nome && ehMesmoEntregador(reserva.entregador_nome))
       || (pedidosVisiveisIds||[]).includes(pedido.id)
       || (chk && chk.motivo==='mesmo');
     if(jaMeu){
       if(!(pedidosVisiveisIds||[]).includes(pedido.id)){
-        try{ salvarPedidoVisivel(pedido); }catch(e){ pedidosVisiveisIds.push(pedido.id); }
+        try{ salvarPedidoVisivel(pedido); }catch(e){ try{ pedidosVisiveisIds.push(pedido.id); }catch(e2){} }
       }
       if(st){ st.textContent = '⚠️ Já está na sua lista'; st.style.color = '#f0c14a'; }
       try{ render(); }catch(e){}
-      await mostrarAlerta('O pedido #'+(pedido.numero_pedido||numRaw)+' já está na sua lista.', {
-        tipo:'aviso', titulo:'Já adicionado', icone:'🔗'
-      });
+      await feedback('Pedido #'+(pedido.numero_pedido||numRaw)+' já está na sua lista.', 'aviso');
       return false;
     }
 
-    // Grupo: algum membro com outro entregador?
     if(pedido.grupo_entrega && typeof pedidoOuGrupoJaComigo==='function'){
       const gchk = pedidoOuGrupoJaComigo(pedido);
       if(gchk && gchk.motivo==='outro'){
-        await mostrarAlerta('Um pedido do mesmo grupo já está com outro entregador.', { tipo:'erro', titulo:'Grupo indisponível', icone:'🚫' });
+        await feedback('Um pedido do mesmo grupo já está com outro entregador.', 'erro');
         return false;
       }
     }
 
-    // Reserva automática (sem modal de confirmação)
     const ok = await criarReserva(pedido);
     if(!ok){
-      await mostrarAlerta('Não foi possível reservar o pedido #'+(pedido.numero_pedido||numRaw)+'.\nOutro entregador pode ter pegado agora.', {
-        tipo:'erro', titulo:'Falha na reserva', icone:'🚫'
-      });
+      await feedback('Não foi possível reservar #'+(pedido.numero_pedido||numRaw)+'. Outro entregador pode ter pegado.', 'erro');
       return false;
     }
     mapaReservas[pedido.id] = nomeEntregadorAtual();
@@ -9633,16 +9659,15 @@ async function adicionarPedidoViaQr(numRaw){
     }
     try{ render(); }catch(e){}
     setTimeout(()=>{ try{ carregar(); }catch(e){} }, 400);
-    await mostrarAlerta('Pedido #'+(pedido.numero_pedido||numRaw)+' adicionado à sua lista.', {
-      tipo:'sucesso', titulo:'Pedido adicionado', icone:'✅'
-    });
+    await feedback('✅ Pedido #'+(pedido.numero_pedido||numRaw)+' adicionado à lista', 'sucesso');
     return true;
   }catch(e){
     console.error('adicionarPedidoViaQr', e);
-    try{ await mostrarAlerta('Erro ao processar QR: '+(e.message||e), {tipo:'erro', titulo:'Erro', icone:'❌'}); }catch(e2){}
+    await feedback('Erro ao processar QR: '+(e.message||e), 'erro');
     return false;
   }
 }
+
 // =================== FIM QR CODE ===================
 
 async function adicionarPedido(){
@@ -15936,9 +15961,19 @@ function _textoTempoMapa(p){
 let _mapaMostrarFinalizados = false;
 let _mapaFiltro = 'hoje';
 let _mapaDataSel = null;
+/** Coords geocodificadas na última renderização do mapa */
+let _mapaCoordsPedido = {};
+/** Layer das linhas das rotas em andamento / selecionadas */
+let _mapaRotasAtivasLayer = null;
+let _mapaRotaDiaSelKey = null;
+/** Lista de rotas finalizadas no topo: oculta por padrão */
+let _mapaListaRotasAberta = false;
+/** Turnos/entregadores: false = oculto (padrão) */
+let _mapaTurnoAberto = { almoco: false, jantar: false };
+let _mapaEntAberto = {}; // key "almoco|Nome" → bool
 
 
-const _mapaPaletteEntregadores = ['#3b82f6','#111827','#8b5cf6','#f97316','#6b7280','#06b6d4','#ec4899','#0ea5e9','#6366f1','#84cc16'];
+const _mapaPaletteEntregadores = ['#60a5fa','#f472b6','#a78bfa','#fb923c','#34d399','#22d3ee','#fbbf24','#818cf8','#4ade80','#e879f9'];
 const _mapaCorSemEntregador = '#22c55e';
 const _mapaCorFinalizadoCentro = '#ef4444';
 
@@ -15958,6 +15993,22 @@ function getCorEntregador(nome){
   _mapaCoresEntregadores[key]=cor;
   _mapaCorIdx++;
   return cor;
+}
+/** Garante contraste do nome no fundo escuro (clareia cores muito escuras). */
+function getCorEntregadorTexto(nome){
+  const cor = getCorEntregador(nome);
+  try{
+    const hex = String(cor||'').replace('#','');
+    if(hex.length !== 6) return '#e6e8ef';
+    const r = parseInt(hex.slice(0,2),16), g = parseInt(hex.slice(2,4),16), b = parseInt(hex.slice(4,6),16);
+    const lum = (0.299*r + 0.587*g + 0.114*b) / 255;
+    if(lum >= 0.42) return cor;
+    const f = 0.58;
+    const nr = Math.min(255, Math.round(r + (255-r)*f));
+    const ng = Math.min(255, Math.round(g + (255-g)*f));
+    const nb = Math.min(255, Math.round(b + (255-b)*f));
+    return '#'+[nr,ng,nb].map(x=>x.toString(16).padStart(2,'0')).join('');
+  }catch(e){ return '#e6e8ef'; }
 }
 function resetCoresMapa(){ _mapaCoresEntregadores={}; _mapaCorIdx=0; }
 function getHojeSPMapa(){ try{ return typeof getHojeSP==='function'?getHojeSP(): new Date().toISOString().slice(0,10);}catch(e){ return new Date().toISOString().slice(0,10);} }
@@ -16029,7 +16080,8 @@ function atualizarLegendaCoresMapa(){
       const isSem = cor===_mapaCorSemEntregador || String(nome).toLowerCase().includes('sem entregador');
       const dotBg = isSem ? _mapaCorSemEntregador : cor;
       const border = '#fff';
-      return '<div class="leg-item"><span class="leg-dot" style="background:'+dotBg+';border-color:'+border+'"></span><span>'+String(nome).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span></div>';
+      const corTxt = (typeof getCorEntregadorTexto==='function') ? getCorEntregadorTexto(nome) : '#e6e8ef';
+      return '<div class="leg-item"><span class="leg-dot" style="background:'+dotBg+';border-color:'+border+'"></span><span style="color:'+corTxt+'">'+String(nome).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span></div>';
     }).join('');
     html += '<div class="leg-item" style="opacity:.9"><span class="leg-dot" style="background:'+_mapaCorFinalizadoCentro+';border-color:#22c55e;border-width:3px"></span><span>Finalizado (borda = entregador)</span></div>';
     cont.innerHTML = html;
@@ -16105,33 +16157,87 @@ function fecharDetalheFinalizadoMapa(){
 
 // Ajusta _pedidosParaMapa para respeitar filtro e permissão
 
+/** Nome do entregador no mapa (reserva ou campo). */
+function _mapaNomeEntPedido(p){
+  if(!p) return '';
+  try{
+    return String((typeof getNomeReserva==='function' ? getNomeReserva(p) : '') || p.entregador_nome || p.entregador_nome_added || '').trim();
+  }catch(e){
+    return String(p.entregador_nome||'').trim();
+  }
+}
+
+/**
+ * IDs de pedidos que ainda estão em rota ABERTA (mesma lógica da aba Pedidos).
+ * Enquanto a rota não estiver 100% finalizada, TODOS os pedidos dela permanecem no mapa.
+ */
+function _mapaIdsEmRotasAbertas(lista){
+  const set = new Set();
+  const porEnt = {};
+  (lista||[]).forEach(p=>{
+    if(!p) return;
+    try{ if(typeof ehCancelado==='function' && ehCancelado(p)) return; }catch(e){}
+    const n = _mapaNomeEntPedido(p);
+    if(!n) return; // sem entregador = ainda não formou rota de saída
+    if(!porEnt[n]) porEnt[n] = [];
+    porEnt[n].push(p);
+  });
+  Object.keys(porEnt).forEach(ent=>{
+    let rotas = [];
+    try{
+      rotas = (typeof getRotasByEntregador==='function'
+        ? getRotasByEntregador(porEnt[ent], { uniao: true })
+        : []) || [];
+    }catch(e){ rotas = []; }
+    rotas.forEach(r=>{
+      if(!r || !r.pedidos || !r.pedidos.length) return;
+      const aberta = (typeof _rotaEstaAberta==='function') ? _rotaEstaAberta(r) : (r.aberta !== false && r.pedidos.some(pp=>{
+        try{ return typeof _pedidoNaoFinalizado==='function' ? _pedidoNaoFinalizado(pp) : true; }catch(e){ return true; }
+      }));
+      if(aberta){
+        r.pedidos.forEach(pp=>{ if(pp && pp.id) set.add(String(pp.id)); });
+      }
+    });
+  });
+  return set;
+}
+
+/** Pedido aparece no mapa? Aberto OU finalizado mas rota ainda em andamento. */
+function _mapaPedidoVisivel(p, idsRotasAbertas){
+  if(!p) return false;
+  try{ if(typeof ehCancelado==='function' && ehCancelado(p)) return false; }catch(e){}
+  if(_mapaMostrarFinalizados) return true;
+  try{
+    if(typeof _pedidoNaoFinalizado==='function' && _pedidoNaoFinalizado(p)) return true;
+  }catch(e){}
+  // finalizado: só se ainda faz parte de rota aberta
+  return !!(idsRotasAbertas && idsRotasAbertas.has(String(p.id)));
+}
+
 function _pedidosParaMapa(){
   const lista = Array.isArray(todosPedidos) ? todosPedidos : [];
   const alvo = (typeof getDataFiltroMapa==='function'?getDataFiltroMapa():null) || (typeof getHojeSP==='function'?getHojeSP(): new Date().toISOString().slice(0,10));
-  let out = lista.filter(p=>{
+  // base do dia (sem cancelados)
+  const doDia = lista.filter(p=>{
     if(!p) return false;
     if((p.data||'') !== alvo) return false;
     if(typeof ehCancelado==='function' && ehCancelado(p)) return false;
-    if(!_mapaMostrarFinalizados){
-      return _pedidoNaoFinalizado(p);
-    } else {
-      // mostra abertos + finalizados (não cancelados)
-      const st = String(p.status||'').trim().toLowerCase();
-      if(st==='cancelado') return false;
-      return true;
-    }
+    return true;
   });
-  // Entregador: só os dele (reserva ou nome) - tanto abertos quanto finalizados do dia
+  // Entregador: só os dele antes de calcular rotas abertas
+  let base = doDia;
   try{
     if(usuarioLogado && !usuarioLogado.isMaster){
-      out = out.filter(p=>{
+      base = doDia.filter(p=>{
         try{
-          const n = (typeof getNomeReserva==='function' ? getNomeReserva(p) : '') || p.entregador_nome || '';
+          const n = _mapaNomeEntPedido(p);
           return typeof ehMesmoEntregador==='function' ? ehMesmoEntregador(n) : true;
         }catch(e){ return true; }
       });
     }
   }catch(e){}
+  const idsAbertas = _mapaIdsEmRotasAbertas(base);
+  let out = base.filter(p=> _mapaPedidoVisivel(p, idsAbertas));
   // Ordena por prazo (mais urgentes primeiro)
   out.sort((a,b)=>{
     let da=Infinity, db=Infinity;
@@ -16141,6 +16247,135 @@ function _pedidosParaMapa(){
   });
   return out;
 }
+
+/** Rotas abertas para desenhar no mapa (a partir da lista já filtrada / dia). */
+function _mapaRotasAbertasParaDesenho(lista){
+  const porEnt = {};
+  (lista||[]).forEach(p=>{
+    if(!p) return;
+    const n = _mapaNomeEntPedido(p);
+    if(!n) return;
+    if(!porEnt[n]) porEnt[n] = [];
+    porEnt[n].push(p);
+  });
+  const out = [];
+  Object.keys(porEnt).forEach(ent=>{
+    let rotas = [];
+    try{
+      rotas = (typeof getRotasByEntregador==='function'
+        ? getRotasByEntregador(porEnt[ent], { uniao: true })
+        : []) || [];
+    }catch(e){ rotas = []; }
+    rotas.forEach(r=>{
+      if(!r || !r.pedidos || r.pedidos.length < 1) return;
+      const aberta = (typeof _rotaEstaAberta==='function') ? _rotaEstaAberta(r) : !!r.aberta;
+      if(!aberta) return;
+      out.push({ ent, rota: r, pedidos: r.pedidos.slice() });
+    });
+  });
+  return out;
+}
+
+/**
+ * Desenha roteamento OSM entre as entregas JÁ FINALIZADAS de cada rota ainda aberta.
+ * Ordem = horario de finalização (codigo_informado_em). Sem linha reta/tracejada.
+ */
+async function _mapaDesenharRotasAbertas(listaPedidosNoMapa){
+  try{
+    const map = _mapaLeaflet;
+    if(!map || typeof L === 'undefined') return;
+    if(_mapaRotasAtivasLayer){
+      try{ map.removeLayer(_mapaRotasAtivasLayer); }catch(e){}
+      _mapaRotasAtivasLayer = null;
+    }
+    const rotas = _mapaRotasAbertasParaDesenho(listaPedidosNoMapa);
+    if(!rotas.length) return;
+    _mapaRotasAtivasLayer = L.layerGroup().addTo(map);
+
+    for(const { ent, pedidos } of rotas){
+      // só finalizados da rota, na ordem em que foram finalizados
+      const fins = (pedidos||[]).filter(p=>{
+        try{
+          if(typeof isPedidoFinalizado==='function') return isPedidoFinalizado(p);
+          const st = String(p.status||'').toLowerCase();
+          return st==='codigo_informado'||st==='finalizado'||st==='entregue';
+        }catch(e){ return false; }
+      }).slice().sort((a,b)=>{
+        const ta = Date.parse(a.codigo_informado_em||'')||0;
+        const tb = Date.parse(b.codigo_informado_em||'')||0;
+        return ta - tb;
+      });
+
+      const pts = [];
+      fins.forEach(p=>{
+        const c = p && p.id ? _mapaCoordsPedido[String(p.id)] : null;
+        if(c && isFinite(c.lat) && isFinite(c.lng)){
+          pts.push({ lat:c.lat, lng:c.lng, num: p.numero_pedido||'', id: p.id });
+        }
+      });
+      if(pts.length < 2) continue; // precisa de pelo menos 2 finalizados para traçar caminho
+
+      const cor = (typeof getCorEntregador==='function') ? getCorEntregador(ent) : '#f0c14a';
+
+      // OSRM — roteamento pelas ruas
+      let latlngs = pts.map(p => [p.lat, p.lng]); // fallback se OSRM falhar
+      let viaRuas = false;
+      try{
+        const maxWp = 25;
+        const usePts = pts.length > maxWp
+          ? pts.filter((_,i)=> i===0 || i===pts.length-1 || (i % Math.ceil(pts.length/maxWp)===0))
+          : pts;
+        const coordStr = usePts.map(p => p.lng.toFixed(6)+','+p.lat.toFixed(6)).join(';');
+        const url = 'https://router.project-osrm.org/route/v1/driving/'+coordStr+'?overview=full&geometries=geojson';
+        const res = await fetch(url);
+        if(res.ok){
+          const data = await res.json();
+          if(data && data.code==='Ok' && data.routes && data.routes[0] && data.routes[0].geometry){
+            const coords = data.routes[0].geometry.coordinates || [];
+            if(coords.length > 1){
+              latlngs = coords.map(c => [c[1], c[0]]);
+              viaRuas = true;
+            }
+          }
+        }
+      }catch(e){ console.warn('OSRM rota aberta', e); }
+
+      const line = L.polyline(latlngs, {
+        color: cor,
+        weight: 5,
+        opacity: 0.88,
+        lineJoin: 'round'
+      });
+      const nums = pts.map(p=>'#'+p.num).join(' → ');
+      try{
+        line.bindPopup(
+          '<b>🛵 '+String(ent).replace(/</g,'')+'</b><br>'+
+          (viaRuas ? '🛣️ Trajeto nas ruas' : '📏 Linha direta (OSM indisponível)')+
+          '<br>Finalizados: '+pts.length+' / '+(pedidos||[]).length+
+          '<br><span style="font-size:11px">'+nums.replace(/</g,'')+'</span>'
+        );
+      }catch(e){}
+      _mapaRotasAtivasLayer.addLayer(line);
+
+      // numeração das paradas já finalizadas
+      pts.forEach((pt, i)=>{
+        try{
+          const icon = L.divIcon({
+            className: '',
+            html: '<div style="background:'+cor+';color:#fff;font-weight:900;font-size:10px;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #0c0e12;box-shadow:0 1px 4px rgba(0,0,0,.4)">'+
+              (i+1)+'</div>',
+            iconSize: [20,20],
+            iconAnchor: [10,10]
+          });
+          const mk = L.marker([pt.lat, pt.lng], { icon, zIndexOffset: 500 });
+          mk.bindPopup('<b>#'+String(pt.num||'')+'</b><br>Parada '+(i+1)+' (finalizada)');
+          _mapaRotasAtivasLayer.addLayer(mk);
+        }catch(e){}
+      });
+    }
+  }catch(e){ console.warn('desenhar rotas abertas OSM', e); }
+}
+
 
 function _garantirMapaLeaflet(){
   if(typeof L === 'undefined'){
@@ -16235,6 +16470,11 @@ async function renderMapaEntregas(forcarGeo){
     await carregarCfgMapaCidadeDoServidor();
     const map = _garantirMapaLeaflet();
     if(_mapaLayerGroup) _mapaLayerGroup.clearLayers();
+    try{
+      if(_mapaRotasAtivasLayer && _mapaLeaflet){ _mapaLeaflet.removeLayer(_mapaRotasAtivasLayer); }
+    }catch(e){}
+    _mapaRotasAtivasLayer = null;
+    _mapaCoordsPedido = {};
     // Busca pedidos do dia do mapa direto do Supabase (independente do filtro principal)
     let pedidos = [];
     try{
@@ -16260,11 +16500,26 @@ async function renderMapaEntregas(forcarGeo){
               });
             }
           }catch(e){}
-          // Aplica filtro finalizados/abertos
-          if(!_mapaMostrarFinalizados){
-            filtrados = filtrados.filter(p=>{ try{ return (typeof _pedidoNaoFinalizado==='function'?_pedidoNaoFinalizado(p):true) && !(typeof ehCancelado==='function'?ehCancelado(p):false); }catch(e){ return true; } });
-          } else {
-            filtrados = filtrados.filter(p=>{ try{ return !(typeof ehCancelado==='function'?ehCancelado(p):false); }catch(e){ return true; } });
+          // Remove cancelados
+          filtrados = filtrados.filter(p=>{ try{ return !(typeof ehCancelado==='function'?ehCancelado(p):false); }catch(e){ return true; } });
+          // Injeta reservas no mapa local para montar rotas iguais à aba Pedidos
+          try{
+            const {data: resMap} = await client.from('reservas_entregadores').select('pedido_id,entregador_nome,created_at').eq('data', alvoMapa);
+            (resMap||[]).forEach(r=>{
+              if(r.pedido_id){
+                try{ mapaReservas[r.pedido_id]=r.entregador_nome||''; }catch(e){}
+                try{ if(r.created_at) mapaReservasAt[String(r.pedido_id)]=r.created_at; }catch(e){}
+              }
+            });
+          }catch(e){}
+          // Mantém no mapa: abertos + finalizados cuja rota ainda está aberta
+          try{
+            const idsAbertas = _mapaIdsEmRotasAbertas(filtrados);
+            filtrados = filtrados.filter(p=> _mapaPedidoVisivel(p, idsAbertas));
+          }catch(e){
+            if(!_mapaMostrarFinalizados){
+              filtrados = filtrados.filter(p=>{ try{ return typeof _pedidoNaoFinalizado==='function'?_pedidoNaoFinalizado(p):true; }catch(e2){ return true; } });
+            }
           }
           pedidos = filtrados;
           // Também atualiza todosPedidos cache para legenda? mantém
@@ -16307,6 +16562,7 @@ async function renderMapaEntregas(forcarGeo){
       }
       if(!g || g.lat==null || g.lng==null){ falhas.push({p, motivo:'não localizado'}); continue; }
       ok++;
+      try{ if(p && p.id) _mapaCoordsPedido[String(p.id)] = { lat: Number(g.lat), lng: Number(g.lng) }; }catch(e){}
       const tempo = _textoTempoMapa(p);
       const num = String(p.numero_pedido||'—');
       const nome = String(p.cliente_nome||'Cliente');
@@ -16389,6 +16645,13 @@ async function renderMapaEntregas(forcarGeo){
       bounds.push([g.lat, g.lng]);
       _mapaSetStatus('Pins: '+ok+'/'+pedidos.length+(falhas.length?' · '+falhas.length+' pendente(s)':''), '#8b93a7');
     }
+    // Roteamento OSM automático: finalizados de rotas AINDA em andamento (com entregador)
+    try{ await _mapaDesenharRotasAbertas(pedidos); }catch(e){ console.warn(e); }
+    try{ montarListaRotasDiaMapa(pedidos); }catch(e){ console.warn(e); }
+    // se usuário tinha uma rota finalizada selecionada na lista, redesenha por cima
+    try{
+      if(_mapaRotaDiaSelKey) await selecionarRotaMapaDia(_mapaRotaDiaSelKey, true);
+    }catch(e){}
     if(bounds.length){
       try{ map.fitBounds(bounds, { padding: [36, 36], maxZoom: 15 }); }catch(e){ mapaCentralizarCidade(); }
     } else {
@@ -16432,6 +16695,383 @@ async function renderMapaEntregas(forcarGeo){
     try{ if(_mapaLeaflet) setTimeout(()=>_mapaLeaflet.invalidateSize(), 150); }catch(e){}
   }
 }
+
+/**
+ * Lista no topo: rotas do dia separadas por turno e entregador.
+ * Clique → roteamento OSM na ordem de finalização.
+ */
+function toggleListaRotasDiaMapa(){
+  _mapaListaRotasAberta = !_mapaListaRotasAberta;
+  const box = document.getElementById('mapaListaRotasDia');
+  const btn = document.getElementById('btnMapaToggleListaRotas');
+  if(box) box.style.display = _mapaListaRotasAberta ? 'block' : 'none';
+  if(btn){
+    btn.textContent = _mapaListaRotasAberta
+      ? '📋 Rotas finalizadas do dia · ocultar'
+      : '📋 Rotas finalizadas do dia · mostrar';
+  }
+  if(_mapaListaRotasAberta){
+    try{ montarListaRotasDiaMapa(); }catch(e){}
+  }
+}
+function toggleMapaTurnoLista(turno){
+  turno = String(turno||'');
+  if(!_mapaTurnoAberto) _mapaTurnoAberto = { almoco:false, jantar:false };
+  _mapaTurnoAberto[turno] = !_mapaTurnoAberto[turno];
+  try{ montarListaRotasDiaMapa(); }catch(e){}
+}
+function toggleMapaEntLista(turno, ent){
+  const k = String(turno||'')+'|'+String(ent||'');
+  if(!_mapaEntAberto) _mapaEntAberto = {};
+  _mapaEntAberto[k] = !_mapaEntAberto[k];
+  try{ montarListaRotasDiaMapa(); }catch(e){}
+}
+
+/**
+ * Lista (oculta por padrão): só rotas 100% FINALIZADAS, com entregador, por turno.
+ * Turnos e entregadores também começam ocultos; clique no título para expandir.
+ */
+function montarListaRotasDiaMapa(pedidosRender){
+  const box = document.getElementById('mapaListaRotasDia');
+  const wrap = document.getElementById('mapaListaRotasDiaWrap');
+  const btn = document.getElementById('btnMapaToggleListaRotas');
+  if(!box) return;
+  const alvo = (typeof getDataFiltroMapa==='function'?getDataFiltroMapa():null) || (typeof getHojeSP==='function'?getHojeSP():'');
+  const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const escAttr = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+
+  const seen = {};
+  const base = [];
+  function add(p){
+    if(!p || !p.id || seen[p.id]) return;
+    if(alvo && (p.data||'') !== alvo) return;
+    try{ if(typeof ehCancelado==='function' && ehCancelado(p)) return; }catch(e){}
+    seen[p.id]=true;
+    base.push(p);
+  }
+  (Array.isArray(pedidosRender)?pedidosRender:[]).forEach(add);
+  (Array.isArray(todosPedidos)?todosPedidos:[]).forEach(add);
+
+  let pool = base;
+  try{
+    if(usuarioLogado && !usuarioLogado.isMaster){
+      pool = base.filter(p=>{
+        const n = _mapaNomeEntPedido(p);
+        return typeof ehMesmoEntregador==='function' ? ehMesmoEntregador(n) : true;
+      });
+    } else if(usuarioLogado && usuarioLogado.isMaster && typeof _mapaFiltroEntregador!=='undefined' && _mapaFiltroEntregador){
+      try{
+        if(typeof _mapaMatchFiltroEntregador==='function'){
+          pool = base.filter(p=>_mapaMatchFiltroEntregador(p));
+        }
+      }catch(e){}
+    }
+  }catch(e){}
+
+  pool = pool.filter(p=>{
+    const n = _mapaNomeEntPedido(p);
+    return !!(n && n !== '—' && n.toLowerCase().indexOf('sem entregador') < 0);
+  });
+
+  const porTurno = { almoco: {}, jantar: {} };
+  pool.forEach(p=>{
+    let t = 'jantar';
+    try{ t = (typeof getTurno==='function' ? getTurno(p) : 'jantar') || 'jantar'; }catch(e){}
+    if(t !== 'almoco') t = 'jantar';
+    const n = _mapaNomeEntPedido(p);
+    if(!porTurno[t][n]) porTurno[t][n] = [];
+    porTurno[t][n].push(p);
+  });
+
+  const turnosOrdem = [
+    { key:'almoco', label:'☀️ Almoço' },
+    { key:'jantar', label:'🌙 Jantar' }
+  ];
+
+  let htmlOut = '';
+  let totalCards = 0;
+
+  // pré-conta cards para o botão
+  const estrutura = [];
+  turnosOrdem.forEach(tu=>{
+    const porEnt = porTurno[tu.key] || {};
+    const ents = Object.keys(porEnt).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+    const entsData = [];
+    ents.forEach(ent=>{
+      let rotas = [];
+      try{
+        rotas = (typeof getRotasByEntregador==='function'
+          ? getRotasByEntregador(porEnt[ent], { uniao: true })
+          : []) || [];
+      }catch(e){ rotas = []; }
+      const rotasFeitas = (rotas||[]).filter(r=>{
+        if(!r || !r.pedidos || r.pedidos.length < 1) return false;
+        const aberta = (typeof _rotaEstaAberta==='function') ? _rotaEstaAberta(r) : !!r.aberta;
+        if(aberta) return false;
+        return r.pedidos.every(p=>{
+          try{
+            if(typeof isPedidoFinalizado==='function') return isPedidoFinalizado(p);
+            const st=String(p.status||'').toLowerCase();
+            return st==='codigo_informado'||st==='finalizado'||st==='entregue';
+          }catch(e){ return false; }
+        });
+      });
+      if(!rotasFeitas.length) return;
+      entsData.push({ ent, rotasFeitas });
+      totalCards += rotasFeitas.length;
+    });
+    if(entsData.length) estrutura.push({ tu, entsData });
+  });
+
+  if(wrap) wrap.style.display = 'block';
+  if(btn){
+    btn.textContent = _mapaListaRotasAberta
+      ? '📋 Rotas finalizadas do dia · ocultar'
+      : '📋 Rotas finalizadas do dia · mostrar'+(totalCards ? ' ('+totalCards+')' : '');
+    btn.style.display = totalCards ? 'block' : 'none';
+  }
+  if(!_mapaListaRotasAberta){
+    box.style.display = 'none';
+    box.innerHTML = '';
+    return;
+  }
+  if(!totalCards){
+    box.style.display = 'block';
+    box.innerHTML = '<div class="mrd-wrap"><div style="font-size:11px;color:#8b93a7">Nenhuma rota 100% finalizada neste dia (com entregador).</div></div>';
+    return;
+  }
+
+  estrutura.forEach(({ tu, entsData })=>{
+    const tAberto = !!(!_mapaTurnoAberto || _mapaTurnoAberto[tu.key]);
+    // padrão: false (oculto)
+    const turnoVisivel = !!(_mapaTurnoAberto && _mapaTurnoAberto[tu.key]);
+    const nRotasTurno = entsData.reduce((s,e)=>s+e.rotasFeitas.length, 0);
+    htmlOut +=
+      '<div class="mrd-turno" style="cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center" '+
+      'onclick="toggleMapaTurnoLista(\''+tu.key+'\')">'+
+      '<span>'+(turnoVisivel?'🔽 ':'▶️ ')+tu.label+'</span>'+
+      '<span style="font-size:10px;color:#8b93a7;font-weight:700">'+nRotasTurno+' rota(s)</span>'+
+      '</div>';
+    if(!turnoVisivel) return;
+
+    entsData.forEach(({ ent, rotasFeitas })=>{
+      const ek = tu.key+'|'+ent;
+      const entVisivel = !!(_mapaEntAberto && _mapaEntAberto[ek]);
+      const cor = (typeof getCorEntregadorTexto==='function') ? getCorEntregadorTexto(ent) : ((typeof getCorEntregador==='function') ? getCorEntregador(ent) : '#6ab7ff');
+      htmlOut +=
+        '<div class="mrd-ent" style="color:'+esc(cor)+';cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center" '+
+        'onclick="event.stopPropagation();toggleMapaEntLista(\''+tu.key+'\',\''+escAttr(ent).replace(/'/g,'\\\'')+'\')">'+
+        '<span>'+(entVisivel?'🔽 ':'▶️ ')+'🛵 '+esc(ent)+'</span>'+
+        '<span style="font-size:10px;color:#8b93a7;font-weight:700">'+rotasFeitas.length+'</span>'+
+        '</div>';
+      if(!entVisivel) return;
+
+      rotasFeitas.forEach((r, idx)=>{
+        const orderedFin = r.pedidos.slice().sort((a,b)=>(Date.parse(a.codigo_informado_em||'')||0)-(Date.parse(b.codigo_informado_em||'')||0));
+        const key = encodeURIComponent(ent)+'|'+String(r.baseMs||idx)+'|'+r.pedidos.map(p=>p.id).join(',');
+        const numsFin = orderedFin.map(p=>'#'+(p.numero_pedido||'?'));
+        let hora = r.horario || '—';
+        let horaFim = '—';
+        try{
+          const finsMs = orderedFin.map(p=>Date.parse(p.codigo_informado_em||'')||0).filter(x=>x>0);
+          if(finsMs.length){
+            hora = (typeof _fmtHoraRota==='function') ? _fmtHoraRota(finsMs[0]) : hora;
+            horaFim = (typeof _fmtHoraRota==='function') ? _fmtHoraRota(finsMs[finsMs.length-1]) : '';
+          }
+        }catch(e){}
+        const podeRota = orderedFin.length >= 2;
+        htmlOut +=
+          '<div class="mrd-card'+(String(_mapaRotaDiaSelKey)===String(key)?' ativa':'')+
+          '" data-rota-key="'+esc(key)+'" onclick="selecionarRotaMapaDia(this.getAttribute(\'data-rota-key\'))">'+
+          '<div class="mrd-top">'+
+            '<span style="font-weight:900;font-size:12px;color:#e6e8ef">Rota '+esc(hora)+(horaFim && horaFim!=='—'?(' → '+esc(horaFim)):'')+'</span>'+
+            '<span class="mrd-badge feita">Finalizada</span>'+
+          '</div>'+
+          '<div class="mrd-meta">'+orderedFin.length+' entrega(s) finalizada(s)</div>'+
+          '<div class="mrd-nums">Seq.: '+esc(numsFin.join(' → '))+'</div>'+
+          '<div class="mrd-hint">'+(podeRota ? '📍 Clique para traçar rota nas ruas (OSM)' : '1 entrega — sem trajeto entre pontos')+'</div>'+
+          '</div>';
+      });
+    });
+  });
+
+  box.style.display = 'block';
+  box.innerHTML =
+    '<div class="mrd-wrap">'+
+    '<div class="mrd-tit">🗺️ Rotas finalizadas · toque no turno / entregador para expandir</div>'+
+    htmlOut+
+    '</div>';
+}
+
+function limparRotaSelecionadaMapa(){
+  try{
+    if(_mapaRotasAtivasLayer && _mapaLeaflet){
+      try{ _mapaLeaflet.removeLayer(_mapaRotasAtivasLayer); }catch(e){}
+    }
+  }catch(e){}
+  _mapaRotasAtivasLayer = null;
+  try{
+    document.querySelectorAll('#mapaListaRotasDia .mrd-card.ativa').forEach(el=>el.classList.remove('ativa'));
+  }catch(e){}
+}
+
+/**
+ * @param {string} key  ent|baseMs|id1,id2,...
+ * @param {boolean} [silencioso] se true, não alterna off ao clicar de novo
+ */
+async function selecionarRotaMapaDia(key, silencioso){
+  key = String(key||'');
+  if(!key) return;
+  if(!silencioso && _mapaRotaDiaSelKey === key && _mapaRotasAtivasLayer){
+    limparRotaSelecionadaMapa();
+    _mapaRotaDiaSelKey = null;
+    _mapaSetStatus('Rota desmarcada', '#8b93a7');
+    return;
+  }
+  const parts = key.split('|');
+  if(parts.length < 3) return;
+  const ent = decodeURIComponent(parts[0]||'');
+  const ids = (parts[2]||'').split(',').filter(Boolean);
+
+  // pedidos na ordem de finalização
+  const lista = [];
+  ids.forEach(id=>{
+    const p = (todosPedidos||[]).find(x=>x && String(x.id)===String(id));
+    if(p) lista.push(p);
+  });
+  const fins = lista.filter(p=>{
+    try{
+      if(typeof isPedidoFinalizado==='function') return isPedidoFinalizado(p);
+      const st=String(p.status||'').toLowerCase();
+      return st==='codigo_informado'||st==='finalizado'||st==='entregue';
+    }catch(e){ return false; }
+  }).sort((a,b)=>(Date.parse(a.codigo_informado_em||'')||0)-(Date.parse(b.codigo_informado_em||'')||0));
+
+  const pts = [];
+  fins.forEach(p=>{
+    let c = _mapaCoordsPedido[String(p.id)];
+    if((!c || !isFinite(c.lat)) && p){
+      // tenta geocode sob demanda
+    }
+    if(c && isFinite(c.lat) && isFinite(c.lng)){
+      pts.push({ lat:c.lat, lng:c.lng, num:p.numero_pedido||'', id:p.id, t:Date.parse(p.codigo_informado_em||'')||0 });
+    }
+  });
+
+  // geocode faltantes
+  if(pts.length < fins.length){
+    _mapaSetStatus('Localizando endereços da rota…', '#f0c14a');
+    for(const p of fins){
+      if(_mapaCoordsPedido[String(p.id)]) continue;
+      try{
+        const r = await geocodePedidoEndereco(p, false);
+        if(r && r.g && r.g.lat!=null){
+          _mapaCoordsPedido[String(p.id)] = { lat:Number(r.g.lat), lng:Number(r.g.lng) };
+        }
+        await new Promise(res=>setTimeout(res, 350));
+      }catch(e){}
+    }
+    // rebuild pts
+    pts.length = 0;
+    fins.forEach(p=>{
+      const c = _mapaCoordsPedido[String(p.id)];
+      if(c && isFinite(c.lat) && isFinite(c.lng)){
+        pts.push({ lat:c.lat, lng:c.lng, num:p.numero_pedido||'', id:p.id });
+      }
+    });
+  }
+
+  if(pts.length < 2){
+    try{
+      mostrarAlerta(
+        'É preciso pelo menos 2 entregas finalizadas e localizadas nesta rota para montar o trajeto.\n\nFinalizados com GPS: '+pts.length,
+        { tipo:'aviso', titulo:'Rota incompleta', icone:'🗺️' }
+      );
+    }catch(e){}
+    return;
+  }
+
+  _mapaRotaDiaSelKey = key;
+  limparRotaSelecionadaMapa();
+  _mapaRotaDiaSelKey = key;
+  try{
+    document.querySelectorAll('#mapaListaRotasDia .mrd-card').forEach(el=>{
+      if(el.getAttribute('data-rota-key')===key) el.classList.add('ativa');
+      else el.classList.remove('ativa');
+    });
+  }catch(e){}
+
+  const map = (typeof _garantirMapaLeaflet==='function') ? _garantirMapaLeaflet() : _mapaLeaflet;
+  if(!map) return;
+  _mapaRotasAtivasLayer = L.layerGroup().addTo(map);
+  const cor = (typeof getCorEntregador==='function') ? getCorEntregador(ent) : '#f0c14a';
+
+  _mapaSetStatus('Calculando rota nas ruas (OSM)…', '#f0c14a');
+
+  let latlngs = pts.map(p=>[p.lat, p.lng]);
+  let viaRuas = false;
+  try{
+    const maxWp = 25;
+    const usePts = pts.length > maxWp
+      ? pts.filter((_,i)=> i===0 || i===pts.length-1 || (i % Math.ceil(pts.length/maxWp)===0))
+      : pts;
+    const coordStr = usePts.map(p => p.lng.toFixed(6)+','+p.lat.toFixed(6)).join(';');
+    const url = 'https://router.project-osrm.org/route/v1/driving/'+coordStr+'?overview=full&geometries=geojson';
+    const res = await fetch(url);
+    if(res.ok){
+      const data = await res.json();
+      if(data && data.code==='Ok' && data.routes && data.routes[0] && data.routes[0].geometry){
+        const coords = data.routes[0].geometry.coordinates || [];
+        if(coords.length > 1){
+          latlngs = coords.map(c => [c[1], c[0]]);
+          viaRuas = true;
+        }
+      }
+    }
+  }catch(e){ console.warn('OSRM', e); }
+
+  const line = L.polyline(latlngs, { color: cor, weight: 5, opacity: 0.9, lineJoin: 'round' });
+  const seq = pts.map(p=>'#'+p.num).join(' → ');
+  try{
+    line.bindPopup(
+      '<b>🛵 '+String(ent).replace(/</g,'')+'</b><br>'+
+      (viaRuas?'🛣️ Rota nas ruas (OSM)':'📏 Linha direta')+
+      '<br>'+pts.length+' paradas finalizadas<br><span style="font-size:11px">'+seq.replace(/</g,'')+'</span>'
+    );
+  }catch(e){}
+  _mapaRotasAtivasLayer.addLayer(line);
+
+  pts.forEach((pt,i)=>{
+    try{
+      const icon = L.divIcon({
+        className: '',
+        html: '<div style="background:'+cor+';color:#fff;font-weight:900;font-size:10px;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #0c0e12">'+
+          (i+1)+'</div>',
+        iconSize:[22,22], iconAnchor:[11,11]
+      });
+      const mk = L.marker([pt.lat, pt.lng], { icon, zIndexOffset: 700 });
+      mk.bindPopup('<b>#'+String(pt.num||'')+'</b><br>Parada '+(i+1)+'/'+pts.length);
+      _mapaRotasAtivasLayer.addLayer(mk);
+    }catch(e){}
+  });
+
+  try{ map.fitBounds(line.getBounds(), { padding:[40,40], maxZoom:15 }); }catch(e){}
+
+  let km='?';
+  try{
+    let d=0;
+    for(let i=1;i<latlngs.length;i++){
+      d += L.latLng(latlngs[i-1]).distanceTo(L.latLng(latlngs[i]));
+    }
+    km = (d/1000).toFixed(1);
+  }catch(e){}
+
+  _mapaSetStatus(
+    (viaRuas?'🛣️ ':'📏 ')+ent+' · '+pts.length+' paradas · ~'+km+' km · seq. por finalização',
+    '#3dcc8a'
+  );
+}
+
 // =================== FIM MAPA ===================
 
 // ===================== LIGAR CLIENTE =====================
