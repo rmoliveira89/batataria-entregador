@@ -1101,7 +1101,7 @@ body.mapa-aba-ativa #barraAgrupamento{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 301026.225100</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 311026.121800</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -6263,7 +6263,7 @@ async function renderAbaCustoMaster(){
           data.forEach(p=>{
             const i = todosPedidos.findIndex(x=>x.id===p.id);
             if(i>=0) todosPedidos[i] = p;
-            else todosPedidos.push(p);
+            else _todosPedidosPush(p);
           });
           try{ _cancSeparar(); }catch(e){}
         }
@@ -6437,7 +6437,7 @@ async function renderAbaCusto(){
           data.forEach(p=>{
             const i = todosPedidos.findIndex(x=>x.id===p.id);
             if(i>=0) todosPedidos[i] = p;
-            else todosPedidos.push(p);
+            else _todosPedidosPush(p);
           });
           try{ _cancSeparar(); }catch(e){}
         }
@@ -9043,6 +9043,7 @@ async function carregar(){
    dataResult=data||[];
  }
  todosPedidos=dataResult;
+ try{ _filtrarRetiradas(); }catch(e){}
  // Carrega reservas para o Master saber quem pegou cada pedido
  mapaReservas = {}; mapaReservasAt = {};
  try{
@@ -9108,6 +9109,7 @@ async function carregar(){
      }
    }catch(e){ console.warn('completar membros do grupo', e); }
    todosPedidos = dataResult;
+   try{ _filtrarRetiradas(); }catch(e){}
  }
  if(usuarioLogado?.isMaster && dataResult.length===0){ console.log('Master: nenhum pedido para', datasParaBuscar); }
  // Reaplica endereços corrigidos (sync externo costuma reescrever cliente_endereco)
@@ -9116,7 +9118,7 @@ async function carregar(){
  try{ _avisarFinalizacoesNovas(todosPedidos); }catch(e){
    try{ _sincronizarCacheStatusPedidos(todosPedidos); }catch(e2){}
  }
- pedidosCancelados=[]; try{ _cancSeparar(); }catch(e){}
+ pedidosCancelados=[]; try{ _cancSeparar(); }catch(e){} try{ _filtrarRetiradas(); }catch(e){}
  render();
  try{ if(abaEntregadorAtual==='custo' && usuarioLogado && !usuarioLogado.isMaster) renderAbaCusto(); if(abaEntregadorAtual==='faturamento') renderQuadroFaturamentoSemana(); }catch(e){}
  try{ agendarAtualizacaoDinheiro(); }catch(e){}
@@ -9598,6 +9600,10 @@ async function adicionarPedidoViaQr(numRaw, opts){
       return fa - fb;
     });
     const pedido = encontrados[0];
+    if(typeof ehRetirada==='function' && ehRetirada(pedido)){
+      await feedback('Pedido #'+(pedido.numero_pedido||numRaw)+' é RETIRADA — não entra na lista de entrega.', 'erro');
+      return false;
+    }
     if(_ehStatusFinalizado(pedido.status) || String(pedido.status||'').toLowerCase()==='cancelado'){
       await feedback('Pedido #'+(pedido.numero_pedido||numRaw)+' já está finalizado/cancelado.', 'erro');
       return false;
@@ -9649,7 +9655,7 @@ async function adicionarPedidoViaQr(numRaw, opts){
       try{ await autoReservarGrupo(pedido); }catch(e){ console.warn('qr autoReservarGrupo', e); }
     }
     if(!todosPedidos.some(x=>x.id===pedido.id)){
-      todosPedidos.push(pedido);
+      _todosPedidosPush(pedido);
       todosPedidos.sort((a,b)=> new Date(a.created_at)-new Date(b.created_at));
     }
     try{ salvarPedidoVisivel(pedido); }catch(e){}
@@ -9700,6 +9706,20 @@ async function adicionarPedido(){
         document.getElementById('addStatus').textContent='❌ Pedido #'+num+' não encontrado. Hoje: '+getHojeSP()+' e amanhã: '+getAmanhaSP();
         document.getElementById('addStatus').style.color='#ff6b6b';
       }
+      return;
+    }
+    // RETIRADA: não entra na lista de entrega
+    const soRetirada = encontrados.length && encontrados.every(p=> typeof ehRetirada==='function' && ehRetirada(p));
+    encontrados = encontrados.filter(p=> !(typeof ehRetirada==='function' && ehRetirada(p)));
+    if(soRetirada || !encontrados.length && encontradosDB.some(p=> typeof ehRetirada==='function' && ehRetirada(p))){
+      document.getElementById('addStatus').textContent='❌ Pedido #'+num+' é RETIRADA — não entra na lista de entrega.';
+      document.getElementById('addStatus').style.color='#ff6b6b';
+      try{ mostrarAlerta('Este pedido é de RETIRADA (cliente busca na loja) e não é listado no app de entrega.', {tipo:'erro', titulo:'Retirada', icone:'🏪'}); }catch(e){}
+      return;
+    }
+    if(!encontrados.length){
+      document.getElementById('addStatus').textContent='❌ Nenhum pedido de entrega com esse número.';
+      document.getElementById('addStatus').style.color='#ff6b6b';
       return;
     }
     // Bloqueia pedidos de outro turno (modal)
@@ -9813,6 +9833,11 @@ function abrirModalAddPedido(pedido){
 }
 
 async function confirmarAdicionar(pedido){
+  if(typeof ehRetirada==='function' && ehRetirada(pedido)){
+    try{ document.getElementById('addStatus').textContent='❌ Pedido é RETIRADA — não entra na lista.'; document.getElementById('addStatus').style.color='#ff6b6b'; }catch(e){}
+    try{ mostrarAlerta('Pedido de RETIRADA — não é entrega.', {tipo:'erro', titulo:'Retirada', icone:'🏪'}); }catch(e){}
+    return;
+  }
   // Fluxo ÚNICO — bloqueia pedido de outro turno com modal
   if(pedidoForaDoTurnoAtual(pedido)){
     document.getElementById('addStatus').textContent='❌ Pedido de outro turno — não pode adicionar agora.';
@@ -9908,7 +9933,7 @@ async function confirmarAdicionar(pedido){
             if(!m||!m.id) return;
             const i = todosPedidos.findIndex(x=>x.id===m.id);
             if(i>=0) todosPedidos[i]=Object.assign({}, todosPedidos[i], m);
-            else todosPedidos.push(m);
+            else _todosPedidosPush(m);
           });
           // Reconsulta reservas dos membros
           for(const m of (membrosDb||[])){
@@ -10012,7 +10037,7 @@ async function masterReservarParaSi(pedido){
       todosPedidos[i].entregador_nome = nome;
       todosPedidos[i].entregador_added_at = ts;
       todosPedidos[i].entregador_nome_added = nome;
-    } else todosPedidos.push(a);
+    } else _todosPedidosPush(a);
   }
   todosPedidos.sort((x,y)=> new Date(x.created_at)-new Date(y.created_at));
   return {ok:true, qtd:alvos.length, nome};
@@ -10056,7 +10081,7 @@ async function executarAdicionarPedido(){
       }
     }
     if(!todosPedidos.some(x=>x.id===pedido.id)){
-      todosPedidos.push(pedido);
+      _todosPedidosPush(pedido);
       todosPedidos.sort((a,b)=> new Date(a.created_at)-new Date(b.created_at));
     }
     if(ehEntregadorComum()){
@@ -11363,7 +11388,7 @@ async function masterCriarPedido(){
     const _r = await client.from('pedidos_entrega_dia').insert(payload).select().single();
     const inserted = _r.data, error = _r.error;
     if(error){ statusEl.textContent='❌ '+error.message; statusEl.style.color='#ff6b6b'; return; }
-    if(inserted && !todosPedidos.some(x=>x.id===inserted.id)) todosPedidos.push(inserted);
+    if(inserted && !todosPedidos.some(x=>x.id===inserted.id)) _todosPedidosPush(inserted);
     statusEl.textContent='✅ Pedido #'+numero+' criado em '+data;
     statusEl.style.color='#3dcc8a';
     // limpa
@@ -11804,10 +11829,21 @@ async function salvarEnderecoMaster(){
       // endereço mudou → limpa rascunho de custo p/ recalcular taxa pela nova numeração
       try{ if(typeof rascunhoCusto==='object' && rascunhoCusto) delete rascunhoCusto[id]; }catch(e){}
     });
+    // Mapa: se o endereço mudou, invalida geocache e reposiciona o pin
+    try{
+      if(endMudou){
+        _mapaAposEnderecoAlterado(ids, enderecoOriginal || '', novo);
+      }
+    }catch(e){ console.warn('mapa apos endereco', e); }
     try{ render(); }catch(e){}
     setTimeout(()=>{
       fecharModalEditarEndereco();
       try{ carregar(); }catch(e){}
+      try{
+        if(endMudou && typeof abaEntregadorAtual !== 'undefined' && abaEntregadorAtual === 'mapa'){
+          renderMapaEntregas(true);
+        }
+      }catch(e){}
     }, 800);
   }catch(e){
     console.error('salvarEnderecoMaster', e);
@@ -12718,7 +12754,7 @@ async function autoReservarGrupo(pedidoBase){
       const ok = await criarReserva(m);
       if(ok){
         mapaReservas[m.id] = nome;
-        if(!todosPedidos.some(x=>x.id===m.id)) todosPedidos.push(m);
+        if(!todosPedidos.some(x=>x.id===m.id)) _todosPedidosPush(m);
         salvarPedidoVisivel(m);
       }
     }
@@ -13056,6 +13092,7 @@ function _refreshModalRefri(){
 }
 
 function render(){
+  try{ _filtrarRetiradas(); }catch(e){}
   try{ _cancSeparar(); renderCancelados(); }catch(e){}
   try{ sincronizarFlagsConfirmacaoLocal(todosPedidos); }catch(e){}
   // Aba Mapa: não monta listas de turnos — atualiza pins se a lista mudou
@@ -15418,6 +15455,54 @@ function _mapaLoadGeoCache(){
 function _mapaSaveGeoCache(){
   try{ localStorage.setItem(MAPA_GEO_CACHE_KEY, JSON.stringify(_mapaGeoCache||{})); }catch(e){}
 }
+/** Último endereço efetivo geocodificado por pedido (detecta alteração). */
+let _mapaEndGeocodePorPedido = {};
+
+/** Remove entradas de cache geo relacionadas a um texto de endereço. */
+function _mapaInvalidarCacheEndereco(endereco){
+  const end = String(endereco||'').trim();
+  if(!end) return;
+  try{
+    const cache = _mapaLoadGeoCache();
+    const norm = end.toLowerCase().replace(/\s+/g,' ').trim();
+    const tokens = norm.split(/[\s,;-]+/).filter(t=>t.length>3).slice(0,6);
+    let mudou = false;
+    Object.keys(cache).forEach(k=>{
+      const kk = String(k).toLowerCase();
+      if(kk === norm || kk.indexOf(norm.slice(0, Math.min(40, norm.length))) >= 0){
+        delete cache[k]; mudou = true; return;
+      }
+      // se compartilha tokens principais da rua
+      if(tokens.length && tokens.filter(t=>kk.indexOf(t)>=0).length >= Math.min(2, tokens.length)){
+        delete cache[k]; mudou = true;
+      }
+    });
+    if(mudou){ _mapaGeoCache = cache; _mapaSaveGeoCache(); }
+  }catch(e){}
+}
+
+/** Após correção de endereço: limpa cache/coords e força redesenho do mapa. */
+function _mapaAposEnderecoAlterado(pedidoIds, endAntigo, endNovo){
+  try{
+    _mapaInvalidarCacheEndereco(endAntigo);
+    _mapaInvalidarCacheEndereco(endNovo);
+  }catch(e){}
+  (Array.isArray(pedidoIds)?pedidoIds:[pedidoIds]).forEach(id=>{
+    if(!id) return;
+    try{ delete _mapaCoordsPedido[String(id)]; }catch(e){}
+    try{ delete _mapaEndGeocodePorPedido[String(id)]; }catch(e){}
+  });
+  // força re-geocode + refresh (mesmo se a aba mapa não estiver aberta, próxima abertura usará force via end mudado)
+  try{
+    if(typeof abaEntregadorAtual !== 'undefined' && abaEntregadorAtual === 'mapa'){
+      agendarAtualizarMapaSeAberto({ delay: 350, force: true, forceGeo: true });
+    } else {
+      // invalida fingerprint para próxima abertura redesenhar
+      try{ _mapaFingerprint = ''; }catch(e){}
+    }
+  }catch(e){}
+}
+
 
 function getCfgMapaCidade(){
   let cfg = Object.assign({}, MAPA_DEFAULT);
@@ -15846,6 +15931,19 @@ async function geocodePedidoEndereco(p, force){
   try{ end = (typeof enderecoEfetivo==='function' ? enderecoEfetivo(p) : (p.cliente_endereco||'')) || ''; }catch(e){ end = p.cliente_endereco||''; }
   end = String(end||'').trim();
   if(!end || /^sem\s*endere/i.test(end)) return { g: null, query: '', motivo: 'sem endereço' };
+  // Se o endereço efetivo mudou desde a última geocodificação deste pedido, força nova busca
+  try{
+    const id = p && p.id != null ? String(p.id) : '';
+    const endKey = end.toLowerCase().replace(/\s+/g,' ').trim();
+    if(id){
+      const prev = _mapaEndGeocodePorPedido[id];
+      if(prev && prev !== endKey){
+        force = true;
+        try{ delete _mapaCoordsPedido[id]; }catch(e){}
+        try{ _mapaInvalidarCacheEndereco(prev); }catch(e){}
+      }
+    }
+  }catch(e){}
 
   const cidade = (cfg && cfg.cidade) || 'Campo Mourão';
   const uf = (cfg && cfg.uf) || 'PR';
@@ -15917,7 +16015,14 @@ async function geocodePedidoEndereco(p, force){
     try{
       const g = await geocodeTexto(q, { force: !!force });
       await _mapaSleep(350);
-      if(g && g.lat != null) return { g, query: q };
+      if(g && g.lat != null){
+        try{
+          if(p && p.id != null){
+            _mapaEndGeocodePorPedido[String(p.id)] = end.toLowerCase().replace(/\s+/g,' ').trim();
+          }
+        }catch(e){}
+        return { g, query: q };
+      }
     }catch(e){
       console.warn('geocode variant', q, e);
       await _mapaSleep(350);
@@ -16222,6 +16327,7 @@ function _pedidosParaMapa(){
     if(!p) return false;
     if((p.data||'') !== alvo) return false;
     if(typeof ehCancelado==='function' && ehCancelado(p)) return false;
+    if(typeof ehRetirada==='function' && ehRetirada(p)) return false;
     return true;
   });
   // Entregador: só os dele antes de calcular rotas abertas
@@ -16458,6 +16564,7 @@ function agendarAtualizarMapaSeAberto(opts){
 async function renderMapaEntregas(forcarGeo){
   if(_mapaRenderBusy) return;
   _mapaRenderBusy = true;
+  try{ _filtrarRetiradas(); }catch(e){}
   try{ if(typeof atualizarUIFiltroMapa==='function') atualizarUIFiltroMapa(); }catch(e){}
   try{ resetCoresMapa(); aplicarQuadroMapa(); }catch(e){}
   try{ const pedidosPre=_pedidosParaMapa(); pedidosPre.forEach(p=>{ let ne=''; try{ ne=(typeof getNomeReserva==='function'?getNomeReserva(p):'')||p.entregador_nome||'';}catch(e){ ne=p.entregador_nome||'';} getCorEntregador(ne); }); atualizarLegendaCoresMapa(); }catch(e){}
@@ -16500,8 +16607,14 @@ async function renderMapaEntregas(forcarGeo){
               });
             }
           }catch(e){}
-          // Remove cancelados
-          filtrados = filtrados.filter(p=>{ try{ return !(typeof ehCancelado==='function'?ehCancelado(p):false); }catch(e){ return true; } });
+          // Remove cancelados e RETIRADA
+          filtrados = filtrados.filter(p=>{
+            try{
+              if(typeof ehCancelado==='function' && ehCancelado(p)) return false;
+              if(typeof ehRetirada==='function' && ehRetirada(p)) return false;
+              return true;
+            }catch(e){ return true; }
+          });
           // Injeta reservas no mapa local para montar rotas iguais à aba Pedidos
           try{
             const {data: resMap} = await client.from('reservas_entregadores').select('pedido_id,entregador_nome,created_at').eq('data', alvoMapa);
@@ -18755,6 +18868,54 @@ function _alAtualizarBadge(){
 // ===================== STATUS CANCELADO (Admin) =====================
 let pedidosCancelados=[], _cancPedidoId=null, _cancAberto=true, _cancEnviando=false;
 function ehCancelado(p){ return !!p && String(p.status||'').trim().toLowerCase()==='cancelado'; }
+/** Pedido de RETIRADA (cliente busca na loja): não entra no site (listas, mapa, rotas, custos). */
+
+function _todosPedidosPush(p){
+  if(!p) return false;
+  try{ if(typeof ehRetirada==='function' && ehRetirada(p)) return false; }catch(e){}
+  try{ if(typeof ehCancelado==='function' && ehCancelado(p)) return false; }catch(e){}
+  if(!todosPedidos.some(x=>x && x.id===p.id)) _todosPedidosPush(p);
+  return true;
+}
+
+function ehRetirada(p){
+  if(!p) return false;
+  const textos = [];
+  try{ if(p.cliente_endereco) textos.push(String(p.cliente_endereco)); }catch(e){}
+  try{ if(p.endereco_corrigido) textos.push(String(p.endereco_corrigido)); }catch(e){}
+  try{ if(p.endereco_original) textos.push(String(p.endereco_original)); }catch(e){}
+  try{ if(p.obs) textos.push(String(p.obs)); }catch(e){}
+  try{ if(p.observacao) textos.push(String(p.observacao)); }catch(e){}
+  try{ if(p.tipo_entrega) textos.push(String(p.tipo_entrega)); }catch(e){}
+  try{ if(p.tipo) textos.push(String(p.tipo)); }catch(e){}
+  try{
+    if(typeof enderecoEfetivo==='function'){
+      const e = enderecoEfetivo(p);
+      if(e) textos.push(String(e));
+    }
+  }catch(e){}
+  for(let i=0;i<textos.length;i++){
+    const t = String(textos[i]||'').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,''); // remove acentos
+    // qualquer ocorrência de "retirada" / "retiradas"
+    if(t.indexOf('retirada') >= 0) return true;
+  }
+  return false;
+}
+function _filtrarRetiradas(){
+  if(!Array.isArray(todosPedidos)) return;
+  const antes = todosPedidos.length;
+  todosPedidos = todosPedidos.filter(p=>!ehRetirada(p));
+  if(todosPedidos.length !== antes){
+    try{ console.info('[retirada] removidos', antes - todosPedidos.length, 'pedido(s) da lista'); }catch(e){}
+  }
+}
+/** true se texto indica retirada (uso em filtros avulsos). */
+function textoEhRetirada(s){
+  const t = String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  return t.indexOf('retirada') >= 0;
+}
+
 /** Tira os cancelados de todosPedidos (assim nenhuma contagem/rota/custo/auto-finalização os enxerga) e guarda à parte. */
 function _cancSeparar(){
   if(!Array.isArray(todosPedidos) || !todosPedidos.some(ehCancelado)) return;
@@ -18841,7 +19002,7 @@ async function reativarCancelado(id){
   if(error){ alert('Erro ao reativar: '+error.message); return; }
   pedidosCancelados=pedidosCancelados.filter(x=>String(x.id)!==String(id));
   Object.assign(p,{status:'pendente', cancelado_em:null, cancelado_por:null, motivo_cancelamento:null});
-  if(!todosPedidos.some(x=>x.id===p.id)) todosPedidos.push(p);
+  if(!todosPedidos.some(x=>x.id===p.id)) _todosPedidosPush(p);
   render(); _alToast('↺ Pedido reativado');
 }
 // =================== FIM STATUS CANCELADO ===================
