@@ -1969,6 +1969,10 @@ select '06:00','15:59','16:00','05:59','07:00','23:30',5,false where not exists 
 </select>
 <div style="font-size:10px;color:#5a657a;margin-top:4px;line-height:1.35">Altere de Pago para Cartão ou Dinheiro (receber na entrega).</div>
 
+<label style="font-size:11px;color:#8b93a7;font-weight:700;display:block;margin-top:12px">🔢 Código de entrega do cliente (4 dígitos)</label>
+<input id="editCodigoCliente" type="text" inputmode="numeric" maxlength="4" placeholder="Ex: 1234 (vazio = não alterar)" autocomplete="off" style="margin-top:6px;width:100%;padding:12px;border-radius:10px;border:1px solid #2c3340;background:#0e1118;color:#3dcc8a;font-weight:900;font-size:22px;letter-spacing:.25em;text-align:center" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"/>
+<div style="font-size:10px;color:#5a657a;margin-top:4px;line-height:1.35">Somente Admin. Informe os 4 dígitos para incluir ou alterar o código deste pedido. Deixe vazio para manter o código atual.</div>
+
 <div style="margin-top:14px;padding:12px;background:#1a1212;border:1px solid #5a2a2a;border-radius:12px">
   <div style="font-size:12px;font-weight:900;color:#ff6b6b;margin-bottom:10px">🚨 Alertas na finalização</div>
 
@@ -11603,6 +11607,14 @@ function abrirModalEditarEndereco(pedidoId){
     }
     selFp.value = v;
   }
+  const inpCod = document.getElementById('editCodigoCliente');
+  if(inpCod){
+    let codAtual = '';
+    try{ codAtual = codigoClienteOferecer(p.codigo_cliente) || ''; }catch(e){
+      try{ const d = String(p.codigo_cliente||'').replace(/\D/g,'').slice(0,4); if(d.length===4 && d!=='0000') codAtual = d; }catch(e2){}
+    }
+    inpCod.value = codAtual;
+  }
   const chkBeb = document.getElementById('editAlertaBebida');
   if(chkBeb) chkBeb.checked = _pedidoTemAlertaBebida(p) || (typeof pedidoTemBebida === 'function' && pedidoTemBebida(p) && _pedidoTemAlertaBebida(p));
   if(chkBeb) chkBeb.checked = _pedidoTemAlertaBebida(p);
@@ -11664,6 +11676,19 @@ async function salvarEnderecoMaster(){
     alertaReceberValor = rn.toFixed(2).replace('.',',');
   }
 
+  // Código de entrega do cliente (4 dígitos) — Admin only; vazio = não alterar
+  let codigoClienteNovo = null; // null = não mexer
+  try{
+    const rawCod = (document.getElementById('editCodigoCliente') && document.getElementById('editCodigoCliente').value) || '';
+    const dig = String(rawCod).replace(/\D/g,'').slice(0,4);
+    if(dig.length === 4){
+      codigoClienteNovo = dig;
+    } else if(dig.length > 0){
+      if(st){ st.textContent='❌ Código deve ter 4 dígitos'; st.style.color='#ff6b6b'; }
+      return;
+    }
+  }catch(e){}
+
   const client = getSb();
   if(!client){ if(st){ st.textContent='❌ Supabase não configurado'; st.style.color='#ff6b6b'; } return; }
   const aplicarGrupo = !!(p.grupo_entrega && document.getElementById('editEndGrupoWrap').style.display !== 'none' && document.getElementById('editEndGrupo').checked);
@@ -11704,6 +11729,11 @@ async function salvarEnderecoMaster(){
     alerta_receber_valor: alertaReceberValor || null
   };
   if(formaPag) payloadFull.forma_pagamento = formaPag;
+  // Código de entrega: grava só no pedido em edição (não no grupo inteiro)
+  // Se um único pedido, pode ir no mesmo update; se grupo, update separado depois
+  if(codigoClienteNovo && ids.length === 1){
+    payloadFull.codigo_cliente = codigoClienteNovo;
+  }
   // Marca endereço como alterado manualmente (evita sync externo / recarregar voltar ao endereço antigo)
   if(endMudou){
     payloadFull.alterado = true;
@@ -11797,6 +11827,13 @@ async function salvarEnderecoMaster(){
     } else {
       if(st){ st.textContent = '✅ Pedido atualizado'; st.style.color='#3dcc8a'; }
     }
+    // Grava código só no pedido editado (quando grupo tem vários)
+    if(codigoClienteNovo && ids.length > 1 && p && p.id){
+      try{
+        const {error: errCod} = await client.from('pedidos_entrega_dia').update({ codigo_cliente: codigoClienteNovo }).eq('id', p.id);
+        if(errCod) console.warn('codigo_cliente update', errCod);
+      }catch(eCod){ console.warn('codigo_cliente', eCod); }
+    }
     // cache local
     ids.forEach(id=>{
       const idx = todosPedidos.findIndex(x=>x.id===id);
@@ -11806,6 +11843,10 @@ async function salvarEnderecoMaster(){
         todosPedidos[idx].alerta_bebida = alertaBebida ? 'sim' : 'nao';
         todosPedidos[idx].alerta_receber_valor = alertaReceberValor || null;
         if(payloadFull.forma_pagamento) todosPedidos[idx].forma_pagamento = payloadFull.forma_pagamento;
+        // código: só no pedido que está sendo editado (não no restante do grupo)
+        if(codigoClienteNovo && String(id)===String(p.id)){
+          todosPedidos[idx].codigo_cliente = codigoClienteNovo;
+        }
         if(endMudou){
           todosPedidos[idx].alterado = true;
           todosPedidos[idx].endereco_alterado_em = agoraIso;
