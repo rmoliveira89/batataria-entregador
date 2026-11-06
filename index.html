@@ -1101,7 +1101,7 @@ body.mapa-aba-ativa #barraAgrupamento{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 311026.121800</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 061126.182322</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -4467,6 +4467,7 @@ async function _carregarDadosSemanaCusto(client, seg, dom, nome, idEnt){
 
   let porValor = {};
   const porDia = {};
+  const porDiaTurno = {};
   let brutoCalc = 0;
   try{
     if(!cacheOpcoesCusto.length) await carregarOpcoesCusto();
@@ -4481,11 +4482,13 @@ async function _carregarDadosSemanaCusto(client, seg, dom, nome, idEnt){
       const k = valor === null || isNaN(valor) ? ('?'+row.id_entrega) : String(valor);
       const chave = row.dia+'|'+row.turno+'|'+k;
       const ts = new Date(row.updated_at || row.created_at || 0).getTime() || 0;
-      if(!unicas[chave] || ts >= unicas[chave].ts) unicas[chave] = { dia: String(row.dia).slice(0,10), k: k.charAt(0)==='?' ? '?' : k, q: Number(row.quant||0), valor: (valor===null||isNaN(valor))?0:Number(valor), ts };
+      if(!unicas[chave] || ts >= unicas[chave].ts) unicas[chave] = { turno: (/alm/i.test(String(row.turno||'')) ? 'almoco' : 'jantar'), dia: String(row.dia).slice(0,10), k: k.charAt(0)==='?' ? '?' : k, q: Number(row.quant||0), valor: (valor===null||isNaN(valor))?0:Number(valor), ts };
     });
     Object.values(unicas).forEach(u=>{
       porValor[u.k] = (porValor[u.k]||0) + u.q;
       (porDia[u.dia] = porDia[u.dia] || {})[u.k] = ((porDia[u.dia]||{})[u.k]||0) + u.q;
+      porDiaTurno[u.dia] = porDiaTurno[u.dia] || {};
+      (porDiaTurno[u.dia][u.turno] = porDiaTurno[u.dia][u.turno] || {})[u.k] = ((porDiaTurno[u.dia][u.turno]||{})[u.k]||0) + u.q;
       brutoCalc += (u.valor || 0) * (u.q || 0);
     });
   }catch(e){ console.warn('quadro semana calc_entregas', e); }
@@ -4518,17 +4521,16 @@ async function _carregarDadosSemanaCusto(client, seg, dom, nome, idEnt){
     else totalConsumo += v;
   });
 
-  // Bruto: preferir cálculo das entregas; se repasse tiver bruto e não houver entregas, usar repasse
+  // Bruto: soma do que o entregador enviou (calc_entregas). O sistema principal não devolve valores de entregas.
   let bruto = brutoCalc;
-  if(bruto === 0 && rep && rep.valor_bruto != null) bruto = Number(rep.valor_bruto)||0;
   const liquido = bruto - totalConsumo + totalReembolso;
 
-  return { rep, repErro, porValor, porDia, bruto, liquido, totalConsumo, totalReembolso, consumos, consErro };
+  return { rep, repErro, porValor, porDia, porDiaTurno, bruto, liquido, totalConsumo, totalReembolso, consumos, consErro };
 }
 
 function _htmlCardSemanaCusto(info, dados){
   const { seg, dom, label, periodo, isAnterior } = info;
-  const { rep, repErro, porValor, porDia, bruto, liquido, totalConsumo, totalReembolso, consumos, consErro } = dados;
+  const { rep, repErro, porValor, porDia, porDiaTurno, bruto, liquido, totalConsumo, totalReembolso, consumos, consErro } = dados;
 
   const ordenaChaves = o => { const ks = Object.keys(o).filter(k=>k!=='?').sort((a,b)=>Number(a)-Number(b)); if(o['?']) ks.push('?'); return ks; };
   const chips = ordenaChaves(porValor).filter(k=>porValor[k]>0).map(k =>
@@ -4557,6 +4559,46 @@ function _htmlCardSemanaCusto(info, dados){
       ${linhasDia}
     </div>
   </details>`;
+
+  /* ===== RELATÓRIO DA SEMANA (quantidades, turnos e valores) ===== */
+  const _somaQ = o => Object.keys(o||{}).reduce((s,k)=> s + (o[k]||0), 0);
+  const _somaR = o => Object.keys(o||{}).reduce((s,k)=> k==='?' ? s : s + (Number(k)||0)*(o[k]||0), 0);
+  const _fmtQV = o => ordenaChaves(o||{}).filter(k=>o[k]>0).map(k=> o[k]+'x'+(k==='?'?'?':_fmtValorCurto(k))).join(' · ');
+  const _totEnt = _somaQ(porValor), _totRs = _somaR(porValor);
+  let relatorio = `<div style="border:1px solid #2c3340;border-radius:12px;padding:10px;margin-top:4px">
+    <div style="font-size:11px;color:#6ab7ff;font-weight:900;letter-spacing:.04em;margin-bottom:8px">📋 RELATÓRIO DA SEMANA</div>`;
+  if(!_totEnt){
+    relatorio += `<div style="font-size:12px;color:#5a657a">Nenhuma entrega enviada nesta semana</div>`;
+  } else {
+    relatorio += `<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #20262f"><span style="color:#8b93a7">Total de entregas</span><b style="color:#e6e8ef">${_totEnt}</b></div>`;
+    relatorio += `<div style="font-size:10px;color:#8b93a7;font-weight:800;margin:10px 0 4px">POR VALOR</div>`;
+    ordenaChaves(porValor).filter(k=>porValor[k]>0).forEach(k=>{
+      relatorio += `<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:3px 0;border-bottom:1px solid #20262f"><span style="color:#e6e8ef">${porValor[k]} × ${k==='?' ? '?' : _fmtMoedaBR(k)}</span><b style="color:#e6e8ef">${k==='?' ? '—' : _fmtMoedaBR(Number(k)*porValor[k])}</b></div>`;
+    });
+    relatorio += `<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0 2px"><span style="color:#8b93a7;font-weight:800">Bruto</span><b style="color:#3dcc8a">${_fmtMoedaBR(_totRs)}</b></div>`;
+    relatorio += `<div style="font-size:10px;color:#8b93a7;font-weight:800;margin:12px 0 4px">DIA A DIA · TURNOS</div>`;
+    const NOMES_DIA_REL = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+    for(let i=0;i<7;i++){
+      const d = new Date(Date.UTC(+seg.slice(0,4), +seg.slice(5,7)-1, +seg.slice(8,10)+i));
+      const iso = d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
+      const rotulo = NOMES_DIA_REL[i]+' '+formatarDataBR(iso);
+      const oDia = porDia[iso] || {};
+      const nDia = _somaQ(oDia);
+      if(!nDia){
+        relatorio += `<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid #20262f"><span style="color:#5a657a">${rotulo}</span><span style="color:#5a657a">—</span></div>`;
+        continue;
+      }
+      relatorio += `<div style="padding:6px 0;border-bottom:1px solid #20262f">
+        <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px"><b style="color:#e6e8ef">${rotulo}</b><span style="color:#8b93a7">${nDia} ent. · <b style="color:#e6e8ef">${_fmtMoedaBR(_somaR(oDia))}</b></span></div>`;
+      [['almoco','☀️ Almoço'],['jantar','🌙 Jantar']].forEach(([tk,tl])=>{
+        const oT = ((porDiaTurno||{})[iso]||{})[tk];
+        if(!oT || !_somaQ(oT)) return;
+        relatorio += `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;margin-top:3px;padding-left:8px"><span style="color:#8b93a7">${tl}: <b style="color:#e6e8ef">${_fmtQV(oT)}</b></span><span style="color:#8b93a7">${_somaQ(oT)} ent. · ${_fmtMoedaBR(_somaR(oT))}</span></div>`;
+      });
+      relatorio += `</div>`;
+    }
+  }
+  relatorio += `</div>`;
 
   const dataPag = rep && rep.data ? formatarDataBR(String(rep.data).slice(0,10), true) : '—';
   const badgeAnt = isAnterior
@@ -4604,9 +4646,7 @@ function _htmlCardSemanaCusto(info, dados){
       </div>
     </div>
     <div style="font-size:12px;color:#8b93a7;margin-bottom:8px">🗓️ Pagamento: <b style="color:#f0c14a">${dataPag}</b></div>
-    <div style="font-size:10px;color:#8b93a7;font-weight:700;margin-bottom:5px">ENTREGAS ACUMULADAS</div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap">${chips || '<span style="font-size:12px;color:#5a657a">Nenhuma entrega enviada nesta semana</span>'}</div>
-    ${detalhe}
+    ${relatorio}
     ${aviso}
   </div>`;
 }
@@ -7097,11 +7137,12 @@ function fecharModalConfirmarEnvioCusto(){
   const st = document.getElementById('modalEnvioCustoStatus');
   if(st){ st.textContent = ''; st.style.color = '#8b93a7'; }
   const btn = document.getElementById('btnConfirmarEnvioCusto');
-  if(btn){ btn.disabled = false; btn.textContent = '✅ Confirmar envio'; }
+  if(btn && !_envioCustoEmAndamento){ btn.disabled = false; btn.textContent = '✅ Confirmar envio'; }
 }
 
 // Turno pendente de envio no modal
 let _envioCustoTurno = null;
+let _envioCustoEmAndamento = false; /* trava: impede dois envios do mesmo turno ao mesmo tempo */
 
 /** Master entregando na conta própria: o bloco dele em Conferir Custos também pode ser ENVIADO (salvar/bloquear). */
 function _masterEhEntregadorProprio(nome){
@@ -7141,6 +7182,7 @@ function _rerenderCustoAposEnvio(){
 /** Abre modal de confirmação para um turno (não envia ainda). */
 function enviarCalcEntregas(turno){
   if(!usuarioLogado) return;
+  if(_envioCustoEmAndamento){ alert('Um envio está em andamento. Aguarde terminar.'); return; }
   const t = (turno === 'almoco') ? 'almoco' : 'jantar';
   if(!usuarioLogado.isMaster && isCustoTurnoBloqueado(t)){
     alert('Este turno já foi enviado e está bloqueado.');
@@ -7272,6 +7314,22 @@ function _abrirWhatsEnvioCusto(texto){
   }catch(e){ return false; }
 }
 async function _executarEnvioCalcEntregasInterno(){
+  /* A trava é ligada ANTES de qualquer await: um segundo toque em "Confirmar envio" não inicia outro envio
+     (antes, o botão só era desativado depois de uma consulta ao Supabase e os dois envios gravavam o turno em dobro). */
+  if(_envioCustoEmAndamento) return;
+  _envioCustoEmAndamento = true;
+  const _tAntes = _envioCustoTurno;
+  const _b = document.getElementById('btnConfirmarEnvioCusto');
+  if(_b){ _b.disabled = true; _b.textContent = '⏳ Enviando...'; }
+  try{
+    await _executarEnvioCalcEntregasCore();
+  }finally{
+    _envioCustoEmAndamento = false;
+    const enviado = _tAntes && isCustoTurnoBloqueado(_tAntes);
+    if(_b && !enviado){ _b.disabled = false; _b.textContent = '✅ Confirmar envio'; }
+  }
+}
+async function _executarEnvioCalcEntregasCore(){
   if(!usuarioLogado) return;
   const t = _envioCustoTurno || 'jantar';
   if(!usuarioLogado.isMaster && isCustoTurnoBloqueado(t)){
@@ -7386,8 +7444,19 @@ async function _executarEnvioCalcEntregasInterno(){
       id_entregador: r.id_entregador
     }));
 
+    /* Rechecagem imediatamente antes de gravar: se este turno já foi gravado (outro envio/aba/aparelho), não duplica */
+    try{
+      const {data: jaAgora} = await client.from('calc_entregas').select('id').eq('dia', dataAlvo)
+        .in('id_entregador', [...new Set([idEntregador, String(usuarioLogado.nome||'')].filter(Boolean))]).eq('turno', t).limit(1);
+      if(jaAgora && jaAgora.length){ custoTurnoBloqueado[t] = true; throw new Error('Este turno já foi enviado — nada foi duplicado'); }
+    }catch(eRe){ if(/já foi enviado/.test(String(eRe && eRe.message || ''))) throw eRe; }
+
     const {error: errIns} = await client.from('calc_entregas').insert(payload);
     if(errIns){
+      if(errIns.code === '23505' || /duplicate key|unique constraint/i.test(errIns.message||'')){
+        custoTurnoBloqueado[t] = true;
+        throw new Error('Este turno já foi enviado — nada foi duplicado');
+      }
       if(/relation|does not exist|calc_entregas/i.test(errIns.message||'')){
         throw new Error('Tabela calc_entregas não existe. Rode o SQL no Supabase.');
       }
