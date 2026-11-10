@@ -436,12 +436,21 @@ body.modo-entregador .btn-entregador-localizador{
 #toggleTopBar .btn{font-size:11px;padding:8px 12px}
 #toggleTopBar .btn.on{background:#1a3a2a;color:#3dcc8a;border-color:#2a5a3a}
 #toggleTopBar .btn.off{background:#1c1c12;color:#f0c14a;border-color:#5a4a2a}
-#entregadorAbas{display:none;margin:10px 12px 0;gap:6px;flex-wrap:nowrap;align-items:stretch}
-#entregadorAbas .tab{flex:0 0 auto;width:48px;min-width:0;height:46px;padding:0;display:flex;align-items:center;justify-content:center;gap:6px;text-align:center;font-size:13px;white-space:nowrap;overflow:hidden}
-#entregadorAbas .tab .ico{font-size:20px;line-height:1}
-#entregadorAbas .tab .lbl{display:none}
-#entregadorAbas .tab.active{flex:1 1 auto;width:auto;min-width:0;padding:0 12px}
-#entregadorAbas .tab.active .lbl{display:inline;overflow:hidden;text-overflow:ellipsis}
+#entregadorAbas{display:none;margin:0;padding:10px 12px 8px;gap:6px;flex-wrap:nowrap;align-items:stretch;position:sticky;top:var(--hdr-h,0px);z-index:9;background:#0c0e12;transition:top .3s ease;overflow-x:auto;scrollbar-width:none}
+#entregadorAbas::-webkit-scrollbar{display:none}
+body.hdr-escondido #entregadorAbas{top:0}
+/* Abas: a ativa estica (flex-grow 0→1) e a anterior encolhe, com o rótulo abrindo/fechando suavemente */
+#entregadorAbas.tem-relatorios{gap:4px}
+#entregadorAbas .tab{flex:0 0 48px;width:48px;min-width:0;height:46px;padding:0;display:flex;align-items:center;justify-content:center;gap:0;text-align:center;font-size:13px;white-space:nowrap;overflow:hidden;
+  transition:flex-grow .4s cubic-bezier(.4,0,.2,1),padding .4s cubic-bezier(.4,0,.2,1),background-color .3s ease,border-color .3s ease,color .3s ease,box-shadow .3s ease}
+#entregadorAbas.tem-relatorios .tab{flex-basis:42px;width:42px}
+#entregadorAbas .tab .ico{font-size:20px;line-height:1;flex:0 0 auto}
+#entregadorAbas .tab .lbl{display:inline-block;max-width:0;margin-left:0;opacity:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  transition:max-width .4s cubic-bezier(.4,0,.2,1),margin-left .4s cubic-bezier(.4,0,.2,1),opacity .18s ease}
+#entregadorAbas .tab.active{flex:1 1 48px;width:48px;padding:0 12px}
+#entregadorAbas.tem-relatorios .tab.active{flex:1 1 42px;width:42px}
+#entregadorAbas .tab.active .lbl{max-width:160px;margin-left:6px;opacity:1;transition:max-width .4s cubic-bezier(.4,0,.2,1),margin-left .4s cubic-bezier(.4,0,.2,1),opacity .3s ease .12s}
+@media (prefers-reduced-motion:reduce){#entregadorAbas .tab,#entregadorAbas .tab .lbl{transition:none}}
 #viewCustoEntregador{margin:0 0 16px}
 /* Pendências de envio de custos (semana corrente) */
 #custoPendBox{display:none;margin-bottom:10px;padding:10px;border-radius:10px;background:#1c1c12;border:1px solid #5a4a2a}
@@ -773,44 +782,13 @@ body[data-aba-ent="custo"] #custoPendAntBox.pronto{display:block}
   background:transparent !important;border:none !important;
   overflow:visible !important;
 }
-/* Aba Mapa: remove o cabeçalho do fluxo (sem faixa preta) + abas no topo */
-body.mapa-aba-ativa header{
-  position:fixed !important;
-  top:0;left:0;right:0;
-  transform:translateY(-100%);
-  box-shadow:none;
-  pointer-events:none;
-  /* tira do fluxo para não deixar espaço vazio */
-  height:0 !important;
-  min-height:0 !important;
-  padding:0 !important;
-  margin:0 !important;
-  border:none !important;
-  overflow:hidden !important;
-  opacity:0;
-}
-body.mapa-aba-ativa{
-  /* cabeçalho não ocupa mais altura */
-  padding-top:0 !important;
-}
-body.mapa-aba-ativa #entregadorAbas{
-  position:sticky;
-  top:0;
-  z-index:30;
-  background:#0c0e12;
-  margin:0 !important;
-  padding:8px 12px 8px;
-  border-bottom:1px solid #2c3340;
-  /* cola no topo da viewport */
-  width:100%;
-  box-sizing:border-box;
-}
+/* Aba Mapa: cabeçalho e barra de abas ficam sempre visíveis (igual às outras abas) */
 body.mapa-aba-ativa .mapa-toolbar{
   margin-top:8px;
 }
 body.mapa-aba-ativa #mapaEntregas{
-  height:min(84vh,760px);
-  min-height:440px;
+  height:clamp(380px, calc(100vh - var(--hdr-h,0px) - 150px), 760px);
+  min-height:380px;
 }
 body.mapa-aba-ativa #viewMapaEntregador{
   margin-top:0;
@@ -1101,7 +1079,7 @@ body.mapa-aba-ativa #barraAgrupamento{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 071126.130152</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 101126.181319</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -2348,6 +2326,31 @@ Remove a finalização e a reserva. O pedido volta para <b style="color:#f0c14a"
 </div>
 <!-- Visão Master: Em espera + abas por entregador -->
 <div id="viewMasterEntregadores" style="display:none;margin:0 0 8px"></div>
+<div id="viewPedidosBuscaNum" style="display:none;margin:8px 12px 0">
+<div class="card" style="margin:0;padding:10px 12px">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+<div style="font-size:12px;color:#6ab7ff;font-weight:900">🔎 BUSCAR PEDIDO <span style="font-size:10px;color:#8b93a7;font-weight:700">(nº, nome ou endereço)</span></div>
+<span id="pbnStatus" style="font-size:10px;color:#8b93a7"></span>
+</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+<input id="buscaNumPedido" type="search" inputmode="search" autocomplete="off" placeholder="Nº do pedido, nome ou endereço" oninput="pbnDigitou()" onkeydown="if(event.key==='Enter'){pbnDigitou();}" style="flex:1;min-width:160px;padding:10px 12px;border-radius:10px;border:1px solid #2c3340;background:#0e1118;color:#fff;font-size:14px"/>
+<button type="button" class="btn small" onclick="pbnLimpar()" style="font-size:11px;padding:9px 10px">✕</button>
+</div>
+<div style="font-size:10px;color:#8b93a7;font-weight:800;margin:10px 0 5px">PERÍODO</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap">
+<button type="button" class="btn small" data-pbn-per="hoje" onclick="pbnPeriodo('hoje')" style="font-size:11px;padding:7px 10px">Hoje</button>
+<button type="button" class="btn small" data-pbn-per="7d" onclick="pbnPeriodo('7d')" style="font-size:11px;padding:7px 10px">7 dias</button>
+<button type="button" class="btn small primary" data-pbn-per="30d" onclick="pbnPeriodo('30d')" style="font-size:11px;padding:7px 10px">30 dias</button>
+<button type="button" class="btn small" data-pbn-per="tudo" onclick="pbnPeriodo('tudo')" style="font-size:11px;padding:7px 10px">Tudo</button>
+<button type="button" class="btn small" data-pbn-per="custom" onclick="pbnPeriodo('custom')" style="font-size:11px;padding:7px 10px">📆 Período</button>
+</div>
+<div id="pbnCustom" style="display:none;gap:8px;flex-wrap:wrap;margin-top:8px">
+<label style="font-size:10px;color:#8b93a7;display:flex;flex-direction:column;gap:3px;flex:1;min-width:130px">De<input type="date" id="pbnDe" onchange="pbnData()" style="padding:7px 8px;border-radius:8px;border:1px solid #2c3340;background:#141a24;color:#fff;color-scheme:dark"></label>
+<label style="font-size:10px;color:#8b93a7;display:flex;flex-direction:column;gap:3px;flex:1;min-width:130px">Até<input type="date" id="pbnAte" onchange="pbnData()" style="padding:7px 8px;border-radius:8px;border:1px solid #2c3340;background:#141a24;color:#fff;color-scheme:dark"></label>
+</div>
+<div id="pbnResultado"></div>
+</div>
+</div>
 <div id="viewTurnos">
 <div class="turno-header almoco" onclick="toggleTurno('almoco')">
 <div style="display:flex;align-items:center;gap:8px;"><h2>☀️ ALMOÇO</h2><span id="countAlmoco" class="count">0</span></div>
@@ -4990,6 +4993,16 @@ async function _pendCalcularIntervalo(client, ini, fim, hoje){
   const meuK = nm(usuarioLogado.lower || usuarioLogado.nome);
   if(isMaster && !(cacheEntregadores||[]).length){ try{ await carregarEntregadoresDoBanco(); }catch(e){} }
 
+  // Usuários admin (is_master) não entram nas pendências de envio
+  const adminK = new Set();
+  if(isMaster) adminK.add(meuK);
+  try{
+    const ra = await client.from('entregadores').select('nome,is_master');
+    (ra.data||[]).forEach(e=>{
+      if(e && e.nome && (e.is_master === true || e.is_master === 1 || String(e.is_master).toLowerCase() === 'true')) adminK.add(nm(e.nome));
+    });
+  }catch(e){ console.warn('pendências custo: admins', e); }
+
   // 1) Pedidos do intervalo
   const pedidos = await _pendBuscarTodos((a,b)=> client.from('pedidos_entrega_dia').select('*')
     .gte('data', ini).lte('data', fim).order('id',{ascending:true}).range(a,b));
@@ -5016,6 +5029,7 @@ async function _pendCalcularIntervalo(client, ini, fim, hoje){
     const nome = String(mapaRes[p.id] || (typeof mapaReservas!=='undefined' && mapaReservas[p.id]) || p.entregador_nome || '').trim();
     if(!nome) return;
     const k = nm(nome);
+    if(adminK.has(k)) return;                      // admin: não exibe pendência de envio
     if(!isMaster && k !== meuK) return;
     const dia = String(p.data||'').slice(0,10);
     if(!dia || dia < ini || dia > fim) return;
@@ -5268,7 +5282,7 @@ function setAbaEntregador(aba){
   try{
     if(abaEntregadorAtual === 'mapa'){
       document.body.classList.add('mapa-aba-ativa');
-      try{ document.documentElement.style.setProperty('--hdr-h', '0px'); }catch(e2){}
+      try{ if(typeof ajustarAlturaHeader==='function') ajustarAlturaHeader(); }catch(e2){}
     } else {
       document.body.classList.remove('mapa-aba-ativa');
       try{ if(typeof ajustarAlturaHeader==='function') ajustarAlturaHeader(); }catch(e2){}
@@ -12964,8 +12978,8 @@ function aplicarVisibilidadeBarras(){
     return;
   }
   const def = defaultsBarrasUI();
-  const addVis = _prefBarra(_lsBarraAdd(), def.add);
-  const buscaVis = _prefBarra(_lsBarraBusca(), def.busca);
+  const addVis = true;      // Adicionar pedido sempre visível (botões Ocultar removidos)
+  const buscaVis = false;   // pesquisa antiga "PESQUISAR PEDIDOS" removida
   if(cardAdd){
     if(addVis) cardAdd.classList.remove('barra-oculta');
     else cardAdd.classList.add('barra-oculta');
@@ -18423,15 +18437,10 @@ ajustarAlturaHeader();
     pendente = false;
     const h = document.querySelector('header');
     if(!h) return;
-    // Aba Mapa: cabeçalho sempre oculto (CSS body.mapa-aba-ativa); não força show
-    if(document.body.classList.contains('mapa-aba-ativa')){
-      oculto = true;
-      h.classList.add('hdr-oculto');
-      return;
-    }
     const ativo = !!(usuarioLogado && !usuarioLogado.isMaster);
     if(!ativo){
       if(oculto){ oculto = false; h.classList.remove('hdr-oculto'); }
+      document.body.classList.remove('hdr-escondido');
       return;
     }
     if(document.body.classList.contains('ifood-modal-open')) return;   // modal aberto: não mexe
@@ -18442,6 +18451,7 @@ ajustarAlturaHeader();
       oculto = false; h.classList.remove('hdr-oculto');
     }
     ultimoY = y;
+    document.body.classList.toggle('hdr-escondido', oculto);
   }
   function agendar(){ if(!pendente){ pendente = true; requestAnimationFrame(aplicar); } }
   window.addEventListener('scroll', agendar, { passive:true });
@@ -19191,6 +19201,8 @@ async function reativarCancelado(id){
   const valPed = p => { const v = Number(p && p.valor); return isFinite(v) && v>0 ? v : 0; };
   const grupoKey = p => p.grupo_entrega ? 'g:'+p.grupo_entrega : 'p:'+p.id;
   const NOMES_DOW = ['seg','ter','qua','qui','sex','sáb','dom'];
+  const TURNOS = [['almoco','☀️ Almoço'],['jantar','🌙 Jantar']];
+  const turnoPed = p => (_relTurno(p) === 'almoco' ? 'almoco' : 'jantar');
   function minDiff(a,b){ const x=Date.parse(a), y=Date.parse(b); if(!isFinite(x)||!isFinite(y)) return null; return (y-x)/60000; }
   function media(arr){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null; }
   function mediana(arr){ if(!arr.length) return null; const s=arr.slice().sort((a,b)=>a-b), m=Math.floor(s.length/2); return s.length%2 ? s[m] : (s[m-1]+s[m])/2; }
@@ -19269,9 +19281,13 @@ async function reativarCancelado(id){
     const total = c.rows.length, aberto = total - fin.length - canc.length;
     const vend = fin.reduce((s,p)=>s+valPed(p),0), custo = fin.reduce((s,p)=>s+valEnt(p),0);
     const diasN = new Set(fin.map(p=>p.data)).size;
+    const porT = { almoco:{n:0,v:0,c:0}, jantar:{n:0,v:0,c:0} };
+    fin.forEach(p=>{ const o = porT[turnoPed(p)]; o.n++; o.v += valPed(p); o.c += valEnt(p); });
     let h = _relCards([
       { t:'Pedidos no período', v:total, s:_relFmtDataAno(c.ini)+' a '+_relFmtDataAno(c.fim), cor:'#6ab7ff' },
       { t:'Finalizados', v:fin.length, s:_relPct(fin.length,total)+' do total', cor:'#3dcc8a' },
+      { t:'☀️ Almoço', v:porT.almoco.n, s:_relPct(porT.almoco.n, fin.length)+' · '+moeda(porT.almoco.v), cor:'#f0c14a' },
+      { t:'🌙 Jantar', v:porT.jantar.n, s:_relPct(porT.jantar.n, fin.length)+' · '+moeda(porT.jantar.v), cor:'#a78bfa' },
       { t:'Cancelados', v:canc.length, s:_relPct(canc.length,total)+' do total', cor:'#ff6b6b' },
       { t:'Em aberto', v:aberto },
       { t:'Valor vendido', v:moeda(vend), s:'soma do valor dos finalizados' },
@@ -19279,11 +19295,15 @@ async function reativarCancelado(id){
       { t:'Custo de entrega', v:moeda(custo), s:_relPct(custo,vend)+' do vendido' },
       { t:'Média por dia', v:num(diasN ? fin.length/diasN : 0, 1), s:'em '+diasN+' dia(s) com entrega' }
     ]);
+    h += _relTitulo('Por turno');
+    h += _relTabela(['Turno','Pedidos','%','Vendido','Ticket','Custo entr.'], TURNOS.map(([tk,tl])=>{
+      const o = porT[tk]; return [tl, o.n, _relPct(o.n, fin.length), moeda(o.v), moeda(o.n ? o.v/o.n : 0), moeda(o.c)];
+    }));
     const porDia = {};
-    fin.forEach(p=>{ const o = porDia[p.data] = porDia[p.data] || {n:0, v:0}; o.n++; o.v += valPed(p); });
+    fin.forEach(p=>{ const o = porDia[p.data] = porDia[p.data] || {n:0, v:0, a:0, j:0}; o.n++; o.v += valPed(p); if(turnoPed(p)==='almoco') o.a++; else o.j++; });
     const ks = Object.keys(porDia).sort();
-    h += _relTitulo('Pedidos finalizados por dia');
-    h += ks.length ? _relBarras(ks.map(d=>({ r:_relFmtData(d)+' '+NOMES_DOW[_relDow(d)], v:porDia[d].n, txt:porDia[d].n+' · '+moeda(porDia[d].v), cor:'#6ab7ff' }))) : _relVazio('Nenhum pedido finalizado no período');
+    h += _relTitulo('Pedidos finalizados por dia (☀️ almoço · 🌙 jantar)');
+    h += ks.length ? _relBarras(ks.map(d=>({ r:_relFmtData(d)+' '+NOMES_DOW[_relDow(d)], v:porDia[d].n, txt:porDia[d].n+' · ☀️'+porDia[d].a+' 🌙'+porDia[d].j+' · '+moeda(porDia[d].v), cor:'#6ab7ff' }))) : _relVazio('Nenhum pedido finalizado no período');
     return h;
   }
 
@@ -19292,18 +19312,18 @@ async function reativarCancelado(id){
     const g = {};
     c.fin.forEach(p=>{
       const k = nk(p.entregador_nome); if(!k) return;
-      const o = g[k] = g[k] || { nome:String(p.entregador_nome).trim(), n:0, ent:new Set(), ganho:0, tempos:[] };
-      o.n++; o.ent.add(grupoKey(p)); o.ganho += valEnt(p);
+      const o = g[k] = g[k] || { nome:String(p.entregador_nome).trim(), n:0, a:0, j:0, ent:new Set(), ganho:0, tempos:[] };
+      o.n++; o.ent.add(grupoKey(p)); o.ganho += valEnt(p); if(turnoPed(p)==='almoco') o.a++; else o.j++;
       const t = minDiff(p.entregador_added_at, p.codigo_informado_em);
       if(t!=null && t>=0 && t<=180) o.tempos.push(t);
     });
     const lista = Object.values(g).sort((a,b)=> b.ganho-a.ganho || b.n-a.n);
     if(!lista.length) return _relVazio('Nenhuma entrega finalizada no período');
     let h = _relTitulo('Ranking por ganho (valor da entrega)');
-    h += _relTabela(['Entregador','Pedidos','Entregas','Ganho','Média','Tempo méd.'],
-      lista.map(o=>[esc(o.nome), o.n, o.ent.size, moeda(o.ganho), moeda(o.n ? o.ganho/o.n : 0), _relDur(media(o.tempos))]));
+    h += _relTabela(['Entregador','Pedidos','☀️','🌙','Entregas','Ganho','Média','Tempo méd.'],
+      lista.map(o=>[esc(o.nome), o.n, o.a, o.j, o.ent.size, moeda(o.ganho), moeda(o.n ? o.ganho/o.n : 0), _relDur(media(o.tempos))]));
     h += _relTitulo('Pedidos por entregador');
-    h += _relBarras(lista.slice().sort((a,b)=>b.n-a.n).map(o=>({ r:esc(o.nome), v:o.n, txt:o.n+' pedidos · '+moeda(o.ganho), cor:'#f0c14a' })));
+    h += _relBarras(lista.slice().sort((a,b)=>b.n-a.n).map(o=>({ r:esc(o.nome), v:o.n, txt:o.n+' pedidos (☀️'+o.a+' 🌙'+o.j+') · '+moeda(o.ganho), cor:'#f0c14a' })));
     h += '<div style="font-size:10px;color:#8b93a7;margin-top:8px;line-height:1.4">Entregas = pedidos agrupados contam 1. Tempo = da saída (entregador adicionou o pedido) até a finalização.</div>';
     return h;
   }
@@ -19321,11 +19341,11 @@ async function reativarCancelado(id){
     try{ cons = await _cliLerTudo(()=> client.from('consumos_entregas').select('*').eq('semana_inicio', seg).order('created_at',{ascending:true})); }catch(e){ cons = []; }
     const { lista, dup } = dedupeCalc(calc, idMap, custoPorId);
     const g = {};
-    const get = nome => { const k = nk(nome); return g[k] = g[k] || { nome, n:0, bruto:0, chips:{}, cons:0, reemb:0, semValor:0 }; };
+    const get = nome => { const k = nk(nome); return g[k] = g[k] || { nome, n:0, bruto:0, chips:{}, ct:{almoco:{},jantar:{}}, cons:0, reemb:0, semValor:0 }; };
     lista.forEach(u=>{
       if(c.ent && u.entK !== c.ent) return;
       const o = get(u.ent); o.n += u.q;
-      if(u.valor == null) o.semValor += u.q; else { o.bruto += u.valor*u.q; o.chips[u.valor] = (o.chips[u.valor]||0) + u.q; }
+      if(u.valor == null) o.semValor += u.q; else { o.bruto += u.valor*u.q; o.chips[u.valor] = (o.chips[u.valor]||0) + u.q; o.ct[u.t][u.valor] = (o.ct[u.t][u.valor]||0) + u.q; }
     });
     (cons||[]).forEach(r=>{
       let nome = r.entregador_id ? (idMap[String(r.entregador_id)] || '') : '';
@@ -19353,10 +19373,12 @@ async function reativarCancelado(id){
     const linhas = arr.map(o=>[esc(o.nome), o.n, moeda(o.bruto), '− '+moeda(o.cons), '+ '+moeda(o.reemb), '<b style="color:#3dcc8a">'+moeda(o.liq)+'</b>']);
     linhas.push(['<b>Total</b>', '<b>'+tot.n+'</b>', '<b>'+moeda(tot.b)+'</b>', '<b>− '+moeda(tot.c)+'</b>', '<b>+ '+moeda(tot.r)+'</b>', '<b style="color:#3dcc8a">'+moeda(tot.l)+'</b>']);
     h += _relTabela(['Entregador','Entregas','Bruto','Consumos','Reemb.','Líquido'], linhas);
-    h += _relTitulo('Quantidades por valor');
+    h += _relTitulo('Quantidades por valor e turno');
     h += arr.map(o=>{
-      const ch = Object.keys(o.chips).sort((a,b)=>Number(a)-Number(b)).map(v=>o.chips[v]+'x'+_fmtValorCurto(v)).join(' · ') || '—';
-      return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:5px 0;border-bottom:1px solid #1c212e"><span>'+esc(o.nome)+'</span><b>'+ch+(o.semValor?' · '+o.semValor+'x?':'')+'</b></div>';
+      const fmt = ch => Object.keys(ch).sort((x,y)=>Number(x)-Number(y)).map(v=>ch[v]+'x'+_fmtValorCurto(v)).join(' · ') || '—';
+      return '<div style="padding:6px 0;border-bottom:1px solid #1c212e;font-size:12px"><div style="font-weight:800">'+esc(o.nome)+(o.semValor?' <span style="color:#f0c14a;font-weight:600">· '+o.semValor+'x sem valor</span>':'')+'</div>'
+        + '<div style="display:flex;justify-content:space-between;gap:8px;margin-top:2px;padding-left:8px"><span style="color:#8b93a7">☀️ Almoço</span><b>'+fmt(o.ct.almoco)+'</b></div>'
+        + '<div style="display:flex;justify-content:space-between;gap:8px;margin-top:2px;padding-left:8px"><span style="color:#8b93a7">🌙 Jantar</span><b>'+fmt(o.ct.jantar)+'</b></div></div>';
     }).join('');
     if(dup) h += '<div style="font-size:10px;color:#f0c14a;margin-top:8px">'+dup+' registro(s) duplicado(s) em calc_entregas foram ignorados (vale o mais recente).</div>';
     return h;
@@ -19420,7 +19442,7 @@ async function reativarCancelado(id){
   async function repDinheiro(c){
     const client = getSb(); if(!client) throw new Error('Supabase não configurado');
     const pend = await _cliLerTudo(()=> client.from('pedidos_entrega_dia')
-      .select('id,data,status,entregador_nome,forma_pagamento,recebido,valor,numero_pedido,cliente_nome')
+      .select('id,data,status,entregador_nome,forma_pagamento,recebido,valor,numero_pedido,cliente_nome,created_at')
       .or('forma_pagamento.ilike.%dinheiro%,forma_pagamento.ilike.%especie%,forma_pagamento.ilike.%espécie%')
       .not('entregador_nome','is',null)
       .order('data',{ascending:true}).order('id',{ascending:true}));
@@ -19435,6 +19457,10 @@ async function reativarCancelado(id){
     lista.forEach(p=>{ const k = nk(p.entregador_nome); const o = g[k] = g[k] || { nome:String(p.entregador_nome).trim(), n:0, v:0, ant:p.data }; o.n++; o.v += valPed(p); if(p.data < o.ant) o.ant = p.data; });
     h += _relTitulo('Por entregador');
     h += _relTabela(['Entregador','Pedidos','Valor','Mais antigo'], Object.values(g).sort((a,b)=>b.v-a.v).map(o=>[esc(o.nome), o.n, moeda(o.v), _relFmtDataAno(o.ant)]));
+    const pt = { almoco:{n:0,v:0}, jantar:{n:0,v:0} };
+    lista.forEach(p=>{ const o = pt[turnoPed(p)]; o.n++; o.v += valPed(p); });
+    h += _relTitulo('Por turno');
+    h += _relTabela(['Turno','Pedidos','Valor'], TURNOS.map(([tk,tl])=>[tl, pt[tk].n, moeda(pt[tk].v)]));
     const d = {};
     lista.forEach(p=>{ const o = d[p.data] = d[p.data] || { n:0, v:0 }; o.n++; o.v += valPed(p); });
     h += _relTitulo('Por dia');
@@ -19481,22 +19507,45 @@ async function reativarCancelado(id){
     return h;
   }
 
-  /* ---------- 7. HORÁRIOS DE PICO ---------- */
+  /* ---------- 7. HORÁRIOS DE PICO (por turno) ---------- */
   function repHorarios(c){
     const rows = c.todos.filter(p=>!isCanc(p));
     if(!rows.length) return _relVazio('Nenhum pedido no período');
-    const hr = new Array(24).fill(0);
-    rows.forEach(p=>{ const i = getHoraMinSP(p.created_at); if(i && i.h != null && i.h>=0 && i.h<24) hr[i.h]++; });
-    let h = _relTitulo('Pedidos por hora do dia');
+    const hr = { almoco:new Array(24).fill(0), jantar:new Array(24).fill(0) };
+    const dw = { almoco:[0,0,0,0,0,0,0], jantar:[0,0,0,0,0,0,0] };
+    const datasDow = [0,1,2,3,4,5,6].map(()=>new Set());
+    const tot = { almoco:0, jantar:0 };
+    rows.forEach(p=>{
+      const t = turnoPed(p); tot[t]++;
+      const i = getHoraMinSP(p.created_at);
+      if(i && i.h != null && i.h >= 0 && i.h < 24) hr[t][i.h]++;
+      if(p.data){ const d = _relDow(p.data); dw[t][d]++; datasDow[d].add(p.data); }
+    });
+    const med = (t,d) => datasDow[d].size ? dw[t][d]/datasDow[d].size : 0;   // média por dia (conta o dia mesmo que o turno não tenha tido pedido)
+    const combos = [];
+    TURNOS.forEach(([tk,tl])=>{ for(let d=0; d<7; d++){ if(dw[tk][d] > 0) combos.push({ r:NOMES_DOW[d]+' · '+tl, v:med(tk,d), n:dw[tk][d], dias:datasDow[d].size, tk }); } });
+    combos.sort((a,b)=> b.v-a.v || b.n-a.n);
+    const picoH = t => { const mx = Math.max.apply(null, hr[t]); return mx > 0 ? String(hr[t].indexOf(mx)).padStart(2,'0')+'h' : '–'; };
+    let h = _relCards([
+      { t:'☀️ Pedidos no almoço', v:tot.almoco, s:_relPct(tot.almoco, rows.length)+' · pico '+picoH('almoco'), cor:'#f0c14a' },
+      { t:'🌙 Pedidos no jantar', v:tot.jantar, s:_relPct(tot.jantar, rows.length)+' · pico '+picoH('jantar'), cor:'#a78bfa' },
+      { t:'Dia + turno mais forte', v:combos.length ? esc(combos[0].r) : '–', s:combos.length ? 'média '+num(combos[0].v,1)+' pedidos/dia' : '', cor:'#3dcc8a' }
+    ]);
+    h += _relTitulo('Dias e turnos mais pedidos (média por dia)');
+    h += combos.length ? _relBarras(combos.slice(0,10).map(x=>({ r:esc(x.r), v:x.v, txt:num(x.v,1)+'/dia · '+x.n+' pedidos em '+x.dias+' dia(s)', cor: x.tk==='almoco' ? '#f0c14a' : '#a78bfa' }))) : _relVazio('Sem dados');
+    h += _relTitulo('Dia da semana × turno');
     const linhas = [];
-    hr.forEach((n,i)=>{ if(n>0) linhas.push({ r:String(i).padStart(2,'0')+'h', v:n, txt:String(n), cor:'#6ab7ff' }); });
-    h += linhas.length ? _relBarras(linhas) : _relVazio('Sem horário nos pedidos');
-    const dw = [0,0,0,0,0,0,0], datas = [new Set(),new Set(),new Set(),new Set(),new Set(),new Set(),new Set()];
-    rows.forEach(p=>{ if(!p.data) return; const d = _relDow(p.data); dw[d]++; datas[d].add(p.data); });
-    h += _relTitulo('Pedidos por dia da semana');
-    h += _relBarras(dw.map((n,i)=>({ r:NOMES_DOW[i], v:n, txt:n+' · média '+num(datas[i].size ? n/datas[i].size : 0, 1)+'/dia', cor:'#f0c14a' })));
-    const pico = hr.indexOf(Math.max.apply(null, hr));
-    h += '<div style="font-size:10px;color:#8b93a7;margin-top:8px">Horário mais movimentado: '+String(pico).padStart(2,'0')+'h. Considera todos os pedidos não cancelados, de todos os entregadores.</div>';
+    for(let d=0; d<7; d++){
+      linhas.push([NOMES_DOW[d], dw.almoco[d], num(med('almoco',d),1), dw.jantar[d], num(med('jantar',d),1), dw.almoco[d]+dw.jantar[d]]);
+    }
+    h += _relTabela(['Dia','☀️ Total','☀️ Média','🌙 Total','🌙 Média','Total'], linhas);
+    TURNOS.forEach(([tk,tl])=>{
+      h += _relTitulo(tl+' — pedidos por hora');
+      const ln = [];
+      hr[tk].forEach((n,i)=>{ if(n>0) ln.push({ r:String(i).padStart(2,'0')+'h', v:n, txt:String(n), cor: tk==='almoco' ? '#f0c14a' : '#a78bfa' }); });
+      h += ln.length ? _relBarras(ln) : _relVazio('Sem pedidos neste turno');
+    });
+    h += '<div style="font-size:10px;color:#8b93a7;margin-top:8px;line-height:1.4">Média por dia = pedidos ÷ dias daquele dia da semana com pedido no período (o dia conta mesmo que o turno não tenha tido pedido). Considera todos os pedidos não cancelados, de todos os entregadores. O turno segue os horários configurados.</div>';
     return h;
   }
 
@@ -19506,15 +19555,17 @@ async function reativarCancelado(id){
     const g = {};
     c.todos.forEach(p=>{
       const k = String(p.loja||'—').trim().toUpperCase();
-      const o = g[k] = g[k] || { n:0, fin:0, canc:0, v:0, ce:0, pg:{ 'Dinheiro':0, 'Cartão':0, 'Pago online':0 } };
+      const o = g[k] = g[k] || { n:0, fin:0, canc:0, v:0, ce:0, pg:{ 'Dinheiro':0, 'Cartão':0, 'Pago online':0 }, t:{ almoco:{n:0,v:0}, jantar:{n:0,v:0} } };
       o.n++;
       if(isCanc(p)) o.canc++;
-      if(isPedidoFinalizado(p)){ o.fin++; o.v += valPed(p); o.ce += valEnt(p); o.pg[formaPag(p)]++; }
+      if(isPedidoFinalizado(p)){ o.fin++; o.v += valPed(p); o.ce += valEnt(p); o.pg[formaPag(p)]++; const tt = o.t[turnoPed(p)]; tt.n++; tt.v += valPed(p); }
     });
     const lista = Object.keys(g).map(k=>({ k, ...g[k] })).sort((a,b)=>b.v-a.v);
     let h = _relTitulo('Resumo por loja');
     h += _relTabela(['Loja','Pedidos','Final.','Cancel.','Vendido','Ticket','Custo entr.'],
       lista.map(o=>[esc(o.k), o.n, o.fin, o.canc, moeda(o.v), moeda(o.fin ? o.v/o.fin : 0), moeda(o.ce)]));
+    h += _relTitulo('Por loja e turno (finalizados)');
+    h += _relTabela(['Loja','☀️ Pedidos','☀️ Vendido','🌙 Pedidos','🌙 Vendido'], lista.map(o=>[esc(o.k), o.t.almoco.n, moeda(o.t.almoco.v), o.t.jantar.n, moeda(o.t.jantar.v)]));
     h += _relTitulo('Valor vendido por loja');
     h += _relBarras(lista.map(o=>({ r:esc(o.k), v:o.v, txt:moeda(o.v)+' · '+o.fin+' pedidos', cor:'#3dcc8a' })));
     h += _relTitulo('Forma de pagamento (finalizados)');
@@ -19530,8 +19581,8 @@ async function reativarCancelado(id){
       if(!nome){ semRua++; return; }
       let k = ''; try{ k = _chaveRuaCusto(p.cliente_endereco); }catch(e){}
       k = k || nome.toLowerCase();
-      const o = g[k] = g[k] || { nome, n:0, soma:0, vals:{} };
-      o.n++; const v = valEnt(p); o.soma += v; if(v) o.vals[v] = (o.vals[v]||0) + 1;
+      const o = g[k] = g[k] || { nome, n:0, a:0, j:0, soma:0, vals:{} };
+      o.n++; if(turnoPed(p)==='almoco') o.a++; else o.j++; const v = valEnt(p); o.soma += v; if(v) o.vals[v] = (o.vals[v]||0) + 1;
     });
     const lista = Object.values(g).sort((a,b)=> b.n-a.n || b.soma-a.soma);
     if(!lista.length) return _relVazio('Nenhuma entrega com endereço no período');
@@ -19541,8 +19592,8 @@ async function reativarCancelado(id){
       { t:'Sem rua identificada', v:semRua }
     ]);
     h += _relTitulo('Top 25 ruas por pedidos');
-    h += _relTabela(['Rua','Pedidos','Valor médio','Valores','Total pago'], lista.slice(0,25).map(o=>[
-      esc(o.nome), o.n, o.soma ? moeda(o.soma/o.n) : '–',
+    h += _relTabela(['Rua','Pedidos','☀️','🌙','Valor médio','Valores','Total pago'], lista.slice(0,25).map(o=>[
+      esc(o.nome), o.n, o.a, o.j, o.soma ? moeda(o.soma/o.n) : '–',
       Object.keys(o.vals).sort((a,b)=>Number(a)-Number(b)).map(v=>o.vals[v]+'x'+_fmtValorCurto(v)).join(' · ') || '–',
       moeda(o.soma)
     ]));
@@ -19584,6 +19635,7 @@ async function reativarCancelado(id){
     h += _relTitulo('Por motivo');   h += _relTabela(['Motivo','Qtd'], cont(p=> String(p.motivo_cancelamento||'Sem motivo').trim() || 'Sem motivo'));
     h += _relTitulo('Quem cancelou'); h += _relTabela(['Quem','Qtd'], cont(p=> String(p.cancelado_por||'—').trim() || '—'));
     h += _relTitulo('Por loja');      h += _relTabela(['Loja','Qtd'], cont(p=> String(p.loja||'—').trim().toUpperCase()));
+    h += _relTitulo('Por turno');     h += _relTabela(['Turno','Qtd'], cont(p=> turnoPed(p)==='almoco' ? '☀️ Almoço' : '🌙 Jantar'));
     const ult = canc.slice().sort((a,b)=> (Date.parse(b.cancelado_em||'')||0) - (Date.parse(a.cancelado_em||'')||0)).slice(0,15);
     h += _relTitulo('Últimos cancelamentos');
     h += _relTabela(['Dia','Pedido','Cliente','Valor','Motivo'], ult.map(p=>[_relFmtData(p.data), esc(p.numero_pedido||'—'), esc(String(p.cliente_nome||'—').slice(0,22)), moeda(valPed(p)), esc(String(p.motivo_cancelamento||'—').slice(0,30))]));
@@ -19760,6 +19812,193 @@ async function reativarCancelado(id){
       return r;
     };
   }
+})();
+</script>
+<style id="abas-transicao-style">
+@keyframes abaSlideDir{from{opacity:0;transform:translateX(38px)}to{opacity:1;transform:none}}
+@keyframes abaSlideEsq{from{opacity:0;transform:translateX(-38px)}to{opacity:1;transform:none}}
+body.aba-slide-dir,body.aba-slide-esq{overflow-x:hidden}
+body.aba-slide-dir :is(#gridStats,#viewTurnos,#listaVazia,#viewCustoEntregador,#viewFaturamentoEntregador,#viewMapaEntregador,#viewRelatoriosAdmin,#viewPedidosBuscaNum,#filtroDiaPedidos,#entregadorTopRow,#cardAddPedido,#cardBuscaEntregador,#viewMasterEntregadores){animation:abaSlideDir .3s cubic-bezier(.22,.8,.3,1)}
+body.aba-slide-esq :is(#gridStats,#viewTurnos,#listaVazia,#viewCustoEntregador,#viewFaturamentoEntregador,#viewMapaEntregador,#viewRelatoriosAdmin,#viewPedidosBuscaNum,#filtroDiaPedidos,#entregadorTopRow,#cardAddPedido,#cardBuscaEntregador,#viewMasterEntregadores){animation:abaSlideEsq .3s cubic-bezier(.22,.8,.3,1)}
+@media (prefers-reduced-motion:reduce){body.aba-slide-dir *,body.aba-slide-esq *{animation:none !important}}
+body.busca-num-ativa #viewTurnos,body.busca-num-ativa #gridStats,body.busca-num-ativa #listaVazia{display:none !important}
+#cardBuscaEntregador,#toggleTopBar{display:none !important}
+</style>
+<script id="abas-transicao-script">
+(function(){
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const ORDEM = ['rota','pedidos','custo','faturamento','mapa','relatorios'];
+
+  /* ---------- botão Relatórios (só admin): aparece desde o login, sem depender de clicar em outra aba ---------- */
+  function sincronizarBotaoRelatorios(){
+    const btn = $('btnAbaRelatorios'), bar = $('entregadorAbas');
+    const master = !!(typeof usuarioLogado !== 'undefined' && usuarioLogado && usuarioLogado.isMaster);
+    if(btn) btn.style.display = master ? '' : 'none';
+    if(bar) bar.classList.toggle('tem-relatorios', master);
+    document.body.classList.toggle('is-master-user', master);
+    if(!master){
+      const v = $('viewRelatoriosAdmin'); if(v && v.style.display !== 'none') v.style.display = 'none';
+    }
+  }
+  sincronizarBotaoRelatorios();
+  document.addEventListener('DOMContentLoaded', sincronizarBotaoRelatorios);
+  window.addEventListener('load', sincronizarBotaoRelatorios);
+  setInterval(sincronizarBotaoRelatorios, 1000);
+
+  /* ---------- busca por nº na aba Pedidos (todos os usuários): período, paginação e resultados separados por dia ---------- */
+  let tokBusca = 0, timerBusca = null, resultados = [], pagina = 1, periodo = '30d';
+  const POR_PAG = 15;
+  const NOMES_DOW = ['dom','seg','ter','qua','qui','sex','sáb'];
+  const moeda = v => 'R$ ' + (Number(v)||0).toFixed(2).replace('.', ',');
+  function _addDiasISO(iso, n){ const d = new Date(iso+'T12:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); }
+  function statusDe(p){
+    if(String(p.status||'').toLowerCase() === 'cancelado') return ['Cancelado','#ff6b6b'];
+    let fin = false; try{ fin = isPedidoFinalizado(p); }catch(e){}
+    if(fin) return ['Entregue','#3dcc8a'];
+    if(p.entregador_nome) return ['Em rota','#6ab7ff'];
+    return ['Pendente','#f0c14a'];
+  }
+  function hora(p){
+    const t = p.created_at ? new Date(p.created_at) : null;
+    if(!t || isNaN(t)) return '';
+    return t.toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit'});
+  }
+  function cardPedido(p){
+    const [st, cor] = statusDe(p);
+    const meta = [moeda(p.valor), p.forma_pagamento, p.loja, p.entregador_nome ? '🛵 '+p.entregador_nome : '', hora(p)].filter(Boolean).map(esc).join(' · ');
+    return '<div style="background:#0e1118;border:1px solid #2c3340;border-radius:10px;padding:8px 10px;margin:5px 0">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:14px;color:#e6e8ef">#'+esc(p.numero_pedido||'—')+'</b>'
+      + '<span style="font-size:10px;font-weight:900;padding:2px 8px;border-radius:999px;border:1px solid '+cor+';color:'+cor+'">'+st+'</span></div>'
+      + '<div style="font-size:12px;color:#e6e8ef;margin-top:3px">'+esc(p.cliente_nome||'—')+'</div>'
+      + '<div style="font-size:11px;color:#8b93a7;margin-top:1px;line-height:1.3">'+esc(p.cliente_endereco||'')+'</div>'
+      + '<div style="font-size:11px;color:#8b93a7;margin-top:3px">'+meta+'</div></div>';
+  }
+  function rotuloDia(iso){
+    const d = new Date(iso+'T12:00:00');
+    const base = (typeof formatarDataBR === 'function') ? formatarDataBR(iso, true) : iso;
+    let tag = '';
+    try{ if(iso === getHojeSP()) tag = ' · Hoje'; else if(iso === getOntemSP()) tag = ' · Ontem'; }catch(e){}
+    return '📅 ' + (isNaN(d) ? '' : NOMES_DOW[d.getDay()]+' ') + base + tag;
+  }
+  function htmlPorDia(rows){
+    const g = {};
+    rows.forEach(p=>{ (g[p.data] = g[p.data] || []).push(p); });
+    return Object.keys(g).sort().reverse().map(d=>{
+      const lista = g[d].slice().sort((a,b)=> String(b.created_at||'').localeCompare(String(a.created_at||'')));
+      return '<div style="margin-top:10px"><div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:900;color:#6ab7ff;padding:4px 2px;border-bottom:1px solid #2c3340">'
+        + '<span>'+esc(rotuloDia(d))+'</span><span style="font-size:10px;color:#8b93a7;font-weight:700">'+lista.length+' pedido(s)</span></div>'
+        + lista.map(cardPedido).join('') + '</div>';
+    }).join('');
+  }
+  function limparTermo(s){ return String(s||'').trim().replace(/[%,()*\\]/g,'').replace(/_/g,'\\_'); }
+  const termoAtual = () => limparTermo(($('buscaNumPedido')||{}).value);
+  const totalPaginas = () => Math.max(1, Math.ceil(resultados.length / POR_PAG));
+  function intervaloBusca(){
+    const hoje = getHojeSP();
+    if(periodo === 'hoje') return [hoje, hoje];
+    if(periodo === '7d') return [_addDiasISO(hoje,-6), hoje];
+    if(periodo === '30d') return [_addDiasISO(hoje,-29), hoje];
+    if(periodo === 'custom') return [($('pbnDe')||{}).value || null, ($('pbnAte')||{}).value || null];
+    return [null, null];   // todo o histórico
+  }
+  function atualizarChips(){
+    document.querySelectorAll('#viewPedidosBuscaNum [data-pbn-per]').forEach(b=>{
+      b.className = 'btn small' + (b.getAttribute('data-pbn-per') === periodo ? ' primary' : '');
+    });
+    const c = $('pbnCustom'); if(c) c.style.display = (periodo === 'custom') ? 'flex' : 'none';
+  }
+  function renderPagina(){
+    const box = $('pbnResultado'); if(!box) return;
+    const tot = totalPaginas();
+    if(pagina > tot) pagina = tot;
+    const ini = (pagina-1) * POR_PAG;
+    const fatia = resultados.slice(ini, ini + POR_PAG);
+    if(!resultados.length){ box.innerHTML = '<div style="text-align:center;color:#8b93a7;font-size:12px;padding:16px 0">Nenhum pedido encontrado</div>'; return; }
+    let nav = '';
+    if(resultados.length > POR_PAG){
+      nav = '<div style="display:flex;gap:8px;justify-content:center;align-items:center;margin-top:12px;font-size:12px;color:#8b93a7">'
+        + '<button type="button" class="btn small" onclick="pbnPagina(-1)" '+(pagina<=1?'disabled':'')+' style="padding:8px 12px">◀ Anterior</button>'
+        + '<span>Página <b style="color:#e6e8ef">'+pagina+'</b> de '+tot+'</span>'
+        + '<button type="button" class="btn small" onclick="pbnPagina(1)" '+(pagina>=tot?'disabled':'')+' style="padding:8px 12px">Próxima ▶</button></div>';
+    }
+    box.innerHTML = htmlPorDia(fatia) + nav;
+  }
+  function aplicarEstadoBusca(){
+    const naAba = (typeof abaEntregadorAtual !== 'undefined' && abaEntregadorAtual === 'pedidos' && typeof usuarioLogado !== 'undefined' && !!usuarioLogado);
+    document.body.classList.toggle('busca-num-ativa', naAba && !!termoAtual());
+  }
+  async function executarBusca(){
+    const box = $('pbnResultado'), st = $('pbnStatus'); if(!box || !st) return;
+    const q = termoAtual();
+    aplicarEstadoBusca();
+    if(!q){ ++tokBusca; resultados = []; pagina = 1; box.innerHTML = ''; st.textContent = ''; return; }   // só mostra resultado depois de digitar
+    const tok = ++tokBusca;
+    st.style.color = '#8b93a7'; st.textContent = 'Buscando...';
+    try{
+      const client = getSb(); if(!client) throw new Error('Supabase não configurado');
+      const [ini, fim] = intervaloBusca();
+      const pad = '%'+q+'%';
+      let qr = client.from('pedidos_entrega_dia').select('*').or('numero_pedido.ilike.'+pad+',cliente_nome.ilike.'+pad+',cliente_endereco.ilike.'+pad);   // nº, nome ou endereço
+      if(ini) qr = qr.gte('data', ini);
+      if(fim) qr = qr.lte('data', fim);
+      const r = await qr.order('data',{ascending:false}).order('created_at',{ascending:false}).limit(1000);
+      if(r.error) throw r.error;
+      if(tok !== tokBusca) return;
+      const vistos = new Set();
+      resultados = (r.data||[]).filter(p=>{ if(vistos.has(p.id)) return false; vistos.add(p.id); return true; });
+      pagina = 1;
+      st.textContent = resultados.length ? (resultados.length + ' pedido(s)' + (resultados.length >= 1000 ? ' (mostrando os 1000 mais recentes)' : '')) : '';
+      renderPagina();
+    }catch(e){
+      if(tok !== tokBusca) return;
+      console.warn('busca nº pedido', e);
+      st.style.color = '#ff6b6b'; st.textContent = 'Erro: '+String((e && e.message) || e);
+      box.innerHTML = '';
+    }
+  }
+  window.pbnDigitou = function(){
+    clearTimeout(timerBusca);
+    aplicarEstadoBusca();
+    timerBusca = setTimeout(executarBusca, 350);
+  };
+  window.pbnLimpar = function(){ const i = $('buscaNumPedido'); if(i) i.value = ''; executarBusca(); };
+  window.pbnPeriodo = function(p){ periodo = p; atualizarChips(); if(termoAtual()) executarBusca(); };
+  window.pbnData = function(){ if(termoAtual()) executarBusca(); };
+  window.pbnPagina = function(d){
+    pagina = Math.max(1, Math.min(totalPaginas(), pagina + d));
+    renderPagina();
+    const el = $('viewPedidosBuscaNum'); if(el && el.scrollIntoView) el.scrollIntoView({ behavior:'smooth', block:'start' });
+  };
+  atualizarChips();
+
+  /* ---------- transição deslizante entre abas (todos os usuários) ---------- */
+  let timerAnim = null;
+  function animar(dir){
+    const b = document.body;
+    b.classList.remove('aba-slide-dir','aba-slide-esq');
+    void b.offsetWidth;                               // reinicia a animação se clicar rápido
+    b.classList.add(dir > 0 ? 'aba-slide-dir' : 'aba-slide-esq');
+    clearTimeout(timerAnim);
+    timerAnim = setTimeout(()=>{ b.classList.remove('aba-slide-dir','aba-slide-esq'); }, 380);
+  }
+  const origSet = window.setAbaEntregador;
+  window.setAbaEntregador = function(aba){
+    const de = (typeof abaEntregadorAtual !== 'undefined') ? abaEntregadorAtual : '';
+    const r = origSet.apply(this, arguments);
+    const para = (typeof abaEntregadorAtual !== 'undefined') ? abaEntregadorAtual : aba;
+    sincronizarBotaoRelatorios();
+    const painel = $('viewPedidosBuscaNum');
+    if(painel){
+      const mostra = (para === 'pedidos' && typeof usuarioLogado !== 'undefined' && !!usuarioLogado);
+      painel.style.display = mostra ? 'block' : 'none';
+    }
+    aplicarEstadoBusca();
+    const i = ORDEM.indexOf(de), j = ORDEM.indexOf(para);
+    if(de && para && de !== para && i >= 0 && j >= 0){ animar(j > i ? 1 : -1); }
+    return r;
+  };
 })();
 </script>
 </body>
