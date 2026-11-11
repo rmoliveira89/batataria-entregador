@@ -1079,7 +1079,7 @@ body.mapa-aba-ativa #barraAgrupamento{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 101126.181319</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 101126.235936</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -9403,6 +9403,25 @@ let _qrDetector = null;
 let _qrLastText = '';
 let _qrLastTs = 0;
 
+// Número do pedido no final de um link. undefined = o texto não é um link; '' = é link mas sem número válido.
+function _qrNumeroDoLink(t){
+  t = String(t||'').trim();
+  const comProto = /^(https?:)?\/\//i.test(t);
+  if(!comProto && !/^[\w-]+(\.[\w-]+)+(:\d+)?\/\S*/.test(t)) return undefined;
+  let u;
+  try{ u = new URL(comProto ? (t.indexOf('//')===0 ? 'https:'+t : t) : 'https://'+t); }catch(e){ return ''; }
+  const valido = s => /^wa\d+$/i.test(s) || /^[A-Za-z]{0,3}\d+$/.test(s);
+  const limpa = s => { try{ s = decodeURIComponent(s); }catch(e){} return String(s||'').replace(/^#/,'').trim(); };
+  const seg = u.pathname.split('/').filter(Boolean).pop();      // último pedaço do caminho = número do pedido
+  let n = limpa(seg);
+  if(valido(n)) return n;
+  n = limpa(u.hash);                                             // .../caixinha/#7390
+  if(valido(n)) return n;
+  const ks = ['pedido','numero','order','id','n'];
+  for(let i=0;i<ks.length;i++){ n = limpa(u.searchParams.get(ks[i])); if(valido(n)) return n; }
+  return '';
+}
+
 function extrairNumerosDoQr(texto){
   const t = String(texto||'').trim();
   if(!t) return [];
@@ -9417,14 +9436,10 @@ function extrairNumerosDoQr(texto){
       }
     }
   }catch(e){}
-  // URL com query ?pedido=123
-  try{
-    if(/^https?:\/\//i.test(t)){
-      const u = new URL(t);
-      const q = u.searchParams.get('pedido') || u.searchParams.get('numero') || u.searchParams.get('order') || u.pathname.split('/').filter(Boolean).pop();
-      if(q) return extrairNumerosDoQr(q);
-    }
-  }catch(e){}
+  // LINK (ex.: https://rmoliveira89.github.io/caixinha/7390): vale só o número no FINAL do link
+  // (aceita também sem "https://", com "/" no fim, ?query ou #hash). Nunca devolve o resto do endereço.
+  const _lk = _qrNumeroDoLink(t);
+  if(_lk !== undefined) return _lk ? [_lk] : [];
   // limpa # e separa por espaços/vírgulas
   const parts = t.replace(/#/g,'').split(/[\s,;|/\n\r]+/).map(x=>x.trim()).filter(Boolean);
   const out = [];
