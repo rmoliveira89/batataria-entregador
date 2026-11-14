@@ -456,11 +456,6 @@ body.hdr-escondido #entregadorAbas{top:0}
 #custoPendBox{display:none;margin-bottom:10px;padding:10px;border-radius:10px;background:#1c1c12;border:1px solid #5a4a2a}
 body[data-aba-ent="custo"] #custoPendBox.pronto{display:block}
 #custoPendBox.ok{background:#0f1f15;border-color:#2a5a3a}
-#custoForaSomaBox{display:none;margin-bottom:10px;padding:10px;border-radius:10px;background:#2a0f14;border:2px solid #ff4d5e}
-body[data-aba-ent="custo"] #custoForaSomaBox.pronto{display:block}
-#custoForaSomaBox.ok{background:#0f1f15;border:1px solid #2a5a3a}
-.custo-item.fora-soma{border:2px solid #ff4d5e !important;background:#2a0f14}
-.fs-ped{font-size:11px;color:#e6e8ef;margin-top:3px;line-height:1.3}
 #custoPendAntBox{display:none;margin-bottom:10px;padding:10px;border-radius:10px;background:#220f0f;border:1px solid #6a2a2a}
 body[data-aba-ent="custo"] #custoPendAntBox.pronto{display:block}
 .pend-chip.venc{border-color:#6a2a2a;color:#ff8a8a}
@@ -1084,7 +1079,7 @@ body.mapa-aba-ativa #barraAgrupamento{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 141126.112046</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 141126.111707</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -2469,13 +2464,11 @@ Após confirmar, os valores das entregas serão gravados e <b style="color:#ff6b
 </div>
 <div id="custoPendBox"></div>
 <div id="custoPendAntBox"></div>
-<div id="custoForaSomaBox"></div>
 <div id="custoSugerirStatus" style="font-size:11px;color:#8b93a7;margin-bottom:8px;min-height:14px"></div>
 <div style="font-size:11px;color:#8b93a7;line-height:1.35">Escolha o valor de cada entrega. Envie <b style="color:#f0c14a">por turno</b> (Jantar ou Almoço). Após enviar um turno, só aquele fica bloqueado — o outro continua livre. Toque no cabeçalho do turno para mostrar/ocultar.</div>
 </div>
 <div id="custoPendMaster" style="display:none"></div>
 <div id="custoPendAntMaster" style="display:none"></div>
-<div id="custoForaSomaMaster" style="display:none"></div>
 <div id="listaCustoEntregador"></div>
 <div id="custoEntVazio" style="display:none" class="card"><div style="text-align:center;color:#8b93a7;padding:10px">Nenhum pedido neste dia</div></div>
 <div id="custoEntFooter" style="display:none;margin:12px 12px 20px">
@@ -4961,14 +4954,9 @@ let _pendCustoCache = { t:0, key:'', dados:null, promessa:null };
 let _pendAntCache = { t:0, key:'', dados:null, promessa:null };
 let _pendMasterAberto = true;
 let _pendAntMasterAberto = true;
-let _foraSomaMasterAberto = true;
-let _foraSomaCache = { t:0, key:'', dados:null, promessa:null };
-let _foraSomaIds = new Set();
-const FORA_SOMA_DIAS = 60;   // quantos dias para trás a verificação olha
 function invalidarPendenciasCusto(){
   _pendCustoCache = { t:0, key:'', dados:null, promessa:null };
   _pendAntCache = { t:0, key:'', dados:null, promessa:null };
-  _foraSomaCache = { t:0, key:'', dados:null, promessa:null };
 }
 
 function _pendEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -5133,159 +5121,6 @@ async function calcularPendenciasAnterioresCusto(){
   });
 }
 
-// ===================== PEDIDOS FORA DA SOMA (custo já enviado) =====================
-// Regra: turno JÁ ENVIADO (calc_entregas do entregador/dia/turno, ou pedidos do turno com custo_bloqueado) que tem pedido
-// FINALIZADO sem valor de custo gravado (custo_bloqueado=false e valor_entrega vazio) → o pedido NÃO entrou na soma enviada.
-// Foi o que aconteceu quando a lista da aba Custos não carregava todos os pedidos do dia (bug de _todosPedidosPush).
-async function _foraSomaCalcular(client, ini, fim){
-  if(ini > fim) return [];
-  const isMaster = !!usuarioLogado.isMaster;
-  const nm = s => String(s||'').trim().toLowerCase();
-  const meuK = nm(usuarioLogado.lower || usuarioLogado.nome);
-  if(isMaster && !(cacheEntregadores||[]).length){ try{ await carregarEntregadoresDoBanco(); }catch(e){} }
-
-  const pedidos = await _pendBuscarTodos((a,b)=> client.from('pedidos_entrega_dia').select('*')
-    .gte('data', ini).lte('data', fim).order('id',{ascending:true}).range(a,b));
-  const mapaRes = {};
-  try{
-    const rs = await _pendBuscarTodos((a,b)=> client.from('reservas_entregadores').select('pedido_id,entregador_nome,data')
-      .gte('data', ini).lte('data', fim).order('pedido_id',{ascending:true}).range(a,b));
-    rs.forEach(r=>{ if(r.pedido_id) mapaRes[r.pedido_id] = r.entregador_nome || ''; });
-  }catch(e){ console.warn('fora da soma: reservas', e); }
-  const calcs = await _pendBuscarTodos((a,b)=> client.from('calc_entregas').select('id_entregador,turno,dia')
-    .gte('dia', ini).lte('dia', fim).order('id',{ascending:true}).range(a,b));
-  const enviados = new Set();
-  calcs.forEach(r=>{
-    const t = (String(r.turno||'').toLowerCase() === 'almoco') ? 'almoco' : 'jantar';
-    enviados.add(nm(r.id_entregador) + '|' + String(r.dia||'').slice(0,10) + '|' + t);
-  });
-
-  const temValor = p => (p.valor_entrega != null && String(p.valor_entrega).trim() !== '');
-  const bloq = p => (p.custo_bloqueado === true || String(p.custo_bloqueado).toLowerCase() === 'true');
-  // grupo (mesmo grupo_entrega) = 1 entrega: se algum membro entrou na soma, o grupo entrou
-  const grupoOk = {};
-  (pedidos||[]).forEach(p=>{ if(p && p.grupo_entrega && (bloq(p) || temValor(p))) grupoOk[p.grupo_entrega] = true; });
-
-  const agr = {};
-  (pedidos||[]).forEach(p=>{
-    if(!p || ehCancelado(p)) return;
-    try{ if(ehRetirada(p)) return; }catch(e){}
-    const nome = String(mapaRes[p.id] || p.entregador_nome || '').trim();
-    if(!nome) return;
-    const k = nm(nome);
-    if(!isMaster && k !== meuK) return;
-    const dia = String(p.data||'').slice(0,10);
-    const t = getTurno(p) === 'almoco' ? 'almoco' : 'jantar';
-    const e = agr[k] = agr[k] || { nome, dias:{} };
-    const d = e.dias[dia] = e.dias[dia] || {};
-    const x = d[t] = d[t] || { tot:0, bloq:0, fora:[] };
-    x.tot++;
-    if(bloq(p)) x.bloq++;
-    if(isPedidoFinalizado(p) && !bloq(p) && !temValor(p) && !(p.grupo_entrega && grupoOk[p.grupo_entrega])){
-      x.fora.push({ id:p.id, numero:p.numero_pedido, cliente:p.cliente_nome, end:p.cliente_endereco, hora:(typeof _fmtHoraPedido==='function' ? _fmtHoraPedido(p) : '') });
-    }
-  });
-
-  const lista = [];
-  Object.keys(agr).forEach(k=>{
-    const e = agr[k];
-    const cand = new Set([k]);
-    const cad = (cacheEntregadores||[]).find(x => nm(x.nome) === k);
-    if(cad && cad.id != null) cand.add(nm(cad.id));
-    if(!isMaster && usuarioLogado.id != null) cand.add(nm(usuarioLogado.id));
-    Object.keys(e.dias).forEach(dia=>{
-      ['almoco','jantar'].forEach(t=>{
-        const x = e.dias[dia][t];
-        if(!x || !x.fora.length) return;
-        const enviou = [...cand].some(id => enviados.has(id + '|' + dia + '|' + t)) || x.bloq > 0;
-        if(enviou) lista.push({ dia, nome: e.nome, turno: t, pedidos: x.fora });
-      });
-    });
-  });
-  lista.sort((a,b)=> b.dia.localeCompare(a.dia) || a.nome.localeCompare(b.nome,'pt-BR') || (a.turno === b.turno ? 0 : (a.turno === 'almoco' ? -1 : 1)));
-  return lista;
-}
-const _foraSomaRef = { get:()=>_foraSomaCache, set:v=>{ _foraSomaCache = v; } };
-async function calcularPedidosForaDaSoma(){
-  const client = getSb();
-  if(!client || !usuarioLogado) return null;
-  const hoje = getHojeSP();
-  const ini = _pendAddDias(hoje, -FORA_SOMA_DIAS);
-  const key = (usuarioLogado.isMaster?'M':'E') + '|' + String(usuarioLogado.id || usuarioLogado.nome || '') + '|' + hoje;
-  return _pendComCache(_foraSomaRef, 300000, key, async()=>{
-    const lista = await _foraSomaCalcular(client, ini, hoje);
-    return { ini, fim: hoje, lista };
-  });
-}
-function _tagForaSoma(p){
-  return (p && _foraSomaIds.has(p.id)) ? '<b style="color:#ff4d5e">⚠️ FORA DA SOMA — não entrou no custo enviado</b> ' : '';
-}
-function _renderForaSomaUI(dados){
-  const isMaster = !!(usuarioLogado && usuarioLogado.isMaster);
-  const boxE = document.getElementById('custoForaSomaBox');
-  const boxM = document.getElementById('custoForaSomaMaster');
-  _foraSomaIds = new Set();
-  if(dados) dados.lista.forEach(it=> it.pedidos.forEach(p=> _foraSomaIds.add(p.id)));
-  const limpar = ()=>{
-    if(boxE){ boxE.className = ''; boxE.innerHTML = ''; }
-    if(boxM){ boxM.style.display = 'none'; boxM.innerHTML = ''; }
-  };
-  if(!dados){ limpar(); return; }
-  const periodo = _pendDDMM(dados.ini) + ' a ' + _pendDDMM(dados.fim);
-  const selDia = getDataFiltroCustoEnt();
-  const totPed = dados.lista.reduce((n,it)=> n + it.pedidos.length, 0);
-  const porDia = {};
-  dados.lista.forEach(it=>{ (porDia[it.dia] = porDia[it.dia] || []).push(it); });
-  const dias = Object.keys(porDia).sort().reverse();
-  const linhaPed = p => `<div class="fs-ped">#${_pendEsc(p.numero||'—')} · ${_pendEsc(p.cliente||'—')}${p.hora ? ' · ' + _pendEsc(p.hora) : ''}<br><span style="color:#8b93a7">📍 ${_pendEsc(p.end||'Sem endereço')}</span></div>`;
-
-  if(!isMaster){
-    if(boxM){ boxM.style.display = 'none'; boxM.innerHTML = ''; }
-    if(!boxE) return;
-    if(!totPed){
-      boxE.className = 'pronto ok';
-      boxE.innerHTML = `<div style="font-size:11px;font-weight:900;color:#3dcc8a">✅ Nenhum pedido ficou fora da soma dos custos enviados (${periodo})</div>`;
-      return;
-    }
-    let h = `<div style="font-size:12px;font-weight:900;color:#ff4d5e;margin-bottom:4px">🚨 PEDIDOS FORA DA SOMA · ${totPed} pedido(s)</div>
-      <div style="font-size:10px;color:#e6e8ef;margin-bottom:8px;line-height:1.35">Entregas finalizadas por você em dias cujo custo <b>já foi enviado</b>, mas que <b>não entraram no valor somado</b> (${periodo}). Avise o administrador para conferir/reabrir o turno.</div>`;
-    dias.forEach(dia=>{
-      porDia[dia].forEach(it=>{
-        h += `<div class="pend-dia${dia === selDia ? ' sel' : ''}" style="border-color:#ff4d5e" onclick="irParaDiaCustoPend('${dia}')">
-          <div style="font-weight:800;color:#ff4d5e;font-size:12px">${_pendEsc(_pendDiaCurto(dia))} · ${_pendLabTurno(it.turno)} · ${it.pedidos.length} pedido(s)</div>
-          ${it.pedidos.map(linhaPed).join('')}
-        </div>`;
-      });
-    });
-    boxE.className = 'pronto';
-    boxE.innerHTML = h;
-    return;
-  }
-
-  if(boxE){ boxE.className = ''; boxE.innerHTML = ''; }
-  if(!boxM) return;
-  boxM.style.display = 'block';
-  let h = `<div class="card" style="margin:0 12px 10px;border:2px solid ${totPed ? '#ff4d5e' : '#2a5a3a'}">
-    <div onclick="_foraSomaMasterAberto=!_foraSomaMasterAberto;_renderForaSomaUI(_foraSomaCache.dados)" style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;flex-wrap:wrap">
-      <div style="font-size:12px;font-weight:900;color:${totPed ? '#ff4d5e' : '#3dcc8a'}">${totPed ? '🚨 PEDIDOS FORA DA SOMA (custo já enviado)' : '✅ NENHUM PEDIDO FORA DA SOMA'} <span style="font-size:10px;color:#8b93a7;font-weight:700">· ${periodo}</span></div>
-      <span style="font-size:10px;color:#8b93a7">${totPed ? (totPed + ' pedido(s) · ' + (_foraSomaMasterAberto ? '👁️ Ocultar' : '🙈 Mostrar')) : ''}</span>
-    </div>`;
-  if(totPed && _foraSomaMasterAberto){
-    h += `<div style="font-size:10px;color:#8b93a7;margin-top:6px;line-height:1.35">Pedidos finalizados em turnos que já tiveram o custo enviado, mas sem valor gravado: não entraram na soma do entregador. Toque no dia para abrir; reabra o turno para incluir.</div>`;
-    dias.forEach(dia=>{
-      h += `<div class="pend-dia${dia === selDia ? ' sel' : ''}" style="border-color:#ff4d5e" onclick="irParaDiaCustoPend('${dia}')">
-        <div style="font-weight:800;color:#ff4d5e;font-size:12px">${_pendEsc(_pendDiaCurto(dia))}</div>`;
-      porDia[dia].forEach(it=>{
-        h += `<div style="font-size:11px;color:#e6e8ef;margin-top:5px">🛵 <b>${_pendEsc(it.nome)}</b> — ${_pendLabTurno(it.turno)} (${it.pedidos.length} ped.)</div>${it.pedidos.map(linhaPed).join('')}`;
-      });
-      h += `</div>`;
-    });
-  }
-  h += `</div>`;
-  boxM.innerHTML = h;
-}
-// =================== FIM PEDIDOS FORA DA SOMA ===================
-
 function irParaDiaCustoPend(dia){
   const inp = document.getElementById('inputDataCustoEnt');
   if(inp) inp.value = dia;
@@ -5299,10 +5134,6 @@ async function atualizarPendenciasCustoUI(){
   let atual = null, ant = null;
   try{
     const r = await Promise.allSettled([calcularPendenciasCusto(), calcularPendenciasAnterioresCusto()]);
-    try{
-      const fs = await calcularPedidosForaDaSoma();
-      _renderForaSomaUI(fs);
-    }catch(e){ console.warn('pedidos fora da soma', e); }
     if(r[0].status === 'fulfilled') atual = r[0].value; else console.warn('pendências de custo (semana)', r[0].reason);
     if(r[1].status === 'fulfilled') ant = r[1].value; else console.warn('pendências de custo (anteriores)', r[1].reason);
   }catch(e){ console.warn('pendências de custo', e); }
@@ -6313,9 +6144,9 @@ function _htmlCardCustoMaster(p){
       ? `<span class="ci-salvo">R$ ${Number(val).toFixed(2)}</span>`
       : `<span style="font-size:10px;color:#8b93a7">sem valor</span>`;
   }
-  const stTxt = _tagForaSoma(p) + (pedBloq ? '🔒 Bloqueado após envio (reabra o turno para alterar)'
-    : (trav!=null ? (_extrairNumeroCasa(end)!=null ? '📌 Valor consolidado' : '📌 RUA COM VALOR CONSOLIDADO') : ''));
-  return `<div class="custo-item${pedBloq?' ok':''}${_enderecoAlterado(p)?' alterado':''}${_foraSomaIds.has(p.id)?' fora-soma':''}" id="custoMasterItem_${p.id}">
+  const stTxt = pedBloq ? '🔒 Bloqueado após envio (reabra o turno para alterar)'
+    : (trav!=null ? (_extrairNumeroCasa(end)!=null ? '📌 Valor consolidado' : '📌 RUA COM VALOR CONSOLIDADO') : '');
+  return `<div class="custo-item${pedBloq?' ok':''}${_enderecoAlterado(p)?' alterado':''}" id="custoMasterItem_${p.id}">
     <div class="ci-top">
       <div>
         <div class="ci-num">#${num}</div>
@@ -6747,7 +6578,7 @@ async function renderAbaCusto(){
         ? `<span class="ci-salvo">R$ ${Number(val).toFixed(2)}</span>`
         : `<span style="font-size:10px;color:#ff6b6b;font-weight:700">sem valor</span>`;
     }
-    return `<div class="custo-item${pedBloq?' ok':''}${_enderecoAlterado(p)?' alterado':''}${_foraSomaIds.has(p.id)?' fora-soma':''}" id="custoItem_${p.id}">
+    return `<div class="custo-item${pedBloq?' ok':''}${_enderecoAlterado(p)?' alterado':''}" id="custoItem_${p.id}">
       <div class="ci-top">
         <div>
           <div class="ci-num">#${num}</div>
@@ -6762,7 +6593,7 @@ async function renderAbaCusto(){
       <div class="ci-row">
         ${_htmlSelectCusto(p.id, val, pedBloq, trav)}
       </div>
-      <div id="custoSt_${p.id}" style="font-size:10px;color:#8b93a7;min-height:12px">${_tagForaSoma(p)}${pedBloq?'🔒 Bloqueado após envio':(trav!=null?(_extrairNumeroCasa(end)!=null?'📌 Valor consolidado':'📌 RUA COM VALOR CONSOLIDADO'):'')}</div>
+      <div id="custoSt_${p.id}" style="font-size:10px;color:#8b93a7;min-height:12px">${pedBloq?'🔒 Bloqueado após envio':(trav!=null?(_extrairNumeroCasa(end)!=null?'📌 Valor consolidado':'📌 RUA COM VALOR CONSOLIDADO'):'')}</div>
     </div>`;
   }
 
