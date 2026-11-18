@@ -1079,7 +1079,7 @@ body.mapa-aba-ativa #barraAgrupamento{
 <header>
 <div class="hdr-left">
 <div class="logo">🛵 A BATATARIA</div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 141126.111707</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 181126.122857</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -13479,6 +13479,41 @@ function render(){
  }
 }
 
+/** Admin: ícone discreto (check verde) quando o pedido iFood tem código de 4 dígitos salvo (no pedido ou no histórico do cliente). */
+const _ICO_COD_IFOOD_SVG = '<svg class="ico-cod-ifood" viewBox="0 0 24 24" width="14" height="14" role="img" aria-label="Código iFood salvo" title="Código iFood salvo" style="vertical-align:-2px;margin-left:5px;flex:0 0 auto;opacity:.85"><circle cx="12" cy="12" r="11" fill="#4caf50"/><path d="M6.5 12.5l3.8 3.8 7.2-7.6" fill="none" stroke="#f2f2f2" stroke-width="2.6" stroke-linecap="square"/></svg>';
+const _icoCodCache = {};   // id -> {v:boolean, t:ms}
+let _icoCodBusy = false;
+function _iconeCodigoIfoodAdmin(p){
+  try{
+    if(!(usuarioLogado && usuarioLogado.isMaster)) return '';
+    if(!p || isPedidoExterno(p.numero_pedido)) return '';
+    if(codigoClienteOferecer(p.codigo_cliente)) return _ICO_COD_IFOOD_SVG;
+    const c = _icoCodCache[p.id];
+    if(c && (Date.now()-c.t) < 300000) return c.v ? _ICO_COD_IFOOD_SVG : '';
+    return '<span class="cod-ifood-slot" data-pid="'+String(p.id).replace(/"/g,'')+'"></span>';
+  }catch(e){ return ''; }
+}
+async function _hidratarIconesCodigoIfood(){
+  if(_icoCodBusy) return;
+  if(!(usuarioLogado && usuarioLogado.isMaster)) return;
+  const slots = Array.from(document.querySelectorAll('.cod-ifood-slot:not([data-done])')).slice(0,12);
+  if(!slots.length) return;
+  _icoCodBusy = true;
+  try{
+    for(const el of slots){
+      const pid = el.getAttribute('data-pid');
+      el.setAttribute('data-done','1');
+      let p = null;
+      try{ p = (Array.isArray(todosPedidos) ? todosPedidos.find(x=>x && String(x.id)===pid) : null) || _pedidoPorIdCusto(pid); }catch(e){}
+      if(!p){ continue; }
+      let ok = false;
+      try{ ok = !!(await buscarCodigoHistoricoPedido(p)); }catch(e){}
+      _icoCodCache[p.id] = {v:ok, t:Date.now()};
+      if(ok && el.isConnected) el.innerHTML = _ICO_COD_IFOOD_SVG;
+    }
+  } finally { _icoCodBusy = false; }
+}
+setInterval(_hidratarIconesCodigoIfood, 1200);
 function cardPedido(p, idx, lista){
   const isCodigo=p.status==='codigo_informado';
   const badge = isCodigo
@@ -13577,7 +13612,7 @@ function cardPedido(p, idx, lista){
       <div style="display:flex;align-items:flex-start;gap:6px">
         ${checkboxAgrupar}
         <div>
-          <div class="pm-num">#${p.numero_pedido}</div>
+          <div class="pm-num">#${p.numero_pedido}${_iconeCodigoIfoodAdmin(p)}</div>
           <div class="pm-meta">${hora} · #${pos} · ${getTurno(p)==='almoco'?'☀️':'🌙'}</div>
         </div>
       </div>
@@ -13630,7 +13665,7 @@ function cardGrupoPedidos(item){
     const tempoHtml = (typeof getHtmlTempoEntrega==='function') ? getHtmlTempoEntrega(p) : '';
     return `<div style="display:flex;flex-direction:column;gap:3px;padding:4px 0;border-bottom:1px dashed #2c3340">
       <div style="display:flex;align-items:baseline;gap:6px;font-size:11px;line-height:1.35">
-        <span style="font-weight:800;color:#f0c14a;flex-shrink:0">#${num}</span>
+        <span style="font-weight:800;color:#f0c14a;flex-shrink:0">#${num}${_iconeCodigoIfoodAdmin(p)}</span>
         <span style="color:#e6e8ef;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nome.replace(/</g,'')}</span>
         <span style="flex-shrink:0;font-size:10px">${okP?'✅':'🟡'}</span>
       </div>
@@ -19883,15 +19918,32 @@ body.busca-num-ativa #viewTurnos,body.busca-num-ativa #gridStats,body.busca-num-
     if(!t || isNaN(t)) return '';
     return t.toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit'});
   }
+  function horaIso(iso){
+    const t = iso ? new Date(iso) : null;
+    if(!t || isNaN(t)) return '';
+    return t.toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit'});
+  }
   function cardPedido(p){
     const [st, cor] = statusDe(p);
-    const meta = [moeda(p.valor), p.forma_pagamento, p.loja, p.entregador_nome ? '🛵 '+p.entregador_nome : '', hora(p)].filter(Boolean).map(esc).join(' · ');
+    const meta = [moeda(p.valor), p.forma_pagamento, p.loja, p.entregador_nome ? '🛵 '+p.entregador_nome : ''].filter(Boolean).map(esc).join(' · ');
+    let fin = false; try{ fin = isPedidoFinalizado(p); }catch(e){}
+    const hPed = hora(p) || '--:--';
+    const hFin = fin ? (horaIso(p.codigo_informado_em) || '--:--') : '';
+    const horarios = '<div style="font-size:11px;color:#8b93a7;margin-top:3px">🕐 Pedido: <b style="color:#e6e8ef">'+hPed+'</b>'
+      + (fin ? ' · ✅ Finalizado: <b style="color:#3dcc8a">'+hFin+'</b>' : '') + '</div>';
+    const idq = String(p.id==null?'':p.id).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const isAdm = !!(typeof usuarioLogado !== 'undefined' && usuarioLogado && usuarioLogado.isMaster);
+    const btns = '<div style="display:flex;gap:6px;margin-top:7px">'
+      + '<button type="button" class="btn blue small" style="flex:1;padding:8px 6px;font-size:12px" onclick="pbnVerMapa(\''+idq+'\')">📍 Ver no mapa</button>'
+      + (isAdm ? '<button type="button" class="btn small" style="flex:1;padding:8px 6px;font-size:12px;background:#1a2638;color:#6ab7ff;border-color:#2a4a6a" onclick="pbnEditar(\''+idq+'\')">✏️ Editar</button>' : '')
+      + '</div>';
     return '<div style="background:#0e1118;border:1px solid #2c3340;border-radius:10px;padding:8px 10px;margin:5px 0">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:14px;color:#e6e8ef">#'+esc(p.numero_pedido||'—')+'</b>'
       + '<span style="font-size:10px;font-weight:900;padding:2px 8px;border-radius:999px;border:1px solid '+cor+';color:'+cor+'">'+st+'</span></div>'
       + '<div style="font-size:12px;color:#e6e8ef;margin-top:3px">'+esc(p.cliente_nome||'—')+'</div>'
       + '<div style="font-size:11px;color:#8b93a7;margin-top:1px;line-height:1.3">'+esc(p.cliente_endereco||'')+'</div>'
-      + '<div style="font-size:11px;color:#8b93a7;margin-top:3px">'+meta+'</div></div>';
+      + '<div style="font-size:11px;color:#8b93a7;margin-top:3px">'+meta+'</div>'
+      + horarios + btns + '</div>';
   }
   function rotuloDia(iso){
     const d = new Date(iso+'T12:00:00');
@@ -19967,6 +20019,7 @@ body.busca-num-ativa #viewTurnos,body.busca-num-ativa #gridStats,body.busca-num-
       const vistos = new Set();
       resultados = (r.data||[]).filter(p=>{ if(vistos.has(p.id)) return false; vistos.add(p.id); return true; });
       pagina = 1;
+      try{ if(typeof _cachePedidosCustoMaster !== 'undefined' && _cachePedidosCustoMaster){ resultados.forEach(p=>{ if(p && p.id!=null && !_cachePedidosCustoMaster[p.id]) _cachePedidosCustoMaster[p.id] = p; }); } }catch(e){}
       st.textContent = resultados.length ? (resultados.length + ' pedido(s)' + (resultados.length >= 1000 ? ' (mostrando os 1000 mais recentes)' : '')) : '';
       renderPagina();
     }catch(e){
@@ -19980,6 +20033,11 @@ body.busca-num-ativa #viewTurnos,body.busca-num-ativa #gridStats,body.busca-num-
     clearTimeout(timerBusca);
     aplicarEstadoBusca();
     timerBusca = setTimeout(executarBusca, 350);
+  };
+  window.pbnVerMapa = function(id){ try{ abrirMapaPorId(id); }catch(e){ console.warn('pbnVerMapa', e); } };
+  window.pbnEditar = function(id){
+    if(!(typeof usuarioLogado !== 'undefined' && usuarioLogado && usuarioLogado.isMaster)){ alert('Apenas Admin'); return; }
+    try{ abrirModalEditarEndereco(id); }catch(e){ console.warn('pbnEditar', e); }
   };
   window.pbnLimpar = function(){ const i = $('buscaNumPedido'); if(i) i.value = ''; executarBusca(); };
   window.pbnPeriodo = function(p){ periodo = p; atualizarChips(); if(termoAtual()) executarBusca(); };
