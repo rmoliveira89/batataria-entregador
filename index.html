@@ -1090,7 +1090,7 @@ body.mapa-aba-ativa #barraAgrupamento{
 <header>
 <div class="hdr-left">
 <div class="logo" aria-label="A Batataria"><div class="logo-marca logo-bat" role="img" aria-label="A Batataria"></div></div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 181126.141500</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap">VER 181126.190324</span>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
 </div>
@@ -4551,6 +4551,41 @@ async function _carregarDadosSemanaCusto(client, seg, dom, nome, idEnt){
   return { rep, repErro, porValor, porDia, porDiaTurno, bruto, liquido, totalConsumo, totalReembolso, consumos, consErro };
 }
 
+/* ===== Efeito contador (faturamento do entregador): 1,2,3… até o valor, a 500 por segundo ===== */
+const _CNT_VEL = 500;             // unidades (R$) por segundo
+const _cntFeitos = {};            // chave -> valor já animado (não repete a cada atualização)
+function _cntUp(valor, chave){
+  const n = Number(valor)||0;
+  return '<span class="cnt-up" data-v="'+n+'" data-k="'+String(chave).replace(/"/g,'')+'">'+_fmtMoedaBR(n)+'</span>';
+}
+function _cntAnimar(el){
+  const alvo = Number(el.getAttribute('data-v'))||0;
+  const k = el.getAttribute('data-k');
+  el.setAttribute('data-anim','1');
+  const abs = Math.abs(alvo), sinal = alvo < 0 ? -1 : 1;
+  _cntFeitos[k] = alvo;
+  if(abs < 1) return;
+  const t0 = performance.now();
+  (function passo(agora){
+    if(!el.isConnected) return;
+    const n = Math.floor(((agora - t0)/1000) * _CNT_VEL) + 1;
+    if(n >= abs){ el.textContent = _fmtMoedaBR(alvo); return; }
+    el.textContent = _fmtMoedaBR(sinal * n);
+    requestAnimationFrame(passo);
+  })(t0);
+}
+setInterval(function(){
+  try{
+    document.querySelectorAll('.cnt-up:not([data-anim])').forEach(function(el){
+      if(el.offsetParent === null) return;           // só anima quando a aba está visível
+      const alvo = Number(el.getAttribute('data-v'))||0;
+      const k = el.getAttribute('data-k');
+      if(_cntFeitos[k] === alvo){ el.setAttribute('data-anim','1'); return; }   // já animou este valor
+      _cntAnimar(el);
+    });
+  }catch(e){}
+}, 150);
+
 function _htmlCardSemanaCusto(info, dados){
   const { seg, dom, label, periodo, isAnterior } = info;
   const { rep, repErro, porValor, porDia, porDiaTurno, bruto, liquido, totalConsumo, totalReembolso, consumos, consErro } = dados;
@@ -4645,11 +4680,11 @@ function _htmlCardSemanaCusto(info, dados){
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
       <div style="background:#0e1118;border:1px solid #2c3340;border-radius:10px;padding:10px;text-align:center">
         <div style="font-size:10px;color:#8b93a7;font-weight:700">BRUTO</div>
-        <div style="font-size:17px;font-weight:900;color:#e6e8ef;margin-top:2px">${_fmtMoedaBR(bruto)}</div>
+        <div style="font-size:17px;font-weight:900;color:#e6e8ef;margin-top:2px">${_cntUp(bruto,seg+'|bruto')}</div>
       </div>
       <div style="background:#0e1118;border:1px solid #2a5a3a;border-radius:10px;padding:10px;text-align:center">
         <div style="font-size:10px;color:#8b93a7;font-weight:700">LÍQUIDO</div>
-        <div style="font-size:17px;font-weight:900;color:#3dcc8a;margin-top:2px">${_fmtMoedaBR(liquido)}</div>
+        <div style="font-size:17px;font-weight:900;color:#3dcc8a;margin-top:2px">${_cntUp(liquido,seg+'|liquido')}</div>
       </div>
     </div>
     <div style="border:1px solid #2c3340;border-radius:12px;padding:8px;margin-bottom:8px">
@@ -4660,11 +4695,11 @@ function _htmlCardSemanaCusto(info, dados){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div style="background:#0e1118;border:1px solid #5a2a2a;border-radius:10px;padding:8px;text-align:center">
           <div style="font-size:9px;color:#8b93a7;font-weight:700">CONSUMOS</div>
-          <div style="font-size:14px;font-weight:900;color:#ff6b6b;margin-top:2px">− ${_fmtMoedaBR(totalConsumo)}</div>
+          <div style="font-size:14px;font-weight:900;color:#ff6b6b;margin-top:2px">− ${_cntUp(totalConsumo,seg+'|consumos')}</div>
         </div>
         <div style="background:#0e1118;border:1px solid #2a5a3a;border-radius:10px;padding:8px;text-align:center">
           <div style="font-size:9px;color:#8b93a7;font-weight:700">REEMBOLSOS</div>
-          <div style="font-size:14px;font-weight:900;color:#3dcc8a;margin-top:2px">+ ${_fmtMoedaBR(totalReembolso)}</div>
+          <div style="font-size:14px;font-weight:900;color:#3dcc8a;margin-top:2px">+ ${_cntUp(totalReembolso,seg+'|reembolsos')}</div>
         </div>
       </div>
     </div>
@@ -13535,7 +13570,7 @@ const _icoCodCache = {};   // id -> {v:boolean, t:ms}
 let _icoCodBusy = false;
 function _iconeCodigoIfoodAdmin(p){
   try{
-    if(!(usuarioLogado && usuarioLogado.isMaster)) return '';
+    if(!usuarioLogado) return '';   // admin e entregadores
     if(!p || isPedidoExterno(p.numero_pedido)) return '';
     if(codigoClienteOferecer(p.codigo_cliente)) return _ICO_COD_IFOOD_SVG;
     const c = _icoCodCache[p.id];
@@ -13545,7 +13580,7 @@ function _iconeCodigoIfoodAdmin(p){
 }
 async function _hidratarIconesCodigoIfood(){
   if(_icoCodBusy) return;
-  if(!(usuarioLogado && usuarioLogado.isMaster)) return;
+  if(!usuarioLogado) return;
   const slots = Array.from(document.querySelectorAll('.cod-ifood-slot:not([data-done])')).slice(0,12);
   if(!slots.length) return;
   _icoCodBusy = true;
@@ -13581,12 +13616,13 @@ function _htmlUmaLogoPlat(k){
   const alt = k === 'wa' ? 'WhatsApp' : (k === 'aiq' ? 'Aiqfome' : 'iFood');
   return '<span class="pm-plat ' + k + '" role="img" aria-label="' + alt + '" title="' + alt + '"></span>';
 }
+function _mostrarLogoPlat(){ return _logoPlatCards || !(usuarioLogado && usuarioLogado.isMaster); }  // admin: só na Em rota; entregador: sempre
 function htmlLogoPlataforma(p){
-  if(!_logoPlatCards || !p) return '';
+  if(!_mostrarLogoPlat() || !p) return '';
   return _htmlUmaLogoPlat(chavePlataformaPedido(p));
 }
 function htmlLogoPlataformaLista(pedidos){
-  if(!_logoPlatCards) return '';
+  if(!_mostrarLogoPlat()) return '';
   const seen = [];
   (pedidos || []).forEach(function(p){
     const k = chavePlataformaPedido(p);
