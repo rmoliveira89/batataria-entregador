@@ -750,6 +750,10 @@ body[data-aba-ent="custo"] #custoPendAntBox.pronto{display:block}
 .pedido-mini .pm-pag .ui-ico{margin-right:3px}
 .badge .ui-ico{margin-right:2px}
 
+
+.btn-add-grande{display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn-add-grande .ui-ico{flex-shrink:0}
+
 </style>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
@@ -1149,7 +1153,7 @@ body.mapa-aba-ativa #barraAgrupamento{
 <div class="hdr-left">
 <div class="hdr-logo-col">
 <div class="logo" aria-label="A Batataria"><div class="logo-marca logo-bat" role="img" aria-label="A Batataria"></div></div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap;line-height:1">VER 191126.225600</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap;line-height:1">VER 191126.230300</span>
 </div>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
@@ -1443,7 +1447,7 @@ where numero_alto is not null and valor_alto is not null
 <select id="endNovoValor" title="Valores cadastrados em Custo de Entregas" style="width:110px;flex:none;padding:8px 6px;font-weight:700" onkeydown="if(event.key==='Enter') enderecoAdicionar()">
   <option value="">—</option>
 </select>
-<button class="btn primary" onclick="enderecoAdicionar()" style="flex:none;padding:8px 10px;font-size:11px">➕ Adicionar</button>
+<button class="btn primary" onclick="enderecoAdicionar()" style="flex:none;padding:8px 10px;font-size:11px"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZjBjMTRhIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48bGluZSB4MT0iMTIiIHkxPSI1IiB4Mj0iMTIiIHkyPSIxOSIvPjxsaW5lIHgxPSI1IiB5MT0iMTIiIHgyPSIxOSIgeTI9IjEyIi8+PC9zdmc+" alt="" class="ui-ico ui-ico-plusg" style="width:14px;height:14px;vertical-align:-2px;object-fit:contain;"/> Adicionar</button>
 </div>
 <div id="endNovoSt" style="font-size:11px;min-height:14px;margin-bottom:6px"></div>
 <div id="endStatus" style="font-size:11px;color:#8b93a7;margin-bottom:8px"></div>
@@ -1494,7 +1498,7 @@ Cadastre <b style="color:#f0c14a">mensagens prontas</b> para o botão <b style="
   </div>
   <div style="display:flex;gap:8px">
     <button class="btn" id="alCfgBtnCancelar" style="display:none;flex:1;padding:12px" onclick="alCfgCancelarEdicao()">Cancelar</button>
-    <button class="btn primary" id="alCfgBtnSalvar" style="flex:1;padding:12px;font-weight:900" onclick="alCfgSalvar()">➕ Adicionar</button>
+    <button class="btn primary" id="alCfgBtnSalvar" style="flex:1;padding:12px;font-weight:900" onclick="alCfgSalvar()"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZjBjMTRhIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48bGluZSB4MT0iMTIiIHkxPSI1IiB4Mj0iMTIiIHkyPSIxOSIvPjxsaW5lIHgxPSI1IiB5MT0iMTIiIHgyPSIxOSIgeTI9IjEyIi8+PC9zdmc+" alt="" class="ui-ico ui-ico-plusg" style="width:14px;height:14px;vertical-align:-2px;object-fit:contain;"/> Adicionar</button>
   </div>
   <div id="alCfgStatus" style="font-size:11px;color:#8b93a7;text-align:center;margin-top:8px;min-height:14px"></div>
 </div>
@@ -1546,7 +1550,7 @@ Configure os <b style="color:#f0c14a">horários de turno e bloqueio</b>. Salvo n
 <div id="modalAddPedido" class="overlay" style="display:none;z-index:230">
 <div class="card" style="width:100%;max-width:420px;max-height:90vh;overflow:auto">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-<h3 style="margin:0;color:#f0c14a">📦 Adicionar pedido?</h3>
+<h3 style="margin:0;color:#f0c14a"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZjBjMTRhIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTE2LjUgOS40bC05LTUuMTkiLz48cGF0aCBkPSJNMjEgMTZWOGEyIDIgMCAwIDAtMS0xLjczbC03LTRhMiAyIDAgMCAwLTIgMGwtNyA0QTIgMiAwIDAgMCAzIDh2OGEyIDIgMCAwIDAgMSAxLjczbDcgNGEyIDIgMCAwIDAgMiAwbDctNEEyIDIgMCAwIDAgMjEgMTZ6Ii8+PHBvbHlsaW5lIHBvaW50cz0iMy4yNyA2Ljk2IDEyIDEyLjAxIDIwLjczIDYuOTYiLz48bGluZSB4MT0iMTIiIHkxPSIyMi4wOCIgeDI9IjEyIiB5Mj0iMTIiLz48L3N2Zz4=" alt="" class="ui-ico ui-ico-pkg" style="width:14px;height:14px;vertical-align:-2px;object-fit:contain;"/> Adicionar pedido?</h3>
 <button class="btn" onclick="fecharModalAddPedido()" style="padding:6px 10px">✕</button>
 </div>
 <div id="modalAddInfo" style="background:#0e1118;border:1px solid #2c3340;border-radius:12px;padding:14px;margin-bottom:14px">
@@ -1563,7 +1567,7 @@ Configure os <b style="color:#f0c14a">horários de turno e bloqueio</b>. Salvo n
 <div id="modalAddStatus" style="font-size:11px;color:#8b93a7;text-align:center;margin-bottom:10px;min-height:16px"></div>
 <div style="display:flex;gap:8px">
 <button class="btn" style="flex:1;padding:14px" onclick="fecharModalAddPedido()">Cancelar</button>
-<button class="btn primary" id="btnConfirmarAddPedido" style="flex:1;padding:14px;font-weight:900" onclick="executarAdicionarPedido()">➕ Adicionar</button>
+<button class="btn primary" id="btnConfirmarAddPedido" style="flex:1;padding:14px;font-weight:900" onclick="executarAdicionarPedido()"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZjBjMTRhIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48bGluZSB4MT0iMTIiIHkxPSI1IiB4Mj0iMTIiIHkyPSIxOSIvPjxsaW5lIHgxPSI1IiB5MT0iMTIiIHgyPSIxOSIgeTI9IjEyIi8+PC9zdmc+" alt="" class="ui-ico ui-ico-plusg" style="width:14px;height:14px;vertical-align:-2px;object-fit:contain;"/> Adicionar</button>
 </div>
 </div>
 </div>
@@ -2014,7 +2018,7 @@ Remove a finalização e a reserva. O pedido volta para <b style="color:#f0c14a"
 
 <!-- Barra de controle: mostrar/ocultar Adicionar e Pesquisa -->
 <div id="toggleTopBar">
-<button class="btn off" id="btnToggleAdd" onclick="toggleBarraAdd()" title="Mostrar/ocultar barra de adicionar pedido">📦 Adicionar</button>
+<button class="btn off" id="btnToggleAdd" onclick="toggleBarraAdd()" title="Mostrar/ocultar barra de adicionar pedido"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZjBjMTRhIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTE2LjUgOS40bC05LTUuMTkiLz48cGF0aCBkPSJNMjEgMTZWOGEyIDIgMCAwIDAtMS0xLjczbC03LTRhMiAyIDAgMCAwLTIgMGwtNyA0QTIgMiAwIDAgMCAzIDh2OGEyIDIgMCAwIDAgMSAxLjczbDcgNGEyIDIgMCAwIDAgMiAwbDctNEEyIDIgMCAwIDAgMjEgMTZ6Ii8+PHBvbHlsaW5lIHBvaW50cz0iMy4yNyA2Ljk2IDEyIDEyLjAxIDIwLjczIDYuOTYiLz48bGluZSB4MT0iMTIiIHkxPSIyMi4wOCIgeDI9IjEyIiB5Mj0iMTIiLz48L3N2Zz4=" alt="" class="ui-ico ui-ico-pkg" style="width:14px;height:14px;vertical-align:-2px;object-fit:contain;"/> Adicionar</button>
 <button class="btn off" id="btnToggleBusca" onclick="toggleBarraBusca()" title="Mostrar/ocultar barra de pesquisa">🔍 Pesquisar</button>
 </div>
 <div id="entregadorTopRow" style="display:none">
@@ -2023,7 +2027,7 @@ Remove a finalização e a reserva. O pedido volta para <b style="color:#f0c14a"
 <div id="modalScannerQr" class="overlay" style="display:none;z-index:920" role="dialog" aria-modal="true">
 <div class="card" style="width:100%;max-width:420px;margin:0;padding:14px 14px 12px">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px">
-    <h3 style="margin:0;color:#6ab7ff;font-size:16px;font-weight:900">📷 Ler QR do pedido</h3>
+    <h3 style="margin:0;color:#6ab7ff;font-size:16px;font-weight:900"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNmFiN2ZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTIzIDE5YTIgMiAwIDAgMS0yIDJIM2EyIDIgMCAwIDEtMi0yVjhhMiAyIDAgMCAxIDItMmg0bDItM2g2bDIgM2g0YTIgMiAwIDAgMSAyIDJ6Ii8+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMyIgcj0iNCIvPjwvc3ZnPg==" alt="" class="ui-ico ui-ico-cam" style="width:15px;height:15px;vertical-align:-2px;object-fit:contain;"/> Ler QR do pedido</h3>
     <button type="button" class="btn" onclick="fecharScannerQrPedido()" style="padding:6px 10px">✕</button>
   </div>
   <div style="font-size:12px;color:#8b93a7;margin-bottom:10px;line-height:1.4">Quando o celular pedir, toque em <b style="color:#3dcc8a">Permitir</b>. Aponte para o QR — ao ler, <b style="color:#3dcc8a">adiciona na lista</b> e a câmera segue para o <b style="color:#f0c14a">próximo</b>. Toque em <b>Encerrar câmera</b> para voltar aos pedidos.</div>
@@ -2039,14 +2043,14 @@ Remove a finalização e a reserva. O pedido volta para <b style="color:#f0c14a"
 <div class="card barra-oculta" id="cardAddPedido">
 
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-<div style="font-size:13px;color:#f0c14a;font-weight:900;letter-spacing:0.02em">📦 ADICIONAR PEDIDO</div>
+<div style="font-size:13px;color:#f0c14a;font-weight:900;letter-spacing:0.02em"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZjBjMTRhIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTE2LjUgOS40bC05LTUuMTkiLz48cGF0aCBkPSJNMjEgMTZWOGEyIDIgMCAwIDAtMS0xLjczbC03LTRhMiAyIDAgMCAwLTIgMGwtNyA0QTIgMiAwIDAgMCAzIDh2OGEyIDIgMCAwIDAgMSAxLjczbDcgNGEyIDIgMCAwIDAgMiAwbDctNEEyIDIgMCAwIDAgMjEgMTZ6Ii8+PHBvbHlsaW5lIHBvaW50cz0iMy4yNyA2Ljk2IDEyIDEyLjAxIDIwLjczIDYuOTYiLz48bGluZSB4MT0iMTIiIHkxPSIyMi4wOCIgeDI9IjEyIiB5Mj0iMTIiLz48L3N2Zz4=" alt="" class="ui-ico ui-ico-pkg" style="width:14px;height:14px;vertical-align:-2px;object-fit:contain;"/> ADICIONAR PEDIDO</div>
 <span id="infoHora" style="font-size:10px;color:#8b93a7"></span>
 </div>
 <div class="input-col">
 <input id="inputPedido" placeholder="# Número ou 6 dígitos WA" inputmode="text" autocomplete="off" onkeydown="if(event.key==='Enter') adicionarPedido()"/>
 <div style="display:flex;gap:8px;width:100%">
-<button class="btn primary btn-add-grande" style="flex:1.2" onclick="adicionarPedido()">➕ Adicionar</button>
-<button class="btn blue btn-add-grande" id="btnQrPedido" style="flex:0.8;background:#1a2a3a;border-color:#2a4a5a;color:#6ab7ff" onclick="abrirScannerQrPedido()" title="Ler QR Code do pedido">📷 QR</button>
+<button class="btn primary btn-add-grande" style="flex:1.2" onclick="adicionarPedido()"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMWExYTFhIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48bGluZSB4MT0iMTIiIHkxPSI1IiB4Mj0iMTIiIHkyPSIxOSIvPjxsaW5lIHgxPSI1IiB5MT0iMTIiIHgyPSIxOSIgeTI9IjEyIi8+PC9zdmc+" alt="" class="ui-ico ui-ico-plus" style="width:15px;height:15px;vertical-align:-2px;object-fit:contain;"/> Adicionar</button>
+<button class="btn blue btn-add-grande" id="btnQrPedido" style="flex:0.8;background:#1a2a3a;border-color:#2a4a5a;color:#6ab7ff" onclick="abrirScannerQrPedido()" title="Ler QR Code do pedido"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNmFiN2ZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTIzIDE5YTIgMiAwIDAgMS0yIDJIM2EyIDIgMCAwIDEtMi0yVjhhMiAyIDAgMCAxIDItMmg0bDItM2g2bDIgM2g0YTIgMiAwIDAgMSAyIDJ6Ii8+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMyIgcj0iNCIvPjwvc3ZnPg==" alt="" class="ui-ico ui-ico-cam" style="width:15px;height:15px;vertical-align:-2px;object-fit:contain;"/> QR</button>
 </div>
 </div>
 <div id="addStatus" style="font-size:11px;color:#8b93a7;margin-top:8px"></div>
@@ -7752,7 +7756,7 @@ function limparExpirados(){
   const hora=getHoraSP(); const min=getMinSP(); const hoje=getHojeSP();
   // NÃO zera pedidosVisiveisIds: a posse fica no Supabase até o entregador EXCLUIR.
   // Só limpa cache local de dias antigos (ordem de rota / espelho).
-  document.getElementById('infoHora').textContent=`Agora ${String(hora).padStart(2,'0')}:${String(min).padStart(2,'0')} - ${getTurnoAtualSP()==='jantar'?'NOITE 🌙':'DIA ☀️'}`;
+  document.getElementById('infoHora').innerHTML=`Agora ${String(hora).padStart(2,'0')}:${String(min).padStart(2,'0')} - ${getTurnoAtualSP()==='jantar'?'NOITE <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZjBjMTRhIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTIxIDEyLjc5QTkgOSAwIDEgMSAxMS4yMSAzIDcgNyAwIDAgMCAyMSAxMi43OXoiLz48L3N2Zz4=" alt="" class="ui-ico ui-ico-moon" style="width:13px;height:13px;vertical-align:-2px;object-fit:contain;"/>':'DIA <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZjBjMTRhIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iNCIvPjxsaW5lIHgxPSIxMiIgeTE9IjEiIHgyPSIxMiIgeTI9IjMiLz48bGluZSB4MT0iMTIiIHkxPSIyMSIgeDI9IjEyIiB5Mj0iMjMiLz48bGluZSB4MT0iNC4yMiIgeTE9IjQuMjIiIHgyPSI1LjY0IiB5Mj0iNS42NCIvPjxsaW5lIHgxPSIxOC4zNiIgeTE9IjE4LjM2IiB4Mj0iMTkuNzgiIHkyPSIxOS43OCIvPjxsaW5lIHgxPSIxIiB5MT0iMTIiIHgyPSIzIiB5Mj0iMTIiLz48bGluZSB4MT0iMjEiIHkxPSIxMiIgeDI9IjIzIiB5Mj0iMTIiLz48bGluZSB4MT0iNC4yMiIgeTE9IjE5Ljc4IiB4Mj0iNS42NCIgeTI9IjE4LjM2Ii8+PGxpbmUgeDE9IjE4LjM2IiB5MT0iNS42NCIgeDI9IjE5Ljc4IiB5Mj0iNC4yMiIvPjwvc3ZnPg==" alt="" class="ui-ico ui-ico-sun" style="width:13px;height:13px;vertical-align:-2px;object-fit:contain;"/>'}`;
   const amanha=getAmanhaSP();
   const keysToRemove=[];
   for(let i=0;i<localStorage.length;i++){
@@ -9352,7 +9356,7 @@ async function abrirScannerQrPedido(){
       msg = 'Permissão da câmera negada.\n\n'+
         'No celular:\n'+
         '• Ajuste → Apps → Chrome (ou o navegador) → Permissões → Câmera → Permitir\n'+
-        '• Depois abra de novo o app e toque em 📷 QR\n\n'+
+        '• Depois abra de novo o app e toque em QR\n\n'+
         'Se o arquivo estiver em Downloads (file://), o Android pode bloquear a câmera mesmo com permissão. Nesse caso use o app em HTTPS.';
     } else if(/NotFound|DevicesNotFound|Overconstrained/i.test(name+' '+msgRaw)){
       msg = 'Nenhuma câmera foi encontrada neste aparelho.';
@@ -9488,7 +9492,7 @@ async function adicionarPedidoViaQr(numRaw, opts){
   }
 
   const st = document.getElementById('addStatus');
-  if(st){ st.textContent = '📷 QR → buscando #'+numRaw+'…'; st.style.color = '#6ab7ff'; }
+  if(st){ st.textContent = 'QR → buscando #'+numRaw+'…'; st.style.color = '#6ab7ff'; }
 
   try{
     const numerosBusca = expandirNumerosBuscaPedido(numRaw);
@@ -9703,7 +9707,7 @@ function fecharModalAddPedido(){
   document.getElementById('modalAddPedido').style.display='none';
   pedidoPendenteAdd = null;
   const btn = document.getElementById('btnConfirmarAddPedido');
-  if(btn){ btn.disabled=false; btn.textContent='➕ Adicionar'; }
+  if(btn){ btn.disabled=false; btn.innerHTML='<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZjBjMTRhIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48bGluZSB4MT0iMTIiIHkxPSI1IiB4Mj0iMTIiIHkyPSIxOSIvPjxsaW5lIHgxPSI1IiB5MT0iMTIiIHgyPSIxOSIgeTI9IjEyIi8+PC9zdmc+" alt="" class="ui-ico ui-ico-plusg" style="width:14px;height:14px;vertical-align:-2px;object-fit:contain;"/> Adicionar'; }
   const st = document.getElementById('modalAddStatus');
   if(st){ st.textContent=''; }
 }
@@ -9738,7 +9742,7 @@ function abrirModalAddPedido(pedido){
   }catch(e){}
   document.getElementById('modalAddStatus').textContent = '';
   const btn = document.getElementById('btnConfirmarAddPedido');
-  if(btn){ btn.disabled=false; btn.textContent='➕ Adicionar'; }
+  if(btn){ btn.disabled=false; btn.innerHTML='<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZjBjMTRhIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48bGluZSB4MT0iMTIiIHkxPSI1IiB4Mj0iMTIiIHkyPSIxOSIvPjxsaW5lIHgxPSI1IiB5MT0iMTIiIHgyPSIxOSIgeTI9IjEyIi8+PC9zdmc+" alt="" class="ui-ico ui-ico-plusg" style="width:14px;height:14px;vertical-align:-2px;object-fit:contain;"/> Adicionar'; }
   document.getElementById('modalAddPedido').style.display='flex';
 }
 
@@ -9966,12 +9970,12 @@ async function executarAdicionarPedido(){
       _resMaster = await masterReservarParaSi(pedido);
       if(_resMaster.cancelado){
         if(statusEl){ statusEl.textContent=''; }
-        if(btn){ btn.disabled=false; btn.textContent='➕ Adicionar'; }
+        if(btn){ btn.disabled=false; btn.innerHTML='<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZjBjMTRhIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48bGluZSB4MT0iMTIiIHkxPSI1IiB4Mj0iMTIiIHkyPSIxOSIvPjxsaW5lIHgxPSI1IiB5MT0iMTIiIHgyPSIxOSIgeTI9IjEyIi8+PC9zdmc+" alt="" class="ui-ico ui-ico-plusg" style="width:14px;height:14px;vertical-align:-2px;object-fit:contain;"/> Adicionar'; }
         return;
       }
       if(!_resMaster.ok){
         if(statusEl){ statusEl.textContent='❌ '+(_resMaster.msg||'Erro ao adicionar'); statusEl.style.color='#ff6b6b'; }
-        if(btn){ btn.disabled=false; btn.textContent='➕ Adicionar'; }
+        if(btn){ btn.disabled=false; btn.innerHTML='<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZjBjMTRhIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48bGluZSB4MT0iMTIiIHkxPSI1IiB4Mj0iMTIiIHkyPSIxOSIvPjxsaW5lIHgxPSI1IiB5MT0iMTIiIHgyPSIxOSIgeTI9IjEyIi8+PC9zdmc+" alt="" class="ui-ico ui-ico-plusg" style="width:14px;height:14px;vertical-align:-2px;object-fit:contain;"/> Adicionar'; }
         return;
       }
     }
@@ -9979,7 +9983,7 @@ async function executarAdicionarPedido(){
       const ok = await criarReserva(pedido);
       if(!ok){
         if(statusEl){ statusEl.textContent='❌ Pedido já foi pego por outro entregador agora mesmo.'; statusEl.style.color='#ff6b6b'; }
-        if(btn){ btn.disabled=false; btn.textContent='➕ Adicionar'; }
+        if(btn){ btn.disabled=false; btn.innerHTML='<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZjBjMTRhIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48bGluZSB4MT0iMTIiIHkxPSI1IiB4Mj0iMTIiIHkyPSIxOSIvPjxsaW5lIHgxPSI1IiB5MT0iMTIiIHgyPSIxOSIgeTI9IjEyIi8+PC9zdmc+" alt="" class="ui-ico ui-ico-plusg" style="width:14px;height:14px;vertical-align:-2px;object-fit:contain;"/> Adicionar'; }
         document.getElementById('addStatus').textContent='❌ Pedido já foi pego por outro entregador agora mesmo.';
         document.getElementById('addStatus').style.color='#ff6b6b';
         return;
@@ -10009,7 +10013,7 @@ async function executarAdicionarPedido(){
     setTimeout(()=>{ carregar(); try{ carregarControleDinheiro(); }catch(e){} }, 400);
   }catch(e){
     if(statusEl){ statusEl.textContent='❌ '+(e.message||e); statusEl.style.color='#ff6b6b'; }
-    if(btn){ btn.disabled=false; btn.textContent='➕ Adicionar'; }
+    if(btn){ btn.disabled=false; btn.innerHTML='<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZjBjMTRhIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48bGluZSB4MT0iMTIiIHkxPSI1IiB4Mj0iMTIiIHkyPSIxOSIvPjxsaW5lIHgxPSI1IiB5MT0iMTIiIHgyPSIxOSIgeTI9IjEyIi8+PC9zdmc+" alt="" class="ui-ico ui-ico-plusg" style="width:14px;height:14px;vertical-align:-2px;object-fit:contain;"/> Adicionar'; }
   }
 }
 async function excluirGrupoDaLista(gid){
@@ -19176,7 +19180,7 @@ function alCfgCancelarEdicao(){
   document.getElementById('alCfgTexto').value='';
   document.getElementById('alCfgPublico').value='entregadores';
   document.getElementById('alCfgSom').checked=true; document.getElementById('alCfgVib').checked=true;
-  document.getElementById('alCfgBtnSalvar').textContent='➕ Adicionar';
+  document.getElementById('alCfgBtnSalvar').innerHTML='<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZjBjMTRhIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48bGluZSB4MT0iMTIiIHkxPSI1IiB4Mj0iMTIiIHkyPSIxOSIvPjxsaW5lIHgxPSI1IiB5MT0iMTIiIHgyPSIxOSIgeTI9IjEyIi8+PC9zdmc+" alt="" class="ui-ico ui-ico-plusg" style="width:14px;height:14px;vertical-align:-2px;object-fit:contain;"/> Adicionar';
   document.getElementById('alCfgBtnCancelar').style.display='none';
 }
 function alCfgEditar(id){
