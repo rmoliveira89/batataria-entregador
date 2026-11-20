@@ -1165,7 +1165,7 @@ body.mapa-aba-ativa #barraAgrupamento{
 <div class="hdr-left">
 <div class="hdr-logo-col">
 <div class="logo" aria-label="A Batataria"><div class="logo-marca logo-bat" role="img" aria-label="A Batataria"></div></div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap;line-height:1">VER 201126.093926</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap;line-height:1">VER 201126.112002</span>
 </div>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
@@ -13570,7 +13570,7 @@ function cardPedido(p, idx, lista){
   const isCodigo=p.status==='codigo_informado';
   const badge = isCodigo
     ? '<span class="badge codigo" style="font-size:9px;padding:2px 6px">✓ '+(p.codigo_cliente||'')+'</span>'
-    : '<span class="badge pendente" style="font-size:9px;padding:2px 6px">A entregar</span>';
+    : '';
   const hora=getHoraMinSP(p.created_at).str;
   const showRota = !usuarioLogado?.isMaster;
   const pos = idx+1;
@@ -13578,11 +13578,14 @@ function cardPedido(p, idx, lista){
   // Texto grande exigido para reativado/adicionado novamente
   const btnConfirmarTexto = modo==='entregador' ? '<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjM2RjYzhhIiBzdHJva2Utd2lkdGg9IjIuMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjIgMTEuMDhWMTJhMTAgMTAgMCAxIDEtNS45My05LjE0Ii8+PHBvbHlsaW5lIHBvaW50cz0iMjIgNCAxMiAxNC4wMSA5IDExLjAxIi8+PC9zdmc+" alt="" class="ui-ico ui-ico-check" style="width:14px;height:14px;vertical-align:-2px;object-fit:contain;"/> Finalizar' : '🔢 INFORMAR CÓDIGO';
   const nomeRes = getNomeReserva(p);
-  const badgeEnt = usuarioLogado?.isMaster
-    ? (nomeRes
-        ? `<span class="badge entregador" style="font-size:9px;padding:2px 6px"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNmFiN2ZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iNSIgY3k9IjE3IiByPSIyLjUiLz48Y2lyY2xlIGN4PSIxNyIgY3k9IjE3IiByPSIyLjUiLz48cGF0aCBkPSJNNSAxN2gzbDItNWg0bDMgNWgyIi8+PHBhdGggZD0iTTkgMTJWOGgzbDIgNCIvPjwvc3ZnPg==" alt="" class="ui-ico ui-ico-moto" style="width:12px;height:12px;vertical-align:-2px;object-fit:contain;"/> ${nomeRes}</span>`
-        : `<span class="badge espera" style="font-size:9px;padding:2px 6px"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZjBjMTRhIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiLz48cG9seWxpbmUgcG9pbnRzPSIxMiA2IDEyIDEyIDE2IDE0Ii8+PC9zdmc+" alt="" class="ui-ico ui-ico-wait" style="width:12px;height:12px;vertical-align:-2px;object-fit:contain;"/> Espera</span>`)
-    : '';
+  const _bEntPre = `<span class="badge entregador" style="font-size:9px;padding:2px 6px"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNmFiN2ZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iNSIgY3k9IjE3IiByPSIyLjUiLz48Y2lyY2xlIGN4PSIxNyIgY3k9IjE3IiByPSIyLjUiLz48cGF0aCBkPSJNNSAxN2gzbDItNWg0bDMgNWgyIi8+PHBhdGggZD0iTTkgMTJWOGgzbDIgNCIvPjwvc3ZnPg==" alt="" class="ui-ico ui-ico-moto" style="width:12px;height:12px;vertical-align:-2px;object-fit:contain;"/> `;
+  const _bEspPre = `<span class="badge espera" style="font-size:9px;padding:2px 6px"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZjBjMTRhIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiLz48cG9seWxpbmUgcG9pbnRzPSIxMiA2IDEyIDEyIDE2IDE0Ii8+PC9zdmc+" alt="" class="ui-ico ui-ico-wait" style="width:12px;height:12px;vertical-align:-2px;object-fit:contain;"/>`;
+  // Status único para todos os usuários: Espera (sem entregador) ou Em rota (com entregador). Finalizado mantém o badge do código.
+  const badgeEnt = isCodigo
+    ? (usuarioLogado?.isMaster && nomeRes ? `${_bEntPre}${nomeRes}</span>` : '')
+    : (nomeRes
+        ? `${_bEntPre}Em rota${usuarioLogado?.isMaster ? ' · '+nomeRes : ''}</span>`
+        : `${_bEspPre} Espera</span>`);
   const end = (p.cliente_endereco||'Sem endereço');
   const loja = p.loja||'';
   const loc = p.localizador||'';
@@ -13685,12 +13688,16 @@ function cardGrupoPedidos(item){
   const pendentes = membros.filter(p=>p.status!=='codigo_informado').length;
   const end = (membros[0] && membros[0].cliente_endereco) ? membros[0].cliente_endereco : 'Sem endereço';
   const nomeRes = membros[0] ? getNomeReserva(membros[0]) : '';
-  const badgeEnt = isMasterUser
-    ? (nomeRes ? `<span class="badge entregador" style="font-size:9px;padding:2px 6px"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNmFiN2ZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iNSIgY3k9IjE3IiByPSIyLjUiLz48Y2lyY2xlIGN4PSIxNyIgY3k9IjE3IiByPSIyLjUiLz48cGF0aCBkPSJNNSAxN2gzbDItNWg0bDMgNWgyIi8+PHBhdGggZD0iTTkgMTJWOGgzbDIgNCIvPjwvc3ZnPg==" alt="" class="ui-ico ui-ico-moto" style="width:12px;height:12px;vertical-align:-2px;object-fit:contain;"/> ${nomeRes}</span>` : `<span class="badge espera" style="font-size:9px;padding:2px 6px"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZjBjMTRhIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiLz48cG9seWxpbmUgcG9pbnRzPSIxMiA2IDEyIDEyIDE2IDE0Ii8+PC9zdmc+" alt="" class="ui-ico ui-ico-wait" style="width:12px;height:12px;vertical-align:-2px;object-fit:contain;"/> Espera</span>`)
-    : '';
+  const _bEntPre = `<span class="badge entregador" style="font-size:9px;padding:2px 6px"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNmFiN2ZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iNSIgY3k9IjE3IiByPSIyLjUiLz48Y2lyY2xlIGN4PSIxNyIgY3k9IjE3IiByPSIyLjUiLz48cGF0aCBkPSJNNSAxN2gzbDItNWg0bDMgNWgyIi8+PHBhdGggZD0iTTkgMTJWOGgzbDIgNCIvPjwvc3ZnPg==" alt="" class="ui-ico ui-ico-moto" style="width:12px;height:12px;vertical-align:-2px;object-fit:contain;"/> `;
+  const _bEspPre = `<span class="badge espera" style="font-size:9px;padding:2px 6px"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZjBjMTRhIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiLz48cG9seWxpbmUgcG9pbnRzPSIxMiA2IDEyIDEyIDE2IDE0Ii8+PC9zdmc+" alt="" class="ui-ico ui-ico-wait" style="width:12px;height:12px;vertical-align:-2px;object-fit:contain;"/>`;
+  const badgeEnt = todosConfirmados
+    ? (isMasterUser && nomeRes ? `${_bEntPre}${nomeRes}</span>` : '')
+    : (nomeRes
+        ? `${_bEntPre}Em rota${isMasterUser ? ' · '+nomeRes : ''}</span>`
+        : `${_bEspPre} Espera</span>`);
   const badgeStatus = todosConfirmados
     ? '<span class="badge codigo" style="font-size:9px;padding:2px 6px">✓ Concluído</span>'
-    : `<span class="badge pendente" style="font-size:9px;padding:2px 6px">${pendentes} a entregar</span>`;
+    : '';
   const endEsc = String(end).replace(/'/g,"\\'").replace(/"/g,'&quot;');
   const gidEsc = String(gid).replace(/'/g,"\\'");
 
