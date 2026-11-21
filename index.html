@@ -191,6 +191,10 @@ body.ifood-modal-open{
 .master-ent-header{display:flex;justify-content:space-between;align-items:center;margin:14px 12px 6px;padding:12px 14px;border-radius:12px;cursor:pointer;border:1px solid #2c3340;background:#161a22}
 .master-ent-header.espera{background:#1c1c12;border-color:#5a4a2a}
 .master-ent-header.com-pedidos{background:#1a1e2a;border-color:#2a3a5a}
+.btn-detalhes{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:999px;border:1px solid #2a4a6a;background:#101a2b;color:#6ab7ff;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;line-height:1;white-space:nowrap}
+.btn-detalhes:hover{background:#14233a;border-color:#3a6a9a}
+.btn-detalhes:active{transform:scale(.97)}
+.btn-detalhes i{width:1em;height:1em}
 .rota-frame{margin:0 0 12px;padding:10px;border-radius:14px;border:1px solid #2c3340}
 .rota-frame.espera{background:transparent;border-color:#2c3340}
 .rota-frame.rota{background:#1a1e2a;border-color:#2a3a5a}
@@ -1267,7 +1271,7 @@ body.mapa-aba-ativa #barraAgrupamento{
 <div class="hdr-left">
 <div class="hdr-logo-col">
 <div class="logo" aria-label="A Batataria"><div class="logo-marca logo-bat" role="img" aria-label="A Batataria"></div></div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap;line-height:1">VER 211126.123605</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap;line-height:1">VER 211126.123928</span>
 </div>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
@@ -4556,7 +4560,7 @@ function _htmlCardSemanaCusto(info, dados){
     }
     window._relDiaSemanas = window._relDiaSemanas || {};
     window._relDiaSemanas[seg] = { label, periodo, html: diaHtml };
-    relatorio += `<div style="${_box};display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:10px;color:#8b93a7;font-weight:800">DIA A DIA · TURNOS</span><button type="button" class="btn small" style="padding:6px 14px;font-size:12px;font-weight:800" onclick="abrirRelDiaADia('${seg}')">Detalhes</button></div>`;
+    relatorio += `<div style="${_box};display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:10px;color:#8b93a7;font-weight:800">DIA A DIA · TURNOS</span><button type="button" class="btn-detalhes" onclick="abrirRelDiaADia('${seg}')"><i class=uii-ssearch></i><span>Detalhes</span><i class=uii-sright-small></i></button></div>`;
   }
   relatorio += `</div>`;
 
