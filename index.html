@@ -191,6 +191,12 @@ body.ifood-modal-open{
 .master-ent-header{display:flex;justify-content:space-between;align-items:center;margin:14px 12px 6px;padding:12px 14px;border-radius:12px;cursor:pointer;border:1px solid #2c3340;background:#161a22}
 .master-ent-header.espera{background:#1c1c12;border-color:#5a4a2a}
 .master-ent-header.com-pedidos{background:#1a1e2a;border-color:#2a3a5a}
+.rota-frame{margin:0 0 12px;padding:10px;border-radius:14px;border:1px solid #2c3340}
+.rota-frame.espera{background:transparent;border-color:#2c3340}
+.rota-frame.rota{background:#1a1e2a;border-color:#2a3a5a}
+.rota-frame>.master-ent-header{margin:0 0 8px;padding:2px 4px;border:0;background:transparent}
+.rota-frame-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:0 0 8px;padding:2px 4px}
+.rota-frame>.master-rota-board,.rota-frame>.master-espera-grid{margin-left:0;margin-right:0}
 .master-ent-header .count{font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:3px 8px;border-radius:999px;color:#8b93a7}
 /* Master · Em rota: quadro por entregador + grade 3 (tamanho custo, sem sobrepor)
    Largura dinâmica: 1 = 100% | 2 = 50/50 lado a lado | 3+ = 2 por linha (quebra para baixo) */
@@ -1261,7 +1267,7 @@ body.mapa-aba-ativa #barraAgrupamento{
 <div class="hdr-left">
 <div class="hdr-logo-col">
 <div class="logo" aria-label="A Batataria"><div class="logo-marca logo-bat" role="img" aria-label="A Batataria"></div></div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap;line-height:1">VER 201126.224440</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap;line-height:1">VER 211126.122121</span>
 </div>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
@@ -11246,7 +11252,7 @@ function htmlMasterDentroDoTurno(pedidosDoTurno, prefixo){
   });
   const nomes = Object.keys(porEnt).sort((a,b)=> a.localeCompare(b,'pt-BR'));
   // Passa lista completa do turno para sugestões (espera + em rota no mesmo endereço)
-  let out = secaoMasterEntregador(prefixo+'_espera', 'EM ESPERA (sem entregador)', espera, 'espera', pedidosDoTurno);
+  let out = secaoMasterEntregador(prefixo+'_espera', 'EM ESPERA', espera, 'espera', pedidosDoTurno);
   nomes.forEach(n=>{
     const safe = n.replace(/[^a-zA-Z0-9_]/g,'_');
     out += secaoMasterEntregador(prefixo+'_ent_'+safe, n, porEnt[n], 'ent');
@@ -11319,9 +11325,9 @@ function _htmlMasterEmRotaColunasImpl(pedidosDoTurno){
   _refriEsperaLista = espera;
   const refriEsp = _refriResumoLista(espera);
   _refreshModalRefri();
-  let out = `<div class="master-ent-header espera" onclick="toggleMasterEnt('${keyEsp}')" style="margin-left:12px;margin-right:12px">
+  let out = `<div class="rota-frame espera"><div class="master-ent-header espera" onclick="toggleMasterEnt('${keyEsp}')">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <h2 style="margin:0;font-size:14px"><i class=uii-wait></i> EM ESPERA (sem entregador)</h2>
+      <h2 style="margin:0;font-size:14px"><i class=uii-wait></i> EM ESPERA</h2>
       <span class="count">${itensEsp.length} entrega(s) · ${espera.length} pedido(s)</span>
       ${pendEsp?`<span class="count" style="color:#f0c14a">${pendEsp} a entregar</span>`:''}
       ${refriEsp.total?_htmlBotaoRefri(refriEsp.total,'abrirModalRefriEspera()','Lista de refrigerantes dos pedidos em espera'):''}
@@ -11350,17 +11356,16 @@ function _htmlMasterEmRotaColunasImpl(pedidosDoTurno){
     const htmlCards = itensOrd.map((it,i)=> it.tipo==='grupo' ? cardGrupoPedidos(it) : cardPedido(it.pedido,i,espera)).join('');
     out += `<div class="master-espera-grid">${htmlCards}</div>`;
   }
-  out += `</div>`;
+  out += `</div></div>`;
 
-  // —— Separador visual entre ESPERA e EM ROTA ——
-  out += `<div style="margin:16px 12px 8px;padding:10px 14px;border-radius:12px;background:#1a1e2a;border:1px solid #2a3a5a;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-    <div style="font-size:13px;font-weight:900;color:#6ab7ff"><i class=uii-moto></i> EM ROTA (com entregador)</div>
-    <div style="font-size:10px;color:#8b93a7">Rotas concluídas somem automaticamente · ${nomes.length} entregador(es) ativo(s)</div>
+  // —— Quadro EM ROTA (azul): cabeçalho + colunas por entregador dentro do mesmo quadro ——
+  out += `<div class="rota-frame rota"><div class="rota-frame-head">
+    <div style="font-size:13px;font-weight:900;color:#6ab7ff"><i class=uii-moto></i> EM ROTA</div>
   </div>`;
 
   // —— BLOCO 2: COLUNAS POR ENTREGADOR (só rotas abertas) ——
   if(!nomes.length){
-    out += `<div style="text-align:center;color:#5a657a;font-size:12px;padding:16px 12px">Nenhuma rota em andamento neste turno</div>`;
+    out += `<div style="text-align:center;color:#5a657a;font-size:12px;padding:16px 12px">Nenhuma rota em andamento neste turno</div></div>`;
     return out;
   }
   const nEnt = nomes.length;
@@ -11369,7 +11374,7 @@ function _htmlMasterEmRotaColunasImpl(pedidosDoTurno){
   nomes.forEach(nome=>{
     out += _htmlMasterEntColuna(nome, porEnt[nome]);
   });
-  out += `</div>`;
+  out += `</div></div>`;
   return out;
 }
 
@@ -13486,9 +13491,8 @@ function render(){
      // Banner informativo (não é separação de listas)
      const banner = `<div class="card" style="margin:10px 12px 6px;padding:10px 12px;border-color:#2a3a5a;background:#1a1e2a">
        <div style="font-size:12px;font-weight:900;color:#6ab7ff"><i class=uii-moto></i> Em rota · ${rotuloTurno} · ${formatarDataBR(getHojeSP())}</div>
-       <div style="font-size:10px;color:#8b93a7;margin-top:4px">Em espera separado · em rota só com entregador · rota concluída some desta aba</div>
-     </div>`;
-     document.getElementById('listaJantarPendente').innerHTML = banner + htmlMasterEmRotaColunas(listaRota);
+       <div style="height:8px"></div>`;
+     document.getElementById('listaJantarPendente').innerHTML = banner + htmlMasterEmRotaColunas(listaRota) + `</div>`;
      document.getElementById('listaAlmocoPendente').innerHTML = '';
      if(headerJ) headerJ.style.display = 'none';
      if(headerA) headerA.style.display = 'none';
