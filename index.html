@@ -1267,7 +1267,7 @@ body.mapa-aba-ativa #barraAgrupamento{
 <div class="hdr-left">
 <div class="hdr-logo-col">
 <div class="logo" aria-label="A Batataria"><div class="logo-marca logo-bat" role="img" aria-label="A Batataria"></div></div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap;line-height:1">VER 211126.122121</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap;line-height:1">VER 211126.123605</span>
 </div>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
@@ -1334,6 +1334,19 @@ body.mapa-aba-ativa #barraAgrupamento{
 </div>
 <div id="trocarContaStatus" style="font-size:11px;color:#8b93a7;margin-bottom:8px;text-align:center"></div>
 <div id="trocarContaLista" style="display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow:auto"></div>
+</div>
+</div>
+
+<!-- MODAL DIA A DIA · TURNOS (relatório da semana) -->
+<div id="modalRelDia" class="overlay" style="display:none;z-index:240" onclick="if(event.target===this)fecharRelDiaADia()">
+<div class="card" style="width:100%;max-width:460px;max-height:88vh;overflow:auto">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px">
+<h3 style="margin:0;color:#6ab7ff;font-size:14px">DIA A DIA · TURNOS</h3>
+<button class="btn" onclick="fecharRelDiaADia()">✕</button>
+</div>
+<div id="relDiaSub" style="font-size:11px;color:#8b93a7;margin-bottom:8px"></div>
+<div id="relDiaCorpo"></div>
+<div style="margin-top:12px"><button class="btn" style="width:100%" onclick="fecharRelDiaADia()">Fechar</button></div>
 </div>
 </div>
 
@@ -4460,6 +4473,14 @@ setInterval(function(){
   }catch(e){}
 }, 150);
 
+function abrirRelDiaADia(seg){
+  const d = (window._relDiaSemanas||{})[seg]; if(!d) return;
+  const m = document.getElementById('modalRelDia'); if(!m) return;
+  document.getElementById('relDiaSub').textContent = (d.label||'') + (d.periodo ? ' · '+d.periodo : '');
+  document.getElementById('relDiaCorpo').innerHTML = d.html || '';
+  m.style.display = 'flex';
+}
+function fecharRelDiaADia(){ const m=document.getElementById('modalRelDia'); if(m) m.style.display='none'; }
 function _htmlCardSemanaCusto(info, dados){
   const { seg, dom, label, periodo, isAnterior } = info;
   const { rep, repErro, porValor, porDia, porDiaTurno, bruto, liquido, totalConsumo, totalReembolso, consumos, consErro } = dados;
@@ -4502,13 +4523,17 @@ function _htmlCardSemanaCusto(info, dados){
   if(!_totEnt){
     relatorio += `<div style="font-size:12px;color:#5a657a">Nenhuma entrega enviada nesta semana</div>`;
   } else {
-    relatorio += `<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #20262f"><span style="color:#8b93a7">Total de entregas</span><b style="color:#e6e8ef">${_totEnt}</b></div>`;
-    relatorio += `<div style="font-size:10px;color:#8b93a7;font-weight:800;margin:10px 0 4px">POR VALOR</div>`;
+    const _box = 'background:#0e1118;border:1px solid #2c3340;border-radius:10px;padding:10px;margin-top:8px';
+    /* Quadro 1 — Total de entregas */
+    relatorio += `<div style="${_box};display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:12px;color:#8b93a7;font-weight:800">Total de entregas</span><b style="font-size:18px;color:#e6e8ef">${_totEnt}</b></div>`;
+    /* Quadro 2 — Por valor (com o bruto) */
+    relatorio += `<div style="${_box}"><div style="font-size:10px;color:#8b93a7;font-weight:800;margin:0 0 4px">POR VALOR</div>`;
     ordenaChaves(porValor).filter(k=>porValor[k]>0).forEach(k=>{
       relatorio += `<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:3px 0;border-bottom:1px solid #20262f"><span style="color:#e6e8ef">${porValor[k]} × ${k==='?' ? '?' : _fmtMoedaBR(k)}</span><b style="color:#e6e8ef">${k==='?' ? '—' : _fmtMoedaBR(Number(k)*porValor[k])}</b></div>`;
     });
-    relatorio += `<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0 2px"><span style="color:#8b93a7;font-weight:800">Bruto</span><b style="color:#3dcc8a">${_fmtMoedaBR(_totRs)}</b></div>`;
-    relatorio += `<div style="font-size:10px;color:#8b93a7;font-weight:800;margin:12px 0 4px">DIA A DIA · TURNOS</div>`;
+    relatorio += `<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0 0"><span style="color:#8b93a7;font-weight:800">Bruto</span><b style="color:#3dcc8a">${_fmtMoedaBR(_totRs)}</b></div></div>`;
+    /* Quadro 3 — Dia a dia · turnos (abre no modal pelo botão Detalhes) */
+    let diaHtml = '';
     const NOMES_DIA_REL = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
     for(let i=0;i<7;i++){
       const d = new Date(Date.UTC(+seg.slice(0,4), +seg.slice(5,7)-1, +seg.slice(8,10)+i));
@@ -4517,18 +4542,21 @@ function _htmlCardSemanaCusto(info, dados){
       const oDia = porDia[iso] || {};
       const nDia = _somaQ(oDia);
       if(!nDia){
-        relatorio += `<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid #20262f"><span style="color:#5a657a">${rotulo}</span><span style="color:#5a657a">—</span></div>`;
+        diaHtml += `<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid #20262f"><span style="color:#5a657a">${rotulo}</span><span style="color:#5a657a">—</span></div>`;
         continue;
       }
-      relatorio += `<div style="padding:6px 0;border-bottom:1px solid #20262f">
+      diaHtml += `<div style="padding:6px 0;border-bottom:1px solid #20262f">
         <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px"><b style="color:#e6e8ef">${rotulo}</b><span style="color:#8b93a7">${nDia} ent. · <b style="color:#e6e8ef">${_fmtMoedaBR(_somaR(oDia))}</b></span></div>`;
       [['almoco','☀️ Almoço'],['jantar','🌙 Jantar']].forEach(([tk,tl])=>{
         const oT = ((porDiaTurno||{})[iso]||{})[tk];
         if(!oT || !_somaQ(oT)) return;
-        relatorio += `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;margin-top:3px;padding-left:8px"><span style="color:#8b93a7">${tl}: <b style="color:#e6e8ef">${_fmtQV(oT)}</b></span><span style="color:#8b93a7">${_somaQ(oT)} ent. · ${_fmtMoedaBR(_somaR(oT))}</span></div>`;
+        diaHtml += `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;margin-top:3px;padding-left:8px"><span style="color:#8b93a7">${tl}: <b style="color:#e6e8ef">${_fmtQV(oT)}</b></span><span style="color:#8b93a7">${_somaQ(oT)} ent. · ${_fmtMoedaBR(_somaR(oT))}</span></div>`;
       });
-      relatorio += `</div>`;
+      diaHtml += `</div>`;
     }
+    window._relDiaSemanas = window._relDiaSemanas || {};
+    window._relDiaSemanas[seg] = { label, periodo, html: diaHtml };
+    relatorio += `<div style="${_box};display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:10px;color:#8b93a7;font-weight:800">DIA A DIA · TURNOS</span><button type="button" class="btn small" style="padding:6px 14px;font-size:12px;font-weight:800" onclick="abrirRelDiaADia('${seg}')">Detalhes</button></div>`;
   }
   relatorio += `</div>`;
 
