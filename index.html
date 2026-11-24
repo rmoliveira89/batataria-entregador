@@ -1051,6 +1051,28 @@ body.mapa-aba-ativa #barraAgrupamento{
 
 
 </style>
+<style id="animIconesCss">
+/* Ícones animados: EM ESPERA (ampulheta girando devagar) e EM ROTA (scooter passando) */
+@keyframes iconeEsperaGira{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes iconeMotoPassaImg{
+  0%,32%{object-position:0 50%}
+  58%{object-position:18px 50%}
+  58.01%{object-position:-18px 50%}
+  84%,100%{object-position:0 50%}
+}
+@keyframes iconeMotoPassaBg{
+  0%,32%{background-position:center}
+  58%{background-position:1.7em center}
+  58.01%{background-position:-1.7em center}
+  84%,100%{background-position:center}
+}
+i.anim-espera, .badge.espera .ui-ico-wait{animation:iconeEsperaGira 7s linear infinite;transform-origin:50% 50%}
+i.anim-rota{animation:iconeMotoPassaBg 3.6s ease-in-out infinite}
+.badge.entregador .ui-ico-moto{animation:iconeMotoPassaImg 3.6s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){
+  i.anim-espera,.badge.espera .ui-ico-wait,i.anim-rota,.badge.entregador .ui-ico-moto{animation:none}
+}
+</style>
 </head>
 <body>
 
@@ -1271,7 +1293,7 @@ body.mapa-aba-ativa #barraAgrupamento{
 <div class="hdr-left">
 <div class="hdr-logo-col">
 <div class="logo" aria-label="A Batataria"><div class="logo-marca logo-bat" role="img" aria-label="A Batataria"></div></div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap;line-height:1">VER 231126.212717</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap;line-height:1">VER 231126.214309</span>
 </div>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
@@ -11389,7 +11411,7 @@ function _htmlMasterEmRotaColunasImpl(pedidosDoTurno){
   _refreshModalRefri();
   let out = `<div class="rota-frame espera"><div class="master-ent-header espera" onclick="toggleMasterEnt('${keyEsp}')">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <h2 style="margin:0;font-size:14px"><i class=uii-wait></i> EM ESPERA</h2>
+      <h2 style="margin:0;font-size:14px"><i class="uii-wait anim-espera"></i> EM ESPERA</h2>
       <span class="count">${itensEsp.length} entrega(s) · ${espera.length} pedido(s)</span>
       ${pendEsp?`<span class="count" style="color:#f0c14a">${pendEsp} a entregar</span>`:''}
       ${refriEsp.total?_htmlBotaoRefri(refriEsp.total,'abrirModalRefriEspera()','Lista de refrigerantes dos pedidos em espera'):''}
@@ -11422,7 +11444,7 @@ function _htmlMasterEmRotaColunasImpl(pedidosDoTurno){
 
   // —— Quadro EM ROTA (azul): cabeçalho + colunas por entregador dentro do mesmo quadro ——
   out += `<div class="rota-frame rota"><div class="rota-frame-head">
-    <div style="font-size:13px;font-weight:900;color:#6ab7ff"><i class=uii-moto></i> EM ROTA</div>
+    <div style="font-size:13px;font-weight:900;color:#6ab7ff"><i class="uii-moto anim-rota"></i> EM ROTA</div>
   </div>`;
 
   // —— BLOCO 2: COLUNAS POR ENTREGADOR (só rotas abertas) ——
@@ -11484,7 +11506,7 @@ function _htmlMasterEntColuna(nome, lista){
     const its = itensPendOrd.concat(itensFin.map(x=>x.it));
     let htmlCards = '';
     if(itensPendOrd.length){
-      if(itensFin.length) htmlCards += '<div class="master-rota-pend-label"><i class=uii-moto></i> EM ROTA</div>';
+      if(itensFin.length) htmlCards += '<div class="master-rota-pend-label"><i class="uii-moto anim-rota"></i> EM ROTA</div>';
       htmlCards += itensPendOrd.map((it,i)=> cardHtml(it, i, listaSegura)).join('');
     }
     if(itensFin.length){
@@ -13356,11 +13378,7 @@ function _renderModalRefri(){
     box.innerHTML = '<div style="text-align:center;color:#8b93a7;font-size:13px;padding:14px">Nenhum refrigerante pendente.</div>';
     return;
   }
-  const chaves = Object.keys(r.soma);
-  let h = '<div style="background:#2a1414;border:1px solid #ef4444;border-radius:12px;padding:10px 12px;margin-bottom:10px">'
-    + '<div style="font-size:10px;font-weight:900;letter-spacing:.08em;color:#ff8a8a;margin-bottom:4px">TOTAL: ' + r.total + ' · ' + r.pedidos.length + ' pedido(s)</div>'
-    + chaves.map(k => '<div style="font-size:14px;font-weight:900;color:#fff">' + r.soma[k] + 'x ' + _escAttrTxt(k) + '</div>').join('')
-    + '</div>';
+  let h = '';
   r.pedidos.forEach(x=>{
     const p = x.p;
     h += '<div style="border:1px solid #2c3340;background:#161a22;border-radius:12px;padding:8px 12px;margin-bottom:8px">'
@@ -13475,7 +13493,7 @@ function render(){
      const rotuloTurno = turnoAgora === 'almoco' ? '<i class=uii-sun></i> Almoço' : '<i class=uii-moon></i> Jantar';
      const lj = document.getElementById('listaJantarPendente');
      if(lj) lj.innerHTML = `<div class="card" style="margin:10px 12px;padding:10px 12px;border-color:#2a3a5a;background:#1a1e2a">
-       <div style="font-size:12px;font-weight:900;color:#6ab7ff"><i class=uii-moto></i> Em rota · ${rotuloTurno} · ${formatarDataBR(getHojeSP())}</div>
+       <div style="font-size:12px;font-weight:900;color:#6ab7ff"><i class="uii-moto anim-rota"></i> Em rota · ${rotuloTurno} · ${formatarDataBR(getHojeSP())}</div>
        <div style="font-size:10px;color:#8b93a7;margin-top:4px">Nenhum pedido neste turno agora</div>
      </div>`;
      const la = document.getElementById('listaAlmocoPendente'); if(la) la.innerHTML='';
@@ -13552,7 +13570,7 @@ function render(){
      const rotuloTurno = turnoAgora === 'almoco' ? '<i class=uii-sun></i> Almoço' : '<i class=uii-moon></i> Jantar';
      // Banner informativo (não é separação de listas)
      const banner = `<div class="card" style="margin:10px 12px 6px;padding:10px 12px;border-color:#2a3a5a;background:#1a1e2a">
-       <div style="font-size:12px;font-weight:900;color:#6ab7ff"><i class=uii-moto></i> Em rota · ${rotuloTurno} · ${formatarDataBR(getHojeSP())}</div>
+       <div style="font-size:12px;font-weight:900;color:#6ab7ff"><i class="uii-moto anim-rota"></i> Em rota · ${rotuloTurno} · ${formatarDataBR(getHojeSP())}</div>
        <div style="height:8px"></div>`;
      document.getElementById('listaJantarPendente').innerHTML = banner + htmlMasterEmRotaColunas(listaRota) + `</div>`;
      document.getElementById('listaAlmocoPendente').innerHTML = '';
@@ -13634,10 +13652,12 @@ const _ICO_COD_IFOOD_SVG = '<span class="cod-ifood-wrap">'+_ICO_COD_IFOOD_SVG_RA
   if(document.getElementById('codIfoodAnimCss')) return;
   const st = document.createElement('style'); st.id = 'codIfoodAnimCss';
   st.textContent =
-    '.cod-ifood-wrap{display:inline-flex;align-items:center;vertical-align:-2px;margin-left:5px;line-height:1}'+
-    '.cod-ifood-label{display:inline-block;overflow:hidden;white-space:nowrap;max-width:0;opacity:0;padding:0;margin-left:-7px;'+
+    '.cod-ifood-wrap{position:relative;display:inline-flex;align-items:center;vertical-align:-2px;margin-left:5px;line-height:1;flex:0 0 auto;white-space:nowrap}'+
+    '.pm-num,.pm-meta{white-space:nowrap}'+
+    '.pm-top>div:first-child{flex:0 0 auto;min-width:0}'+
+    '.cod-ifood-label{position:absolute;left:7px;top:50%;transform:translateY(-50%);pointer-events:none;display:inline-block;overflow:hidden;white-space:nowrap;max-width:0;opacity:0;padding:0;margin-left:0;'+
       'background:#2e7d32;color:#f2f2f2;font-size:9px;font-weight:800;letter-spacing:.4px;line-height:14px;height:14px;'+
-      'border-radius:0 8px 8px 0;position:relative;z-index:1}'+
+      'border-radius:0 8px 8px 0;z-index:1}'+
     '.cod-ifood-label.anim{animation:codIfoodSlide 3s ease-in-out 1 both}'+
     '@keyframes codIfoodSlide{'+
       '0%{max-width:0;opacity:0;padding:0}'+
