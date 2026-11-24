@@ -1293,7 +1293,7 @@ i.anim-rota{animation:iconeMotoPassaBg 3.6s ease-in-out infinite}
 <div class="hdr-left">
 <div class="hdr-logo-col">
 <div class="logo" aria-label="A Batataria"><div class="logo-marca logo-bat" role="img" aria-label="A Batataria"></div></div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap;line-height:1">VER 241126.103908</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap;line-height:1">VER 241126.191844</span>
 </div>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
@@ -9217,6 +9217,7 @@ async function carregar(){
  }
  pedidosCancelados=[]; try{ _cancSeparar(); }catch(e){} try{ _filtrarRetiradas(); }catch(e){}
  render();
+ try{ verificarSugestaoAgrupamento(); }catch(e){ console.warn('sugestao agrupamento', e); }
  try{ if(abaEntregadorAtual==='custo' && usuarioLogado && !usuarioLogado.isMaster) renderAbaCusto(); if(abaEntregadorAtual==='faturamento') renderQuadroFaturamentoSemana(); }catch(e){}
  try{ agendarAtualizacaoDinheiro(); }catch(e){}
  try{ agendarAtualizarMapaSeAberto({ delay: 500 }); }catch(e){}
@@ -12825,6 +12826,7 @@ async function executarAgrupamentoConfirmado(){
     const barra=document.getElementById('barraAgrupamento'); if(barra) barra.style.display='none';
     idsPendentesAgrupamento = [];
     render();
+    try{ verificarSugestaoAgrupamento(); }catch(e){}   // agrupou: a sugestão some na hora
     setTimeout(()=>{ fecharModalConfirmarAgrupamento(); }, 700);
   }catch(e){
     if(statusEl){ statusEl.textContent = '❌ Erro: '+(e.message||e); statusEl.style.color = '#ff6b6b'; }
@@ -19045,6 +19047,124 @@ function _onPedidoEntregaChange(payload){
     }
   }catch(e){}
   carregarDebounced();
+}
+
+/* ===== Sugestão de agrupamento: pedidos em ESPERA/ROTA com o MESMO ENDEREÇO =====
+ * Só para o Master (único que agrupa). A cada atualização da lista (inclusive ao abrir/recarregar a página),
+ * confere TODOS os pedidos ainda não finalizados (em espera + em rota) e sugere agrupar os que têm o mesmo
+ * endereço (rua + número). "Agora não" silencia aquele conjunto até recarregar a página. */
+const _agr = { sugestoes:[], ignorados:new Set(), avisados:new Set() };
+
+function _agrNormEnd(e){
+  let t = String(e||'').trim();
+  if(!t) return '';
+  t = t.split(/\s+-\s+|\s*\|\s*|;|\n/)[0];                 // só "rua, número" (antes do complemento)
+  t = t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\./g,' ');
+  let rua = '', num = '';
+  if(t.indexOf(',') >= 0){
+    const partes = t.split(',');
+    rua = partes[0];
+    const m = (partes.slice(1).join(' ')).match(/\d+/);
+    num = m ? m[0] : '';
+  } else {
+    const m = t.match(/^(.*?)\s+(\d{1,5})\s*$/);
+    if(m){ rua = m[1]; num = m[2]; }
+  }
+  rua = rua.replace(/\s+/g,' ').trim();
+  if(!rua || !num) return '';
+  num = String(parseInt(num,10));
+  if(!num || num === '0' || num === 'NaN') return '';       // sem número: não dá para afirmar que é o mesmo endereço
+  const ABREV = { r:'rua', av:'avenida', avenida:'avenida', tv:'travessa', travessa:'travessa', al:'alameda', alameda:'alameda',
+                  pc:'praca', pca:'praca', praca:'praca', rod:'rodovia', rodovia:'rodovia', est:'estrada', estrada:'estrada', via:'via' };
+  const toks = rua.split(' ');
+  if(ABREV[toks[0]]) toks[0] = ABREV[toks[0]];
+  return toks.join(' ') + '|' + num;
+}
+
+function verificarSugestaoAgrupamento(){
+  if(!usuarioLogado || !usuarioLogado.isMaster){ if(_agr.sugestoes.length){ _agr.sugestoes = []; _agrRender(); } return; }
+  const todos = Array.isArray(todosPedidos) ? todosPedidos : [];
+  const abertos = todos.filter(p=> p && p.id && !isPedidoFinalizado(p));
+  // agrupa por data + endereço normalizado
+  const porEnd = {};
+  abertos.forEach(p=>{
+    const k = _agrNormEnd(p.cliente_endereco);
+    if(!k) return;
+    const chave = String(p.data||'') + '#' + k;
+    (porEnd[chave] = porEnd[chave] || []).push(p);
+  });
+  const novas = [];
+  Object.keys(porEnd).forEach(chave=>{
+    const membros = porEnd[chave];
+    if(membros.length < 2) return;
+    // se algum já está num grupo, o grupo inteiro entra (para não "rachar" o grupo existente)
+    const ids = new Set(membros.map(p=>p.id));
+    membros.forEach(p=>{
+      if(p.grupo_entrega) abertos.forEach(q=>{ if(q.grupo_entrega === p.grupo_entrega) ids.add(q.id); });
+    });
+    // já está tudo no mesmo grupo? então não há o que sugerir
+    const gs = new Set(); let semGrupo = false;
+    ids.forEach(id=>{ const p = abertos.find(x=>x.id===id); if(p && p.grupo_entrega) gs.add(p.grupo_entrega); else semGrupo = true; });
+    if(!semGrupo && gs.size === 1) return;
+    const idsArr = [...ids].sort();
+    const sig = idsArr.join('|');
+    if(_agr.ignorados.has(sig)) return;
+    const pedidos = idsArr.map(id=>abertos.find(x=>x.id===id)).filter(Boolean);
+    novas.push({ sig, ids:idsArr, pedidos, endereco: (membros[0].cliente_endereco||'') });
+  });
+  // bipe só quando aparece uma sugestão que ainda não tinha avisado
+  const inedita = novas.some(s=> !_agr.avisados.has(s.sig));
+  novas.forEach(s=>_agr.avisados.add(s.sig));
+  _agr.sugestoes = novas;
+  if(inedita){ try{ if(typeof tocarSomFinalizacao === 'function') tocarSomFinalizacao(); }catch(e){} }
+  _agrRender();
+}
+
+function _agrEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function _agrRender(){
+  let box = document.getElementById('agrSugestoes');
+  if(!box){
+    const st = document.createElement('style');
+    st.textContent =
+      '#agrSugestoes{position:fixed;right:12px;bottom:12px;z-index:400;display:flex;flex-direction:column;gap:8px;max-width:360px;width:calc(100% - 24px);max-height:70vh;overflow:auto}'+
+      '.agr-card{background:#161c1a;border:1px solid #3dcc8a;border-left:4px solid #3dcc8a;border-radius:12px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.55)}'+
+      '.agr-t{font-size:12px;font-weight:800;color:#3dcc8a;margin-bottom:6px}'+
+      '.agr-l{font-size:12px;color:#e6e8ef;line-height:1.4}'+
+      '.agr-l b{color:#f0c14a}'+
+      '.agr-end{font-size:10px;color:#8b93a7;margin:4px 0 8px;word-break:break-word}'+
+      '.agr-b{display:flex;gap:6px}.agr-b .btn{flex:1;padding:8px 10px;font-size:11px}';
+    document.head.appendChild(st);
+    box = document.createElement('div'); box.id = 'agrSugestoes';
+    document.body.appendChild(box);
+  }
+  const itens = _agr.sugestoes;
+  box.style.display = itens.length ? 'flex' : 'none';
+  box.innerHTML = itens.map((s,i)=>{
+    const linhas = s.pedidos.map(p=>{
+      const ent = String((typeof getNomeReserva==='function' ? getNomeReserva(p) : null) || p.entregador_nome || '').trim();
+      const st = ent ? 'em rota · '+_agrEsc(ent) : 'em espera';
+      const g = p.grupo_entrega ? ' · agrupado' : '';
+      return '<div><b>#'+_agrEsc(p.numero_pedido||'—')+'</b> '+_agrEsc(p.cliente_nome||'')+' <span style="color:#8b93a7">('+st+g+')</span></div>';
+    }).join('');
+    return '<div class="agr-card">'+
+      '<div class="agr-t"><i class=uii-slink></i> Mesmo endereço — sugerir agrupamento ('+s.pedidos.length+' pedidos)</div>'+
+      '<div class="agr-l">'+linhas+'</div>'+
+      '<div class="agr-end">'+_agrEsc(s.endereco)+'</div>'+
+      '<div class="agr-b"><button type="button" class="btn primary" onclick="agrSugestaoAgrupar('+i+')"><i class=uii-check></i> Agrupar</button>'+
+      '<button type="button" class="btn" onclick="agrSugestaoIgnorar('+i+')">Agora não</button></div>'+
+    '</div>';
+  }).join('');
+}
+function agrSugestaoAgrupar(i){
+  const s = _agr.sugestoes[i]; if(!s) return;
+  abrirModalConfirmarAgrupamento(s.ids);
+}
+function agrSugestaoIgnorar(i){
+  const s = _agr.sugestoes[i]; if(!s) return;
+  _agr.ignorados.add(s.sig);
+  _agr.sugestoes.splice(i,1);
+  _agrRender();
+  try{ verificarSugestaoAgrupamento(); }catch(e){}
 }
 
 function ouvir(){
