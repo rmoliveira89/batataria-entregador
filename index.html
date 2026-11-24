@@ -1293,7 +1293,7 @@ i.anim-rota{animation:iconeMotoPassaBg 3.6s ease-in-out infinite}
 <div class="hdr-left">
 <div class="hdr-logo-col">
 <div class="logo" aria-label="A Batataria"><div class="logo-marca logo-bat" role="img" aria-label="A Batataria"></div></div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap;line-height:1">VER 231126.214309</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap;line-height:1">VER 231126.220131</span>
 </div>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
@@ -1412,7 +1412,7 @@ i.anim-rota{animation:iconeMotoPassaBg 3.6s ease-in-out infinite}
 <h3 id="tituloDinheiro" style="margin:0;color:#3dcc8a"><i class=uii-smoney></i> Controle de dinheiro</h3>
 <button class="btn" onclick="fecharModalDinheiro()"><i class=uii-sclose></i></button>
 </div>
-<p id="descDinheiro" style="font-size:11px;color:#8b93a7;margin:0 0 12px;line-height:1.4">
+<p id="descDinheiro" style="font-size:13px;font-weight:600;color:#e6e8ef;margin:0 0 12px;line-height:1.45;padding:8px 10px;background:#161c1a;border-left:3px solid #3dcc8a;border-radius:8px">
 Pedidos <b>finalizados</b> em <b style="color:#ff6b6b">DINHEIRO</b> que ainda não foram entregues a loja.
 </p>
 <div id="dinheiroStatus" style="font-size:11px;color:#8b93a7;margin-bottom:8px;text-align:center"></div>
@@ -15894,7 +15894,7 @@ async function carregarControleDinheiro(){
               </div>
               <div style="text-align:right">
                 <div style="font-weight:900;color:#ff6b6b;font-size:15px">${valor}</div>
-                <div style="font-size:10px;margin-top:4px;padding:3px 8px;border-radius:999px;background:#3a1a1a;border:1px solid #5a2a2a;color:#ff6b6b">recebido: ${rec}</div>
+                <div style="font-size:10px;margin-top:4px;padding:3px 8px;border-radius:999px;background:#3a1a1a;border:1px solid #5a2a2a;color:#ff6b6b">a entregar</div>
               </div>
             </div>
           </div>`;
@@ -15904,7 +15904,7 @@ async function carregarControleDinheiro(){
     if(statusEl){
       const agora = new Date().toLocaleTimeString('pt-BR', {timeZone:'America/Sao_Paulo', hour:'2-digit', minute:'2-digit', second:'2-digit'});
       statusEl.textContent = pendentes.length
-        ? (pendentes.length+' pendente(s) · fica até recebido=sim · '+agora)
+        ? (pendentes.length+' pendente(s) · '+agora)
         : ('Nada pendente · atualizado '+agora);
     }
   }catch(e){
@@ -16034,9 +16034,15 @@ function abrirModalHistRecebidos(){
   const m = document.getElementById('modalHistRecebidos'); if(!m) return;
   const master = !!usuarioLogado.isMaster;
   const desc = document.getElementById('histRecDesc');
-  if(desc) desc.innerHTML = master
-    ? 'Todos os pedidos finalizados em <b style="color:#ff6b6b">DINHEIRO</b> com recebimento confirmado, e os pedidos em <b style="color:#6ab7ff">CARTÃO</b> (listados junto, sem exigir confirmação).'
-    : 'Seus pedidos finalizados em <b style="color:#ff6b6b">DINHEIRO</b> com recebimento confirmado, e seus pedidos em <b style="color:#6ab7ff">CARTÃO</b> (listados junto, sem exigir confirmação).';
+  if(desc){
+    if(master){
+      desc.innerHTML = 'Todos os pedidos finalizados em <b style="color:#ff6b6b">DINHEIRO</b> com recebimento confirmado, e os pedidos em <b style="color:#6ab7ff">CARTÃO</b> (listados junto, sem exigir confirmação).';
+      desc.style.display = '';
+    } else {
+      desc.innerHTML = '';
+      desc.style.display = 'none';
+    }
+  }
   const sel = document.getElementById('histRecPeriodo'); if(sel) sel.value = String(_histRec.periodo);
   m.style.display = 'flex';
   carregarHistRecebidos(true);
