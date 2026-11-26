@@ -1073,6 +1073,11 @@ i.anim-rota{animation:iconeMotoPassaBg 3.6s ease-in-out infinite}
   i.anim-espera,.badge.espera .ui-ico-wait,i.anim-rota,.badge.entregador .ui-ico-moto{animation:none}
 }
 </style>
+<style id="qtdClienteCss">
+/* Admin: quantidade de pedidos do cliente "(X)" ao lado do nome no card */
+.qtd-cli{color:#f0c14a;font-weight:800;white-space:nowrap}
+.qtd-cli.nova{color:#3dcc8a}
+</style>
 </head>
 <body>
 
@@ -1293,7 +1298,7 @@ i.anim-rota{animation:iconeMotoPassaBg 3.6s ease-in-out infinite}
 <div class="hdr-left">
 <div class="hdr-logo-col">
 <div class="logo" aria-label="A Batataria"><div class="logo-marca logo-bat" role="img" aria-label="A Batataria"></div></div>
-<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap;line-height:1">VER 241126.191844</span>
+<span id="appVersao" title="Versão do arquivo (DDMMAA.HHMMSS)" style="font-size:10px;color:#5a657a;font-weight:700;letter-spacing:0.04em;white-space:nowrap;line-height:1">VER 251126.174420</span>
 </div>
 <span id="userBadge" style="font-size:11px;background:#0e1118;border:1px solid #2c3340;padding:4px 8px;border-radius:999px;color:#f0c14a"></span>
 <span id="modoBadge" style="font-size:11px;color:#5a657a;font-weight:800;letter-spacing:0.04em;margin-left:2px;padding:3px 8px;border-radius:999px;border:1px solid transparent"></span>
@@ -13286,6 +13291,15 @@ function _tagBebida(p){
   return pedidoTemBebida(p) ? '<span class="tag-bebida" title="Pedido com bebida">BEBIDA</span>' : '';
 }
 /** Nome do cliente; se o pedido tem bebida, coloca a tag pequena ao lado sem quebrar o layout do card. */
+/** Admin: quantidade de pedidos do cliente, "(X)" ao lado do nome. Vem da coluna qtd_pedidos_cliente (iFood = a da comanda; sem ela e Aiqfome/WhatsApp = contagem no Supabase). */
+function _qtdClienteHtml(p){
+  if(!usuarioLogado || !usuarioLogado.isMaster || !p) return '';
+  const n = parseInt(p.qtd_pedidos_cliente, 10);
+  if(!(n > 0)) return '';
+  const origem = p.qtd_pedidos_origem === 'comanda' ? ' — informado pela comanda do iFood' : (p.qtd_pedidos_origem === 'supabase' ? ' — contados no Supabase' : '');
+  const tit = (n === 1 ? '1º pedido do cliente' : n + ' pedidos do cliente') + origem;
+  return ' <span class="qtd-cli' + (n === 1 ? ' nova' : '') + '" title="' + tit + '">(' + n + ')</span>';
+}
 function _htmlNomeComBebida(cls, nome, p, styleExtra){
   const tag = _tagBebida(p);
   const st = styleExtra ? ` style="${styleExtra}"` : '';
@@ -13852,7 +13866,7 @@ function cardPedido(p, idx, lista){
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">${htmlLogoPlataforma(p)}${badgeEnt}${custoBloq?'<span class="badge" style="font-size:9px;padding:2px 6px;background:#2a2a1a;color:#f0c14a;border:1px solid #5a4a2a"><i class=uii-slock></i> Custo</span>':''}${badge}</div>
     </div>
-    ${_htmlNomeComBebida('pm-nome', p.cliente_nome||'—', p)}
+    ${_htmlNomeComBebida('pm-nome', (p.cliente_nome||'—') + _qtdClienteHtml(p), p)}
     <div class="pm-end" title="${end.replace(/"/g,'&quot;')}"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSI+CiAgICA8cGF0aCBkPSJNMzIgOCBDNDEuNCA4IDQ5IDE1LjYgNDkgMjUgQzQ5IDM3LjUgMzIgNTYgMzIgNTYgQzMyIDU2IDE1IDM3LjUgMTUgMjUgQzE1IDE1LjYgMjIuNiA4IDMyIDggWiIgc3Ryb2tlPSIjMkRENEJGIiBzdHJva2Utd2lkdGg9IjMiIGZpbGw9Im5vbmUiLz4KICAgIDxjaXJjbGUgY3g9IjMyIiBjeT0iMjUiIHI9IjYiIHN0cm9rZT0iIzJERDRCRiIgc3Ryb2tlLXdpZHRoPSIyLjUiIGZpbGw9Im5vbmUiLz4KICA8L3N2Zz4=" alt="" class="ui-ico ui-ico-pin" style="width:11px;height:11px;vertical-align:-2px;object-fit:contain;"/> ${end}</div>
     ${_htmlAlteradoEnd(p)}
     <div class="pm-loja" title="${(loja+' · '+loc).replace(/"/g,'&quot;')}"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSI+CiAgICA8cGF0aCBkPSJNMTIgMjggTDE2IDE2IEg0OCBMNTIgMjgiIHN0cm9rZT0iI0ZCOTIzQyIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIi8+CiAgICA8cGF0aCBkPSJNMTQgMjggVjUwIEg1MCBWMjgiIHN0cm9rZT0iI0ZCOTIzQyIgc3Ryb2tlLXdpZHRoPSIzIiBmaWxsPSJub25lIi8+CiAgICA8cGF0aCBkPSJNMjYgMzggSDM4IFY1MCBIMjYgWiIgc3Ryb2tlPSIjRkI5MjNDIiBzdHJva2Utd2lkdGg9IjIuNSIgZmlsbD0ibm9uZSIvPgogIDwvc3ZnPg==" alt="" class="ui-ico ui-ico-store" style="width:11px;height:11px;vertical-align:-2px;object-fit:contain;"/> ${loja||'—'} · <i class=uii-skey></i> ${loc||'—'}</div>
@@ -13905,6 +13919,7 @@ function cardGrupoPedidos(item){
       <div style="display:flex;align-items:baseline;gap:6px;font-size:11px;line-height:1.35">
         <span style="font-weight:800;color:#f0c14a;flex-shrink:0">#${num}${_iconeCodigoIfoodAdmin(p)}</span>
         <span style="color:#e6e8ef;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nome.replace(/</g,'')}</span>
+        <span style="flex-shrink:0;font-size:10px">${_qtdClienteHtml(p)}</span>
         <span style="flex-shrink:0;font-size:10px">${okP?'<i class=uii-check></i>':'<i class=uii-syellow-circle></i>'}</span>
       </div>
       ${tempoHtml}
